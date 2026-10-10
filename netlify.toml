@@ -8,3 +8,10 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Netlify's Next.js adapter turns the build into pages and functions Netlify can serve.
+# It is named explicitly because this project was linked before the app existed, so Netlify
+# did not add it automatically, and without it every page returns 404. Unpinned on purpose:
+# Netlify recommends taking the latest adapter on each build.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

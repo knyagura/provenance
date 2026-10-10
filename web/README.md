@@ -32,4 +32,6 @@ Netlify runs typecheck, unit tests and the build on every push, so a failing cha
 
 Only the Supabase **publishable** key is used here (`lib/config.ts`). Never add a secret or service-role key.
 
+`netlify.toml` (repo root) names Netlify's Next.js adapter (`@netlify/plugin-nextjs`). Without it Netlify publishes the raw build folder and every page returns 404.
+
 `.npmrc` sets `legacy-peer-deps` because npm 10 fails to resolve this dependency tree without it.
