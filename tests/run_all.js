@@ -10,7 +10,16 @@ for (const s of suites) {
   const r = spawnSync(process.execPath, [path.join(__dirname, s)], { encoding: 'utf8' });
   const ok = r.status === 0;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${s}`);
-  if (!ok) { failed.push(s); console.log((r.stdout + r.stderr).split('\n').slice(-25).join('\n')); }
+  if (!ok) {
+    failed.push(s);
+    const tail = (r.stdout + r.stderr).split('\n').filter((l) => l.trim()).slice(-40).join('\n');
+    console.log(tail);
+    // In GitHub Actions, surface the failure as an annotation so it's readable without opening raw logs.
+    if (process.env.GITHUB_ACTIONS) {
+      const esc = (x) => x.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+      console.log(`::error title=${s} failed::${esc(tail.slice(-3500))}`);
+    }
+  }
 }
 console.log(failed.length ? `\n${failed.length} suite(s) failed: ${failed.join(', ')}` : `\nAll ${suites.length} suites passed.`);
 process.exit(failed.length ? 1 : 0);

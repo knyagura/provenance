@@ -222,6 +222,8 @@ async function* states(page) {
       viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
       permissions: ['camera'], colorScheme: theme,
     });
+    // Keep the audit deterministic: never talk to the live Supabase project (its contents change).
+    await ctx.route(/supabase\.co/, (route) => route.abort());
     const page = await ctx.newPage();
     page.on('pageerror', e => pageErrors.add(e.message));
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load' });
