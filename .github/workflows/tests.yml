@@ -29,6 +29,33 @@ jobs:
           path: tests/layout-shots/
           retention-days: 14
 
+  # The new Next.js site in web/. Netlify builds and hosts it; this job runs the full checks,
+  # including the real-browser layout check that Netlify's build does not run.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run tokens
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:e2e
+      - name: Upload new-site screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-screenshots
+          path: web/test-results/
+          retention-days: 14
+
   # Publishes app/ to GitHub Pages — only from main, and only if every test passed.
   deploy:
     needs: test

@@ -1,0 +1,10 @@
+# Netlify builds only the new Next.js app in web/. The old single-file app stays on GitHub Pages
+# until the switch-over (build order step 7).
+[build]
+  base = "web"
+  # Unit tests and type checks run before every build, so a failing change never goes live.
+  command = "npm run tokens && npm run typecheck && npm test && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
