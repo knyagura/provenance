@@ -143,7 +143,11 @@ async function* states(page) {
   const ev = (js) => page.evaluate(js);
   const settle = (ms = 250) => page.waitForTimeout(ms);
 
-  for (const s of ['feed', 'protection', 'disputes']) { await go(s); await settle(); yield s; }
+  for (const s of ['feed', 'protection', 'disputes', 'account', 'inbox']) { await go(s); await settle(); yield s; }
+  if (await ev(`typeof setAuthMode==='function'`)) {
+    for (const m of ['signup', 'magic']) { await ev(`setAuthMode('${m}')`); await settle(); yield `account:${m}`; }
+    await ev(`setAuthMode('signin')`);
+  }
 
   // each demo item: detail, checkout, payment
   const items = await ev(`Object.keys(ITEMS).filter(k=>ITEMS[k].published!==false)`);

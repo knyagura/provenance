@@ -92,7 +92,9 @@ This is the primary justification for the backend migration starting now — mov
 
 ---
 
-## 6. Backend migration (in progress — this is the current/next work)
+## 6. Backend migration
+
+> **Update 2026-10-10:** first pass built. Real sign-up/sign-in (password, sign-up, magic link), listings and orders persisted with cross-device sync, an Inbox listing your orders, and per-role custody legs on live orders. Migration `002_listing_status_and_integrity.sql` adds server-side order integrity (no buying unpublished, sold or own listings; price taken from the listing; double-buy prevented; immutable order terms; no self-granted KYC). Verified against real Postgres with the schema's RLS (`tests/sql_rls_check.mjs`) and a two-browser journey (`tests/two_user_journey.mjs`). Setup steps: `backend/README.md`. The app file is now `app/index.html` (was `provenance-prototype.html`).
 
 **Decision made with the user (2026-10-10):** move from the client-only prototype toward a real app, starting with the most foundational piece. Three decisions were made explicitly:
 1. **Backend/database: Supabase** (hosted Postgres + built-in auth + generous free tier) — chosen over Firebase (less natural fit for this app's relational data — orders, multi-leg custody chains) and over a fully custom Node server (more control, but more infrastructure to stand up and maintain before anything ships).
