@@ -4,6 +4,7 @@ Newest first. Each entry says what changed for people using the site, and which 
 
 | Date | Change | Documents updated |
 |---|---|---|
+| 2026-10-11 | Listed every configurable setting, including data retention rules with legal minimums and legal hold | Plan (Data model tab: Configurable settings) |
 | 2026-10-11 | Data model designed: records, access by persona, data by journey, custody evidence storage, retention, and migration from today's tables | Plan (new Data model tab) |
 | 2026-10-11 | Fixed the new site showing "Page not found" on Netlify: the Next.js adapter is now named in `netlify.toml` | [web/README.md](../web/README.md) |
 | 2026-10-10 | Build step 1: new Next.js site in `web/` with the design system's colours, fonts and components, a style guide page, unit and browser tests, and Netlify hosting | Plan (build order), Design system (focus-ring note), [web/README.md](../web/README.md) |
