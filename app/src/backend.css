@@ -1,7 +1,7 @@
 /* Backend-layer UI: sign-in, live-data strips, orders inbox. Uses the existing design tokens. */
 .live-strip{font-family:var(--font-sans); font-size:13px; color:var(--ink-soft); background:var(--paper-light); border:1px solid var(--line); border-left:3px solid var(--verified); padding:10px 12px; margin-bottom:16px; line-height:1.45;}
 .live-strip a{color:var(--seal); font-weight:600; text-decoration:underline; text-underline-offset:2px;}
-.live-tag{display:inline-block; font-family:var(--font-sans); font-size:10.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:#fff; background:var(--verified); padding:2px 6px; vertical-align:1px;}
+.live-tag{display:inline-block; font-family:var(--font-sans); font-size:10.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--on-accent); background:var(--verified); padding:2px 6px; vertical-align:1px;}
 .live-tag--card{position:absolute; top:8px; left:8px; z-index:2;}
 .auth-form{display:flex; flex-direction:column;}
 .auth-label{font-family:var(--font-sans); font-size:13px; font-weight:600; color:var(--ink); margin:10px 0 6px;}
@@ -22,7 +22,7 @@
 .order-row-role{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
 .order-row-status{font-size:13px; color:var(--ink-soft);}
 .order-row-side{display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:14px; font-weight:600; flex-shrink:0;}
-.order-row-turn{font-size:11px; font-weight:600; color:#fff; background:var(--seal); padding:2px 7px;}
+.order-row-turn{font-size:11px; font-weight:600; color:var(--on-accent); background:var(--seal); padding:2px 7px;}
 .order-row-muted{font-size:12px; font-weight:400; color:var(--muted);}
 /* Bigger tap targets for the camera screens' text links (flagged by the real-browser audit). */
 .cam-cancel-link{min-height:44px; padding-top:12px; padding-bottom:12px;}

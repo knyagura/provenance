@@ -196,7 +196,7 @@ function mapListing(r, profile){
   const tier = TIERS.includes(r.tier) ? r.tier : 'enhanced';
   const photos = Array.isArray(r.photos) ? r.photos : [];
   const photo = photos.map(safePhoto).find(Boolean) || null;
-  const swatch = photos.map(safeColour).find(Boolean) || '#D6CDB8';
+  const swatch = photos.map(safeColour).find(Boolean) || '#E6DACB';
   const seller = mine ? MY_SELLER_ID : (profile ? sellerKey(profile) : 'unknown');
   if(!mine && !SELLERS[seller]) mapSeller(profile || {id:r.seller_id, username:'unknown'});
   const status = ['active','reserved','sold'].includes(r.status) ? r.status : 'active';
@@ -307,7 +307,7 @@ createDraftListing = function(){
     const stored = [];
     for(const p of photos) stored.push(isRealPhoto(p) ? await downscalePhoto(p, 900, 0.72) : p);
     const real = stored.filter(p=>safePhoto(p));
-    if(real.length){ it.photo = real[0]; it.photoCredit = 'Photo: seller'; it.swatch = '#D6CDB8'; }
+    if(real.length){ it.photo = real[0]; it.photoCredit = 'Photo: seller'; it.swatch = '#E6DACB'; }
     const {error} = await PV.client.from('listings').insert({
       id: uuid, seller_id: myUid(), title: fields.title, description: fields.description || null,
       price_pence: Math.round(it.price*100), category: fields.category, condition_label: it.conditionLabel,
