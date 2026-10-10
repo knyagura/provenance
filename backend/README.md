@@ -6,9 +6,12 @@ Project: `https://tkjmnivvcrcqkqjywafb.supabase.co`
 
 ## One-time setup
 
-1. **Run the SQL, in order** (Supabase → SQL Editor → New query → paste → Run):
+1. **Run the SQL, in order** (Supabase → SQL Editor → New query → paste → Run). ✅ *Applied to the project on 2026-10-10 via the Supabase connector, as migrations `001_accounts_listings_orders`, `002_listing_status_and_integrity` and `003_advisor_fixes`. Supabase's security advisor reports no issues.*
    1. `supabase_schema.sql` — profiles, listings, orders and their access rules.
    2. `002_listing_status_and_integrity.sql` — listing status and extras, server-side order checks, live updates. Safe to re-run.
+   3. `003_advisor_fixes.sql` — fixes from Supabase's security and performance advisors. Safe to re-run.
+
+   The files contain no `DROP` statements (`create or replace trigger` is used instead), so they can be applied through the Supabase connector without a destructive-change confirmation.
 2. **Auth → URL Configuration**:
    - **Site URL:** the GitHub Pages address, e.g. `https://<github-username>.github.io/provenance/`.
    - **Redirect URLs:** add the same address. Also add `http://localhost:8765/**` if you test locally.

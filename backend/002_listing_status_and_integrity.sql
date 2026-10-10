@@ -57,6 +57,8 @@ begin
 end;
 $$;
 
+alter function public.touch_updated_at() set search_path = public;
+
 -- ------------------------------------------------------------
 -- 3. Users can't self-grant KYC / Pro
 -- ------------------------------------------------------------
@@ -77,8 +79,7 @@ begin
 end;
 $$;
 
-drop trigger if exists profiles_protect_flags on public.profiles;
-create trigger profiles_protect_flags
+create or replace trigger profiles_protect_flags
   before update on public.profiles
   for each row execute procedure public.protect_profile_flags();
 
@@ -118,8 +119,7 @@ begin
 end;
 $$;
 
-drop trigger if exists orders_validate_insert on public.orders;
-create trigger orders_validate_insert
+create or replace trigger orders_validate_insert
   before insert on public.orders
   for each row execute procedure public.validate_new_order();
 
@@ -146,8 +146,7 @@ begin
 end;
 $$;
 
-drop trigger if exists orders_protect_fields on public.orders;
-create trigger orders_protect_fields
+create or replace trigger orders_protect_fields
   before update on public.orders
   for each row execute procedure public.protect_order_fields();
 

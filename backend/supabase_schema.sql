@@ -37,8 +37,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
+create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
@@ -126,12 +125,10 @@ begin
 end;
 $$ language plpgsql;
 
-drop trigger if exists listings_touch_updated_at on public.listings;
-create trigger listings_touch_updated_at
+create or replace trigger listings_touch_updated_at
   before update on public.listings
   for each row execute procedure public.touch_updated_at();
 
-drop trigger if exists orders_touch_updated_at on public.orders;
-create trigger orders_touch_updated_at
+create or replace trigger orders_touch_updated_at
   before update on public.orders
   for each row execute procedure public.touch_updated_at();

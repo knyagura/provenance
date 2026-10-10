@@ -29,6 +29,7 @@ export async function freshDb() {
   await db.exec(SUPABASE_STUBS);
   await db.exec(read('supabase_schema.sql'));
   await db.exec(read('002_listing_status_and_integrity.sql'));
+  await db.exec(read('003_advisor_fixes.sql'));
   return db;
 }
 
@@ -52,7 +53,8 @@ if (isMain) {
   const db = await freshDb();
   // Re-running the migration must be harmless.
   await db.exec(read('002_listing_status_and_integrity.sql'));
-  ok(true, 'schema + migration 002 apply cleanly, and 002 re-runs idempotently');
+  await db.exec(read('003_advisor_fixes.sql'));
+  ok(true, 'schema + migrations 002/003 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
