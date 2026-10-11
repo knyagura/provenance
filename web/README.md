@@ -56,3 +56,9 @@ Only the Supabase **publishable** key is used here (`lib/config.ts`). Never add 
 ## Passkeys
 
 Passkeys use Supabase Auth's built-in WebAuthn support. They only work once switched on in Supabase (Authentication → Passkeys) with the relying party set to the site's domain; see [ADR 0004](../docs/adr/0004-passkeys.md). The browser test uses Chrome's virtual authenticator on `localhost`, because passkeys refuse IP addresses such as 127.0.0.1.
+
+## Fees and payments
+
+- `lib/domain/fees.ts` is the fee engine the screens use. The database's `compute_fees()` (migration 008) decides real orders. Both must match the agreed baskets in `backend/fixtures/fee_baskets.json`; unit and database tests check this.
+- Checkout calls `start_checkout()` (prices the order on the server, holds the item), then the `checkout` Edge Function for Stripe's payment form. Stripe confirms through the `stripe-webhook` Edge Function. Both functions are in `../supabase/functions/`; their logic is in `_shared/payments.ts` and unit-tested here.
+- In example mode there is no Stripe: a "Pay (test)" button stands in. See [ADR 0005](../docs/adr/0005-payments.md) for the Stripe settings.
