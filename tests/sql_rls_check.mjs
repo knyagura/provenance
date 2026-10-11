@@ -22,6 +22,16 @@ export const SUPABASE_STUBS = `
   $$;
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
+  create schema if not exists storage;
+  create table if not exists storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+  create table if not exists storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets(id), name text, owner uuid);
+  create or replace function storage.foldername(name text) returns text[] language sql immutable as $$
+    select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+  $$;
+  alter table storage.objects enable row level security;
+  grant usage on schema storage to anon, authenticated;
+  grant select, insert, update, delete on storage.objects to authenticated;
+  grant execute on function storage.foldername(text) to anon, authenticated;
 `;
 
 export async function freshDb() {
@@ -30,6 +40,8 @@ export async function freshDb() {
   await db.exec(read('supabase_schema.sql'));
   await db.exec(read('002_listing_status_and_integrity.sql'));
   await db.exec(read('003_advisor_fixes.sql'));
+  await db.exec(read('004_browsing_and_api.sql'));
+  await db.exec(read('005_listing_media_storage.sql'));
   return db;
 }
 
@@ -54,7 +66,9 @@ if (isMain) {
   // Re-running the migration must be harmless.
   await db.exec(read('002_listing_status_and_integrity.sql'));
   await db.exec(read('003_advisor_fixes.sql'));
-  ok(true, 'schema + migrations 002/003 apply cleanly, and re-run idempotently');
+  await db.exec(read('004_browsing_and_api.sql'));
+  await db.exec(read('005_listing_media_storage.sql'));
+  ok(true, 'schema + migrations 002-005 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -109,6 +123,46 @@ if (isMain) {
   ok((await db.query('select status from public.orders where id=$1', [O.id])).rows[0].status === 'handover', 'unrelated user cannot change the order');
 
   await rejects(as(db, SELLER, 'delete from public.listings where id = $1', [L.id]), 'a sold listing with an order cannot be deleted', /foreign key/);
+
+
+  // --- 004: categories and search ---
+  ok((await as(db, null, 'select slug from public.categories')).rows.length >= 9, 'categories are readable by signed-out visitors');
+  await rejects(as(db, SELLER, `insert into public.categories (slug, name) values ('x', 'X')`), 'customers cannot add categories');
+  const L2 = (await as(db, SELLER, `insert into public.listings (seller_id, title, brand, description, price_pence, published, size_label, colour, category) values ($1, 'Beaufort wax jacket', 'Barbour', 'Re-waxed in March', 12000, true, 'M', 'Olive', 'men') returning id`, [SELLER])).rows[0];
+  const hit = await as(db, null, `select id from public.listings where search @@ to_tsquery('simple', 'barbour & jacket:*')`);
+  ok(hit.rows.some(r => r.id === L2.id), 'full-text search finds a listing by brand and title prefix');
+  await rejects(as(db, SELLER, `update public.listings set item_id = 'nope' where id = $1`, [L2.id]), 'Item ID must look like IT-2026-00001', /item_id_format/);
+
+  // --- 004: listing media ---
+  const Ldraft = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence) values ($1, 'Draft lamp', 1500) returning id`, [SELLER])).rows[0];
+  await as(db, SELLER, `insert into public.listing_media (listing_id, seller_id, path, shot) values ($1, $2, $3, 'front'), ($4, $2, $5, 'front')`, [L2.id, SELLER, `${SELLER}/${L2.id}/1.jpg`, Ldraft.id, `${SELLER}/${Ldraft.id}/1.jpg`]);
+  ok((await as(db, null, 'select listing_id from public.listing_media')).rows.length === 1, 'visitors see media of published listings only, not drafts');
+  await rejects(as(db, OTHER, `insert into public.listing_media (listing_id, seller_id, path) values ($1, $2, 'x.jpg')`, [L2.id, OTHER]), "cannot add photos to someone else's listing");
+  await as(db, OTHER, `delete from public.listing_media where listing_id = $1`, [L2.id]);
+  ok((await db.query('select count(*)::int as n from public.listing_media where listing_id = $1', [L2.id])).rows[0].n === 1, "cannot delete someone else's photos");
+
+  // --- 005: storage folders ---
+  await as(db, SELLER, `insert into storage.objects (bucket_id, name) values ('listing-media', $1)`, [`${SELLER}/${L2.id}/2.jpg`]);
+  ok((await db.query(`select count(*)::int as n from storage.objects`)).rows[0].n === 1, 'seller can upload into their own folder');
+  await rejects(as(db, OTHER, `insert into storage.objects (bucket_id, name) values ('listing-media', $1)`, [`${SELLER}/${L2.id}/evil.jpg`]), "cannot upload into another seller's folder");
+
+  // --- 004: API keys ---
+  const { createHash } = await import('node:crypto');
+  const secret = 'pv_live_AbCd1234_' + 'x'.repeat(40);
+  const hash = createHash('sha256').update(secret).digest('hex');
+  await as(db, SELLER, `insert into public.api_keys (owner_id, name, prefix, key_hash, scopes) values ($1, 'Shop sync', 'pv_live_AbCd1234', $2, '{listings:read}')`, [SELLER, hash]);
+  await rejects(as(db, SELLER, `insert into public.api_keys (owner_id, name, prefix, key_hash) values ($1, 'x', 'pv_live_ZzZz9999', $2)`, [OTHER, hash]), 'cannot create a key for someone else');
+  await rejects(as(db, SELLER, `insert into public.api_keys (owner_id, name, prefix, key_hash, scopes) values ($1, 'x', 'pv_live_YyYy8888', $2, '{admin}')`, [SELLER, hash]), 'unknown scopes are refused', /check/);
+  await rejects(as(db, SELLER, 'select key_hash from public.api_keys'), 'owners cannot read a key hash back', /permission denied/);
+  ok((await as(db, SELLER, 'select name from public.api_keys')).rows.length === 1, 'owner sees their key');
+  ok((await as(db, OTHER, 'select name from public.api_keys')).rows.length === 0, "other users cannot see someone's keys");
+  const a1 = (await as(db, null, 'select * from public.api_authenticate($1, $2)', ['pv_live_AbCd1234', hash])).rows;
+  const a2 = (await as(db, null, 'select * from public.api_authenticate($1, $2)', ['pv_live_AbCd1234', hash])).rows;
+  ok(a1.length === 1 && a1[0].owner_id === SELLER && a1[0].calls === 1 && a2[0].calls === 2, 'a valid key authenticates and calls are counted per minute');
+  ok((await as(db, null, 'select * from public.api_authenticate($1, $2)', ['pv_live_AbCd1234', '0'.repeat(64)])).rows.length === 0, 'a wrong secret authenticates nothing');
+  await rejects(as(db, null, 'select * from public.api_usage'), 'usage counts are not readable through the API', /permission denied/);
+  await as(db, SELLER, `update public.api_keys set revoked_at = now() where prefix = 'pv_live_AbCd1234'`);
+  ok((await as(db, null, 'select * from public.api_authenticate($1, $2)', ['pv_live_AbCd1234', hash])).rows.length === 0, 'a revoked key stops working at once');
 
   console.log(failures ? `\n${failures} CHECK(S) FAILED` : '\nALL DATABASE / RLS CHECKS PASSED');
   process.exit(failures ? 1 : 0);
