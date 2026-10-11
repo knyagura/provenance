@@ -4,6 +4,7 @@ Newest first. Each entry says what changed for people using the site, and which 
 
 | Date | Change | Documents updated |
 |---|---|---|
+| 2026-10-11 | Premium set to free (£0) for now; price stays a setting; fee-free orders and boost credit start at 0 until modelled | Plan (Account plans), Backlog (B56) |
 | 2026-10-11 | API-first decided; 22 APIs and partner services added (B56–B77), each mapped to where it shows on our site; architecture now has one API layer | Plan (APIs section, architecture, build order), Backlog, Data model, [ADR 0002](adr/0002-api-first.md) |
 | 2026-10-11 | Plans settled as Standard (free) and Premium (paid, the only plan with seller APIs, broader than Vinted Pro's); replaces the Premium+ proposal | Plan (Account plans), Data model (API keys and webhooks) |
 | 2026-10-11 | Proposed Standard, Premium and Premium+ account plans, with business seller status kept separate and free | Plan (Account plans; Data model: plans and subscriptions, settings) |
