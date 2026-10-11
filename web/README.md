@@ -30,7 +30,10 @@ Netlify runs typecheck, unit tests and the build on every push, so a failing cha
 | `lib/domain/` | Domain modules. `catalogue.ts` is the only code that reads listings and categories; pages call it on the server and the API wraps it. `query.ts` validates search parameters for both. |
 | `lib/api/` | API v1 plumbing: keys (`keys.ts`), authentication and rate limits (`auth.ts`), problem+json responses (`http.ts`), field names (`serialize.ts`) and the OpenAPI description (`openapi.ts`). |
 | `app/api/v1/` | API v1 routes: `/listings`, `/listings/{id}`, `/categories`, `/openapi.json`. Every call needs a key. |
-| `app/` | Pages: home, `/search`, `/item/[id]` (with a link-preview image), `/developers`, `/styleguide`. |
+| `lib/domain/evidence.ts` | What each category must photograph before a listing can go live. The database holds the same lists (migration 006) and has the final say; a unit test fails if the two drift apart. |
+| `lib/selling/` | Signing in and selling. `supabaseBackend.ts` uses the member's own session, so Row Level Security applies; `exampleBackend.ts` is a pretend account in the browser tab for tests. |
+| `lib/media.ts` | Prepares photos in the browser: at most 2000 px, re-saved as JPEG (which drops location data), with a SHA-256 fingerprint. Videos up to 30 seconds and 50 MB. |
+| `app/` | Pages: home, `/search`, `/item/[id]` (with a link-preview image), `/sell`, `/sell/[id]` (the draft editor), `/signin`, `/profile`, `/developers`, `/styleguide`. |
 
 ## Example catalogue
 
