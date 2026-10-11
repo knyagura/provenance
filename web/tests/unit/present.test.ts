@@ -20,3 +20,14 @@ describe('presenting listings', () => {
     expect(resultsHeading(undefined, undefined)).toBe('Everything for sale');
   });
 });
+
+import { countText } from '@/lib/domain/present';
+describe('result counts', () => {
+  it('reads naturally', () => {
+    expect(countText(0, 0, false)).toBe('No items found');
+    expect(countText(0, 1, false)).toBe('1 item');
+    expect(countText(0, 7, false)).toBe('7 items');
+    expect(countText(0, 24, true)).toBe('Showing 1–24');
+    expect(countText(24, 5, false)).toBe('Showing 25–29');
+  });
+});

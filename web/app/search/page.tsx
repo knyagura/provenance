@@ -5,7 +5,7 @@ import { ExamplesNote } from '@/components/browse/ExamplesNote';
 import { ListingGrid } from '@/components/browse/ListingGrid';
 import { CatalogueUnavailable, siteCatalogue } from '@/lib/domain/catalogue';
 import { fallbackCategories } from '@/lib/domain/examples';
-import { categoryName, resultsHeading } from '@/lib/domain/present';
+import { categoryName, countText, resultsHeading } from '@/lib/domain/present';
 import { parseSiteQuery, type Params } from '@/lib/domain/query';
 import { CONDITIONS, type Listing, type ListingQuery, type Page } from '@/lib/domain/types';
 
@@ -66,7 +66,7 @@ export default async function SearchPage({ searchParams }: Props) {
           <h1>{heading}</h1>
           {result ? (
             <p className="pv-note" role="status">
-              {result.items.length === 0 ? 'No items found' : `${query.offset + 1}–${query.offset + result.items.length}${result.nextCursor ? ' shown' : ''}`}
+              {countText(query.offset, result.items.length, Boolean(result.nextCursor))}
             </p>
           ) : null}
         </div>

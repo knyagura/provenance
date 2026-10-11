@@ -47,3 +47,10 @@ export function resultsHeading(q: string | undefined, category: string | undefin
   if (q) return `Results for “${q}”`;
   return category ?? 'Everything for sale';
 }
+
+/** "12 items", or "Showing 25–48" when there are more pages. */
+export function countText(offset: number, shown: number, more: boolean): string {
+  if (shown === 0) return 'No items found';
+  if (offset === 0 && !more) return shown === 1 ? '1 item' : `${shown} items`;
+  return `Showing ${offset + 1}–${offset + shown}`;
+}
