@@ -126,6 +126,7 @@ export function openApi(siteUrl: string) {
             currency: { type: 'string', const: 'GBP' },
             tier: { type: 'string', enum: ['enhanced', 'verified', 'luxury', 'ultraLuxury'] },
             status: { type: 'string', enum: ['active', 'reserved', 'sold'] },
+            revision: { type: 'integer', description: 'Goes up each time the seller publishes a change.' },
             media: { type: 'array', items: { type: 'object', properties: { url: { type: 'string', format: 'uri' }, kind: { type: 'string', enum: ['photo', 'video'] }, shot: { type: ['string', 'null'] } } } },
             seller: { type: 'object', properties: { username: { type: 'string' }, verified: { type: 'boolean' }, business: { type: 'boolean' }, away: { type: 'boolean', description: 'On holiday: buying is paused.' } } },
             created_at: { type: 'string', format: 'date-time' },

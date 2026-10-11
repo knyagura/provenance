@@ -1,4 +1,5 @@
 import type { FeeBreakdown } from '@/lib/domain/fees';
+import type { ListingVersion } from '@/lib/domain/versions';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -28,6 +29,10 @@ export interface Draft {
   parcelSize: 'small' | 'medium' | 'large' | null;
   declined: string[];
   published: boolean;
+  /** 0 until first published; each published change makes the next revision. */
+  revision: number;
+  /** reserved while someone pays; sold once paid. Both lock the listing. */
+  status: 'active' | 'reserved' | 'sold';
   media: DraftMedia[];
   /** The full serial, readable only by the seller. */
   serial: string;
@@ -78,6 +83,8 @@ export interface OrderSummary {
   /** Custody progress: purchased, handover, hub, unboxing, confirmed, disputed. */
   status: string;
   quote: FeeBreakdown | null;
+  /** Exactly what was bought: the listing as it was when checkout started. */
+  bought: ListingVersion | null;
   totalPence: number | null;
   holdExpiresAt: string | null;
   paidAt: string | null;
@@ -88,6 +95,7 @@ export interface CheckoutStarted {
   orderId: string;
   quote: FeeBreakdown;
   holdExpiresAt: string;
+  revision: number | null;
 }
 
 export type PaymentStart =
@@ -128,12 +136,20 @@ export interface SellingBackend {
   addMedia(id: string, shot: string, media: PreparedMedia): Promise<Result<DraftMedia>>;
   removeMedia(id: string, mediaId: string): Promise<Result>;
   publish(id: string): Promise<Result>;
+  /** Takes a live listing off sale so it can be edited; publishing again puts it back. */
+  pauseForEditing(id: string): Promise<Result>;
   deleteDraft(id: string): Promise<Result>;
 
   /** Today's price breakdown for a listing; null when it can't be bought. */
   quote(listingId: string): Promise<FeeBreakdown | null>;
   /** Prices the order on the server and holds the item while the buyer pays. */
-  startCheckout(listingId: string): Promise<Result<CheckoutStarted>>;
+  /**
+   * revision = the version the buyer was looking at. If the seller has changed the listing since, nothing is
+   * held and code is 'listing_changed'.
+   */
+  startCheckout(listingId: string, revision?: number): Promise<Result<CheckoutStarted> & { code?: string }>;
+  /** The listing as buyers see it right now, to compare with what was on screen. */
+  listingNow(listingId: string): Promise<ListingVersion | null>;
   /** Gets the payment form ready. code 'not_configured' when payments aren't switched on. */
   startPayment(orderId: string): Promise<Result<PaymentStart> & { code?: string }>;
   /** Example mode only: pretend the card payment succeeded. */

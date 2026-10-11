@@ -3,10 +3,11 @@ import { mediaUrl } from '@/lib/domain/catalogue';
 import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
+import { versionFromSnapshot, type ListingVersion } from '@/lib/domain/versions';
 import type { Draft, DraftFields, DraftMedia, Member, OrderSummary, Passkey, Result, SellingBackend } from './types';
 
 const ORDER_COLUMNS =
-  'id, listing_id, buyer_id, seller_id, payment_status, status, fees, total_pence, hold_expires_at, paid_at, created_at, ' +
+  'id, listing_id, buyer_id, seller_id, payment_status, status, fees, total_pence, hold_expires_at, paid_at, created_at, listing_snapshot, ' +
   'listing:listings(title, media:listing_media(path, kind, position))';
 
 interface OrderRow {
@@ -21,21 +22,24 @@ interface OrderRow {
   hold_expires_at: string | null;
   paid_at: string | null;
   created_at: string;
+  listing_snapshot: Record<string, unknown> | null;
   listing: { title: string; media: { path: string; kind: string; position: number }[] | null } | null;
 }
 
 function toOrder(r: OrderRow, me: string): OrderSummary {
-  const photo = [...(r.listing?.media ?? [])].filter((m) => m.kind === 'photo').sort((a, b) => a.position - b.position)[0];
+  const bought = (r.listing_snapshot?.media as { path: string; kind: string }[] | undefined)?.find((m) => m.kind === 'photo');
+  const photo = bought ?? [...(r.listing?.media ?? [])].filter((m) => m.kind === 'photo').sort((a, b) => a.position - b.position)[0];
   const fees = r.fees && Object.keys(r.fees).length && 'buyer_total_pence' in r.fees ? r.fees : null;
   return {
     id: r.id,
     listingId: r.listing_id,
-    title: r.listing?.title ?? 'Item',
+    title: (r.listing_snapshot?.title as string | undefined) ?? r.listing?.title ?? 'Item',
     photoUrl: photo ? mediaUrl(photo.path) : null,
     role: r.buyer_id === me ? 'buyer' : 'seller',
     paymentStatus: r.payment_status,
     status: r.status,
     quote: breakdownFromJson(fees),
+    bought: versionFromSnapshot(r.listing_snapshot),
     totalPence: r.total_pence,
     holdExpiresAt: r.hold_expires_at,
     paidAt: r.paid_at,
@@ -47,8 +51,8 @@ function toOrder(r: OrderRow, me: string): OrderSummary {
 // listing rules (migration 006) decide what is allowed; this file only translates.
 
 const DRAFT_COLUMNS =
-  'id, category, title, brand, size_label, colour, condition_label, description, price_pence, parcel_size, declined_shots, published, updated_at, ' +
-  'media:listing_media(id, shot, kind, path, created_at), secret:listing_secrets(serial_number)';
+  'id, category, title, brand, size_label, colour, condition_label, description, price_pence, parcel_size, declined_shots, published, revision, status, updated_at, ' +
+  'media:listing_media(id, shot, kind, path, created_at, retired_at), secret:listing_secrets(serial_number)';
 
 interface DraftRow {
   id: string;
@@ -63,8 +67,10 @@ interface DraftRow {
   parcel_size: Draft['parcelSize'];
   declined_shots: string[];
   published: boolean;
+  revision: number;
+  status: Draft['status'];
   updated_at: string;
-  media: { id: string; shot: string | null; kind: 'photo' | 'video'; path: string; created_at: string }[] | null;
+  media: { id: string; shot: string | null; kind: 'photo' | 'video'; path: string; created_at: string; retired_at: string | null }[] | null;
   secret: { serial_number: string } | { serial_number: string }[] | null;
 }
 
@@ -84,7 +90,10 @@ function toDraft(r: DraftRow): Draft {
     parcelSize: r.parcel_size,
     declined: r.declined_shots ?? [],
     published: r.published,
+    revision: r.revision ?? 0,
+    status: r.status ?? 'active',
     media: [...(r.media ?? [])]
+      .filter((m) => !m.retired_at)
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map((m) => ({ id: m.id, shot: m.shot ?? '', kind: m.kind, url: mediaUrl(m.path) })),
     serial: secret?.serial_number ?? '',
@@ -109,7 +118,8 @@ export function friendly(e: PostgrestError | AuthError | Error | { message: stri
   if (/profiles_username_format/.test(m)) return 'Use 3–30 letters, numbers, dots, dashes or underscores.';
   if (/profiles_bio_len/.test(m)) return 'Keep your bio to 500 characters.';
   if (/Not ready to publish/.test(m)) return m.replace('Not ready to publish:', 'Still needed:');
-  if (/fixed once|cannot change once|buying this right now|not available to buy|cannot buy your own|Sign in to buy/.test(m)) return m;
+  if (/LISTING_CHANGED/.test(m)) return 'The seller changed this listing while you were looking. Check the changes before you pay.';
+  if (/fixed once|cannot change once|buying this right now|not available to buy|cannot buy your own|Sign in to buy|can't be changed|kept for its history|Pause the listing/.test(m)) return m;
   if (/Invalid login credentials/i.test(m)) return 'That email and password don’t match an account.';
   if (/Email not confirmed/i.test(m)) return 'Confirm your email first: open the link we sent you.';
   if (/already registered|already been registered/i.test(m)) return 'There is already an account with that email. Sign in instead.';
@@ -327,7 +337,13 @@ export const supabaseBackend: SellingBackend = {
     return { ok: true, value: { id: data.id as string, shot, kind: media.kind, url: mediaUrl(path) } satisfies DraftMedia };
   },
 
-  async removeMedia(_id, mediaId) {
+  async removeMedia(id, mediaId) {
+    // A listing that has been live keeps every photo for its history: retire it instead of deleting.
+    const { data: l } = await supabase().from('listings').select('revision').eq('id', id).maybeSingle();
+    if ((l?.revision ?? 0) > 0) {
+      const { error } = await supabase().from('listing_media').update({ retired_at: new Date().toISOString() }).eq('id', mediaId);
+      return error ? fail(error) : { ok: true, value: undefined };
+    }
     const { data, error } = await supabase().from('listing_media').delete().eq('id', mediaId).select('path').maybeSingle();
     if (error) return fail(error);
     if (data?.path) await supabase().storage.from('listing-media').remove([data.path]);
@@ -339,17 +355,42 @@ export const supabaseBackend: SellingBackend = {
     return error ? fail(error) : { ok: true, value: undefined };
   },
 
+  async pauseForEditing(id) {
+    const { error } = await supabase().from('listings').update({ published: false }).eq('id', id);
+    return error ? fail(error) : { ok: true, value: undefined };
+  },
+
   async quote(listingId) {
     const { data, error } = await supabase().rpc('order_quote', { p_listing: listingId });
     if (error) throw new Error(friendly(error));
     return breakdownFromJson(data as Record<string, unknown> | null);
   },
 
-  async startCheckout(listingId) {
-    const { data, error } = await supabase().rpc('start_checkout', { p_listing: listingId });
-    if (error) return fail(error);
-    const d = data as { order_id: string; quote: Record<string, unknown>; hold_expires_at: string };
-    return { ok: true, value: { orderId: d.order_id, quote: breakdownFromJson(d.quote)!, holdExpiresAt: d.hold_expires_at } };
+  async startCheckout(listingId, revision) {
+    const { data, error } = revision === undefined
+      ? await supabase().rpc('start_checkout', { p_listing: listingId })
+      : await supabase().rpc('start_checkout', { p_listing: listingId, p_revision: revision });
+    if (error) return { ...fail(error), code: /LISTING_CHANGED/.test(error.message) ? 'listing_changed' : undefined };
+    const d = data as { order_id: string; quote: Record<string, unknown>; hold_expires_at: string; revision: number | null };
+    return { ok: true, value: { orderId: d.order_id, quote: breakdownFromJson(d.quote)!, holdExpiresAt: d.hold_expires_at, revision: d.revision ?? null } };
+  },
+
+  async listingNow(listingId) {
+    const { data, error } = await supabase()
+      .from('listings')
+      .select('revision, title, description, brand, size_label, colour, condition_label, price_pence, shipping_pence, serial_hint, media:listing_media(path, kind, shot, position, created_at, retired_at)')
+      .eq('id', listingId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const media = [...((data.media as { path: string; kind: 'photo' | 'video'; shot: string | null; position: number; created_at: string; retired_at: string | null }[]) ?? [])]
+      .filter((m) => !m.retired_at)
+      .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+    return {
+      revision: data.revision, title: data.title, description: data.description, brand: data.brand, size: data.size_label, colour: data.colour,
+      condition: data.condition_label, pricePence: data.price_pence, shippingPence: data.shipping_pence, serialHint: data.serial_hint,
+      // Compared with what the page showed, which uses public URLs.
+      media: media.map((m) => ({ path: mediaUrl(m.path), kind: m.kind, shot: m.shot })),
+    } satisfies ListingVersion;
   },
 
   async startPayment(orderId) {
@@ -399,7 +440,7 @@ export const supabaseBackend: SellingBackend = {
   async deleteDraft(id) {
     const draft = await supabaseBackend.getDraft(id);
     if (!draft) return { ok: true, value: undefined };
-    if (draft.published) return { ok: false, message: 'Live listings can’t be deleted here yet.' };
+    if (draft.published || draft.revision > 0) return { ok: false, message: 'A listing that has been live is kept for its history. Pause it to take it off sale.' };
     const me = await uid();
     const { data: rows } = await supabase().from('listing_media').select('path').eq('listing_id', id);
     const { error } = await supabase().from('listings').delete().eq('id', id);

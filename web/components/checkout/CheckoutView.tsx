@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { TIER_LABEL } from '@/lib/domain/present';
 import type { FeeBreakdown } from '@/lib/domain/fees';
+import { listingChanges, type ListingVersion } from '@/lib/domain/versions';
 import { formatPence } from '@/lib/format';
 import type { CheckoutStarted, PaymentStart } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
@@ -19,6 +20,8 @@ export interface CheckoutItem {
   title: string;
   seller: string;
   photoUrl: string | null;
+  /** The version of the listing on the buyer's screen. */
+  version: ListingVersion;
 }
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -31,6 +34,8 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
   const [payment, setPayment] = useState<PaymentStart | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState<ListingVersion>(item.version);
+  const [changes, setChanges] = useState<{ now: ListingVersion; lines: string[] } | null>(null);
 
   useEffect(() => {
     backend.quote(item.id).then(setQuote).catch(() => setQuote(null));
@@ -52,8 +57,15 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
   async function begin() {
     setBusy(true);
     setError(null);
-    const r = await backend.startCheckout(item.id);
+    const r = await backend.startCheckout(item.id, version.revision);
     if (!r.ok) {
+      if (r.code === 'listing_changed') {
+        // The seller edited the listing since this page loaded. Nothing is held; show what changed.
+        const now = await backend.listingNow(item.id);
+        setQuote(await backend.quote(item.id).catch(() => null));
+        setBusy(false);
+        if (now) return setChanges({ now, lines: listingChanges(version, now) });
+      }
       setBusy(false);
       return setError(r.message);
     }
@@ -83,6 +95,22 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
         <p className="pv-note">Sold by {item.seller} · {TIER_LABEL[shown.tier]}</p>
       </header>
 
+      <section className="pv-panel" aria-labelledby="buying-h">
+        <h2 id="buying-h">What you’re buying</h2>
+        <div className="pv-row pv-row--plain pv-buying">
+          <span className="pv-row__thumb" aria-hidden="true">
+            {version.media.find((m) => m.kind === 'photo') ? <img src={version.media.find((m) => m.kind === 'photo')!.path} alt="" /> : null}
+          </span>
+          <span className="pv-row__text">
+            <strong>{version.title}</strong>
+            <span className="pv-note">
+              {[version.size ? `Size ${version.size}` : null, version.condition, version.brand, `${version.media.filter((m) => m.kind === 'photo').length || 'No'} photos`].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+        </div>
+        <p className="pv-note">This is the listing as it is now. If the seller changes it before you pay, we’ll show you what changed first.</p>
+      </section>
+
       <section className="pv-panel" aria-labelledby="pay-h">
         <h2 id="pay-h">What you pay</h2>
         <FeeLines quote={shown} />
@@ -91,7 +119,23 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
 
       {error ? <p className="pv-errors" role="alert">{error}</p> : null}
 
-      {!member ? (
+      {changes ? (
+        <section className="pv-panel pv-changed" role="alert" aria-labelledby="changed-h">
+          <h2 id="changed-h">The seller changed this listing</h2>
+          <p>They updated it while you were looking, so nothing has been charged or held. What changed:</p>
+          {changes.lines.length ? (
+            <ul className="pv-list">{changes.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+          ) : (
+            <p className="pv-note">Small changes only; the price and photos are the same.</p>
+          )}
+          <div className="pv-actions">
+            <button type="button" className="pv-btn pv-btn--primary" onClick={() => { setVersion(changes.now); setChanges(null); }}>
+              Continue with the updated listing
+            </button>
+            <Link className="pv-btn pv-btn--secondary" href={`/item/${item.id}`}>Look at it again</Link>
+          </div>
+        </section>
+      ) : !member ? (
         <section className="pv-panel">
           <p>Sign in to buy. Your basket isn’t held until you continue to payment.</p>
           <Link className="pv-btn pv-btn--primary pv-btn--block" href={`/signin?next=${encodeURIComponent(`/checkout/${item.id}`)}`}>Sign in to buy</Link>

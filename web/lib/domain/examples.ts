@@ -62,6 +62,7 @@ export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   shippingPence: s[5] >= 50000 ? 0 : 399,
   tier: s[8],
   status: 'active',
+  revision: 1,
   media: [],
   seller: { username: s[6], verified: s[7], business: s[6] === 'lens_vault', away: false },
   // Newest first in seed order, an hour apart.

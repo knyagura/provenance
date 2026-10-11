@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
+import { mediaUrl } from '@/lib/domain/catalogue';
 import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
@@ -71,6 +72,30 @@ export function OrderView({ id }: { id: string }) {
         <p className="pv-note" role="status">This usually takes a few seconds.</p>
       ) : order.paymentStatus !== 'awaiting_payment' ? (
         <p><Link href={`/item/${order.listingId}`}>Back to the item</Link></p>
+      ) : null}
+
+      {order.bought ? (
+        <section className="pv-panel" aria-labelledby="bought-h">
+          <h2 id="bought-h">{order.role === 'buyer' ? 'What you bought' : 'What was bought'}</h2>
+          <p className="pv-note">The listing exactly as it was when checkout started (version {order.bought.revision}). Later edits can’t change this.</p>
+          <dl className="pv-details">
+            <div><dt>Title</dt><dd>{order.bought.title}</dd></div>
+            {order.bought.brand ? <div><dt>Brand</dt><dd>{order.bought.brand}</dd></div> : null}
+            {order.bought.size ? <div><dt>Size</dt><dd>{order.bought.size}</dd></div> : null}
+            {order.bought.condition ? <div><dt>Condition</dt><dd>{order.bought.condition}</dd></div> : null}
+            {order.bought.colour ? <div><dt>Colour</dt><dd>{order.bought.colour}</dd></div> : null}
+            {order.bought.serialHint ? <div><dt>Serial ends</dt><dd className="pv-mono">{order.bought.serialHint}</dd></div> : null}
+            <div><dt>Price</dt><dd>{formatPence(order.bought.pricePence)}</dd></div>
+          </dl>
+          {order.bought.description ? <p className="pv-item__desc">{order.bought.description}</p> : null}
+          {order.bought.media.some((m) => m.kind === 'photo') ? (
+            <ul className="pv-bought-photos" aria-label="Photos when bought">
+              {order.bought.media.filter((m) => m.kind === 'photo').map((m, i) => (
+                <li key={m.path}><img src={m.path.startsWith('http') ? m.path : mediaUrl(m.path)} alt={`${order.bought!.title}, photo ${i + 1}${m.shot ? ` (${m.shot})` : ''}`} loading="lazy" /></li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       ) : null}
 
       {order.quote ? (

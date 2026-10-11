@@ -87,3 +87,7 @@ label.pv-btn { cursor: pointer; }
 .pv-fees th .pv-note { display: block; margin-top: 2px; }
 .pv-fees td { text-align: right; white-space: nowrap; }
 .pv-fees tfoot th, .pv-fees tfoot td { font-weight: 600; font-size: 17px; border-bottom: 0; padding-top: var(--space-3); }
+.pv-buying { grid-template-columns: 56px minmax(0, 1fr); border-bottom: 0; padding: 0; }
+.pv-changed { border-color: var(--terracotta-text); border-width: 2px; }
+.pv-bought-photos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+.pv-bought-photos img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: var(--radius-sm); }

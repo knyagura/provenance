@@ -46,6 +46,7 @@ export async function freshDb() {
   await db.exec(read('006_selling.sql'));
   await db.exec(read('007_accounts.sql'));
   await db.exec(read('008_checkout.sql'));
+  await db.exec(read('009_listing_edits.sql'));
   return db;
 }
 
@@ -75,7 +76,8 @@ if (isMain) {
   await db.exec(read('006_selling.sql'));
   await db.exec(read('007_accounts.sql'));
   await db.exec(read('008_checkout.sql'));
-  ok(true, 'schema + migrations 002-008 apply cleanly, and re-run idempotently');
+  await db.exec(read('009_listing_edits.sql'));
+  ok(true, 'schema + migrations 002-009 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -177,10 +179,10 @@ if (isMain) {
   ok((await as(db, BUYER, 'select * from public.listing_secrets')).rows.length === 0, 'other users cannot read the serial number');
   await rejects(as(db, null, 'select * from public.listing_secrets'), 'signed-out visitors cannot read serial numbers', /permission denied/);
   ok((await as(db, SELLER, 'select serial_number from public.listing_secrets')).rows[0].serial_number === '7k3 m 4d7k', 'the seller can read their own serial');
-  await rejects(as(db, SELLER, `delete from public.listing_media where listing_id = $1 and shot = 'front'`, [E.id]), 'reference photos cannot be removed once the listing is live', /fixed once/);
-  await rejects(put('extra'), 'nor can photos be added after it is live', /fixed once/);
-  await rejects(as(db, SELLER, `update public.listing_secrets set serial_number = 'ZZZZ9999' where listing_id = $1`, [E.id]), 'the serial cannot change once live', /cannot change/);
-  await rejects(as(db, SELLER, `update public.listings set category = 'home' where id = $1`, [E.id]), 'the category cannot change once live', /category cannot change/);
+  await rejects(as(db, SELLER, `delete from public.listing_media where listing_id = $1 and shot = 'front'`, [E.id]), 'photos of a live listing cannot be removed without pausing it', /Pause the listing/);
+  await rejects(put('extra'), 'nor can photos be added while it is live', /Pause the listing/);
+  await rejects(as(db, SELLER, `update public.listing_secrets set serial_number = 'ZZZZ9999' where listing_id = $1`, [E.id]), 'the serial cannot change while live', /Pause the listing to change its serial/);
+  await rejects(as(db, SELLER, `update public.listings set category = 'home' where id = $1`, [E.id]), 'changing category while live is refused unless the new category’s evidence is there', /Not ready to publish: Maker's mark/);
   await as(db, SELLER, `update public.listings set evidence_version = 0, price_pence = 5000 where id = $1`, [E.id]);
   const Edown = (await db.query('select evidence_version, tier from public.listings where id = $1', [E.id])).rows[0];
   ok(Edown.evidence_version === 1 && Edown.tier === 'enhanced', 'sellers cannot switch the rules off; a lower price lowers the tier (£50 → enhanced)');
@@ -267,6 +269,53 @@ if (isMain) {
   await as(db, BUYER, `insert into public.orders (listing_id, buyer_id, seller_id, price_pence, payment_status, paid_at) values ($1, $2, $2, 1, 'paid', now())`, [legacyItem, BUYER]);
   const lo = (await db.query('select payment_status, paid_at, price_pence from public.orders where listing_id = $1', [legacyItem])).rows[0];
   ok(lo.payment_status === 'legacy' && lo.paid_at === null && lo.price_pence === 2000, 'orders from the current app still work, and cannot claim to be paid');
+
+  // --- 009: editing live listings, with history ---
+  const vase = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, shipping_pence, category, evidence_version, condition_label, parcel_size) values ($1, 'Studio vase', 3000, 399, 'home', 1, 'Good', 'small') returning id`, [SELLER])).rows[0].id;
+  const media = (shot, file, who = SELLER) => as(db, who, `insert into public.listing_media (listing_id, seller_id, path, shot, kind) values ($1, $2, $3, $4, 'photo') returning id`, [vase, who, `${who}/${vase}/${file}`, shot]);
+  const front1 = (await media('front', 'front-1.jpg')).rows[0].id;
+  await media('mark', 'mark-1.jpg');
+  await as(db, SELLER, `update public.listings set published = true where id = $1`, [vase]);
+  const rev = async () => (await db.query('select revision, tier, status from public.listings where id = $1', [vase])).rows[0];
+  const r1 = (await db.query('select snapshot from public.listing_revisions where listing_id = $1 and revision = 1', [vase])).rows[0]?.snapshot;
+  ok((await rev()).revision === 1 && r1?.media?.length === 2 && r1.price_pence === 3000, 'publishing makes revision 1 and keeps a snapshot of exactly what buyers see');
+  await as(db, SELLER, `update public.listings set price_pence = 8000 where id = $1`, [vase]);
+  ok((await rev()).revision === 2 && (await rev()).tier === 'verified', 'a seller can change the price of a live listing: revision 2, and the tier follows (£80 → courier witnessed)');
+  await as(db, SELLER, `update public.listings set price_pence = 3000 where id = $1`, [vase]);
+  await rejects(as(db, SELLER, `update public.listings set title = '' where id = $1`, [vase]), 'a live listing cannot be changed into one that would fail the publish check', /Not ready to publish: title/);
+  await as(db, SELLER, `update public.listings set published = false where id = $1`, [vase]);
+  await as(db, SELLER, `update public.listing_media set retired_at = now(), path = 'tampered' where id = $1`, [front1]);
+  const retired = (await db.query('select retired_at, path from public.listing_media where id = $1', [front1])).rows[0];
+  ok(retired.retired_at !== null && retired.path.endsWith('front-1.jpg'), 'pausing lets the seller retire a photo; the file it points at cannot be swapped');
+  await rejects(as(db, SELLER, 'delete from public.listing_media where id = $1', [front1]), 'photos of a listing that has been live are never deleted', /kept for its history/);
+  await rejects(as(db, SELLER, `update public.listings set published = true where id = $1`, [vase]), 'it cannot go back live with a required photo missing', /Not ready to publish: Front/);
+  await media('front', 'front-2.jpg');
+  await as(db, SELLER, `update public.listings set title = 'Studio vase, signed', category = 'home', published = true where id = $1`, [vase]);
+  ok((await rev()).revision === 4, 'publishing the changes makes the next revision');
+  const shown = (await as(db, null, `select path from public.listing_media where listing_id = $1 and shot = 'front'`, [vase])).rows.map((x) => x.path);
+  ok(shown.length === 1 && shown[0].endsWith('front-2.jpg'), 'buyers see only the current photo; the retired one is hidden');
+  const r1again = (await db.query('select snapshot from public.listing_revisions where listing_id = $1 and revision = 1', [vase])).rows[0].snapshot;
+  ok(r1again.media.some((m) => m.path.endsWith('front-1.jpg')) && r1again.title === 'Studio vase', 'the first revision still records the original title and photo');
+  await db.query(`insert into storage.objects (bucket_id, name) values ('listing-media', $1)`, [`${SELLER}/${vase}/front-1.jpg`]);
+  await as(db, SELLER, 'delete from storage.objects where name = $1', [`${SELLER}/${vase}/front-1.jpg`]);
+  ok((await db.query('select count(*)::int as n from storage.objects where name = $1', [`${SELLER}/${vase}/front-1.jpg`])).rows[0].n === 1, 'a photo file that history points at cannot be deleted from storage');
+  await rejects(as(db, SELLER, 'delete from public.listings where id = $1', [vase]), 'a listing that has been live cannot be deleted', /kept for its history/);
+  ok((await as(db, SELLER, 'select revision from public.listing_revisions where listing_id = $1 order by revision', [vase])).rows.map((x) => x.revision).join() === '1,2,3,4', 'the seller can see every revision of their listing');
+  ok((await as(db, BUYER, 'select * from public.listing_revisions where listing_id = $1', [vase])).rows.length === 0, 'other members cannot read a listing’s history');
+
+  // Someone viewing revision 3 while the seller publishes revision 4.
+  await rejects(as(db, BUYER, 'select public.start_checkout($1, 3)', [vase]), 'a buyer who was looking at an older version is stopped before anything is held', /LISTING_CHANGED/);
+  ok((await rev()).status === 'active', 'and the item is not held');
+  const c9 = (await as(db, BUYER, 'select public.start_checkout($1, 4) as c', [vase])).rows[0].c;
+  const o9 = (await db.query('select listing_revision, listing_snapshot from public.orders where id = $1', [c9.order_id])).rows[0];
+  ok(o9.listing_revision === 4 && o9.listing_snapshot.title === 'Studio vase, signed' && o9.listing_snapshot.media.some((m) => m.path.endsWith('front-2.jpg')), 'the order records the revision and a snapshot of exactly what was bought');
+  await rejects(as(db, SELLER, `update public.listings set price_pence = 2000 where id = $1`, [vase]), 'while someone is paying, the seller cannot change the listing', /buying this item right now/);
+  await rejects(as(db, SELLER, `update public.listings set published = false where id = $1`, [vase]), 'or pause it', /buying this item right now/);
+  await rejects(media('extra', 'extra.jpg'), 'or change its photos', /buying this item right now/);
+  await as(db, BUYER, `update public.orders set listing_snapshot = '{}'::jsonb, listing_revision = 1 where id = $1`, [c9.order_id]);
+  ok((await db.query('select listing_revision from public.orders where id = $1', [c9.order_id])).rows[0].listing_revision === 4, 'buyers cannot rewrite the record of what they bought');
+  await svc(`select public.confirm_payment($1, 'pi_vase', $2)`, [c9.order_id, c9.quote.buyer_total_pence]);
+  await rejects(as(db, SELLER, `update public.listings set description = 'changed after sale' where id = $1`, [vase]), 'once sold, the listing is locked for good', /has been sold/);
 
   // --- 004: API keys ---
   const { createHash } = await import('node:crypto');

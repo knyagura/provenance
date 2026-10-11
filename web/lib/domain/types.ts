@@ -55,6 +55,8 @@ export interface Listing {
   shippingPence: number;
   tier: Tier;
   status: 'active' | 'reserved' | 'sold';
+  /** Goes up each time the seller publishes a change; checkout uses it to spot edits made while a buyer looks. */
+  revision: number;
   media: Media[];
   seller: Seller;
   createdAt: string;

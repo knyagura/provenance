@@ -58,9 +58,9 @@ export const exampleSource: CatalogueSource = {
 
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
-  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint',
+  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision',
   'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode)',
-  'media:listing_media(path, kind, shot, position)',
+  'media:listing_media(path, kind, shot, position, retired_at)',
 ].join(', ');
 
 interface Row {
@@ -80,7 +80,8 @@ interface Row {
   created_at: string;
   serial_hint?: string | null;
   seller: { username: string; kyc_verified: boolean; is_pro: boolean; holiday_mode?: boolean } | null;
-  media: { path: string; kind: Media['kind']; shot: string | null; position: number }[] | null;
+  revision?: number;
+  media: { path: string; kind: Media['kind']; shot: string | null; position: number; retired_at?: string | null }[] | null;
 }
 
 export function mediaUrl(path: string): string {
@@ -104,7 +105,9 @@ export function toListing(r: Row): Listing {
     shippingPence: r.shipping_pence,
     tier: r.tier,
     status: r.status,
+    revision: r.revision ?? 0,
     media: [...(r.media ?? [])]
+      .filter((m) => !m.retired_at)
       .sort((a, b) => a.position - b.position)
       .map((m) => ({ url: mediaUrl(m.path), kind: m.kind, shot: m.shot })),
     seller: {

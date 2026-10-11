@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
+import { LiveListing } from './LiveListing';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { MAX_PRICE_PENCE, MIN_PRICE_PENCE, PARCEL_SIZES, missingForPublish, profileFor, tierForPrice, type Shot } from '@/lib/domain/evidence';
 import { TIER_LABEL } from '@/lib/domain/present';
@@ -66,22 +67,17 @@ export function DraftEditor({ id }: { id: string }) {
       </section>
     );
   }
-  if (draft.published) {
+  if (draft.published || draft.status !== 'active') {
     return (
-      <section className="pv-section pv-narrow">
-        <p className="pv-eyebrow">Live</p>
-        <h1>{draft.title} is live</h1>
-        <p className="pv-lead">Buyers can see it now. Its photos are fixed as the item’s record.</p>
-        <div className="pv-actions">
-          {/* Example-mode drafts live only in this browser tab, so they have no public page. */}
-          {draft.id.startsWith('example-') ? (
-            <Link className="pv-btn pv-btn--primary" href="/profile">See your listings</Link>
-          ) : (
-            <Link className="pv-btn pv-btn--primary" href={`/item/${draft.id}`}>View your listing</Link>
-          )}
-          <Link className="pv-btn pv-btn--secondary" href="/sell">List another item</Link>
-        </div>
-      </section>
+      <LiveListing
+        draft={draft}
+        onPause={async () => {
+          const r = await backend.pauseForEditing(draft.id);
+          if (!r.ok) return r.message;
+          await reload();
+          return null;
+        }}
+      />
     );
   }
 
@@ -144,12 +140,18 @@ export function DraftEditor({ id }: { id: string }) {
   }
 
   const tier = d.pricePence ? tierForPrice(d.pricePence) : null;
+  const editingLive = d.revision > 0;
 
   return (
     <div className="pv-sell">
       <header className="pv-section">
-        <p className="pv-eyebrow">New listing · draft</p>
+        <p className="pv-eyebrow">{editingLive ? `Editing · version ${d.revision}` : 'New listing · draft'}</p>
         <h1>{d.title || 'New listing'}</h1>
+        {editingLive ? (
+          <p className="pv-banner" role="note">
+            <strong>Off sale while you edit.</strong> Buyers can’t buy it until you publish your changes. Earlier versions and their photos are kept.
+          </p>
+        ) : null}
         <p className="pv-note" role="status" aria-live="polite">
           {status.kind === 'saving' ? 'Saving…' : status.kind === 'saved' ? 'All changes saved' : status.kind === 'error' ? '' : 'Your draft saves as you go.'}
         </p>
@@ -327,13 +329,13 @@ export function DraftEditor({ id }: { id: string }) {
             <ul className="pv-list" aria-label="Still needed">{missing.map((m) => <li key={m}>{m}</li>)}</ul>
           </>
         ) : (
-          <p>Everything’s in place. Once live, the photos are fixed as the item’s record.</p>
+          <p>{editingLive ? 'Everything’s in place. Publishing puts the item back on sale as a new version.' : 'Everything’s in place. You can still edit it until someone buys it.'}</p>
         )}
         {publishError ? <p className="pv-errors" role="alert">{publishError}</p> : null}
         <button type="button" className="pv-btn pv-btn--primary pv-btn--block" disabled={missing.length > 0 || publishing || Boolean(uploading)} onClick={publish}>
-          {publishing ? 'Publishing…' : 'Publish listing'}
+          {publishing ? 'Publishing…' : editingLive ? 'Publish changes' : 'Publish listing'}
         </button>
-        <button type="button" className="pv-btn pv-btn--quiet" onClick={discard}>Delete this draft</button>
+        {editingLive ? null : <button type="button" className="pv-btn pv-btn--quiet" onClick={discard}>Delete this draft</button>}
       </section>
     </div>
   );

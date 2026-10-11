@@ -2,6 +2,7 @@ import { DRAFT_TITLE, missingForPublish } from '@/lib/domain/evidence';
 import { usernameProblem, BIO_MAX } from '@/lib/account/passkeyOffer';
 import { computeFees, DEFAULT_FEES } from '@/lib/domain/fees';
 import { exampleCatalogue } from '@/lib/domain/examples';
+import type { ListingVersion } from '@/lib/domain/versions';
 import type { Draft, DraftMedia, Member, OrderSummary, Passkey, Profile, Result, SellingBackend } from './types';
 
 // A pretend backend that lives in this browser tab, for tests and demos without a database
@@ -21,8 +22,34 @@ interface Store {
   orders?: OrderSummary[];
 }
 
-function exampleQuote(listingId: string) {
+/**
+ * Example listings are at revision 1. A test (or demo) can pretend the seller edited one by putting
+ * { [listingId]: { revision, pricePence } } in sessionStorage under this key.
+ */
+export const EXAMPLE_EDITS_KEY = 'pv-example-edits';
+
+function exampleListing(listingId: string) {
   const l = exampleCatalogue.find((x) => x.id === listingId);
+  if (!l) return null;
+  let edit: { revision?: number; pricePence?: number } = {};
+  try {
+    edit = JSON.parse(sessionStorage.getItem(EXAMPLE_EDITS_KEY) ?? '{}')[listingId] ?? {};
+  } catch {
+    /* no edits */
+  }
+  return { ...l, revision: edit.revision ?? l.revision, pricePence: edit.pricePence ?? l.pricePence };
+}
+
+function exampleVersion(listingId: string): ListingVersion | null {
+  const l = exampleListing(listingId);
+  return l
+    ? { revision: l.revision, title: l.title, description: l.description, brand: l.brand, size: l.size, colour: l.colour, condition: l.condition,
+        pricePence: l.pricePence, shippingPence: l.shippingPence, serialHint: l.serialHint, media: [] }
+    : null;
+}
+
+function exampleQuote(listingId: string) {
+  const l = exampleListing(listingId);
   return l ? { listing: l, quote: computeFees(DEFAULT_FEES, { pricePence: l.pricePence, postagePence: l.shippingPence, payer: 'buyer', boostBp: null }) } : null;
 }
 
@@ -180,7 +207,7 @@ export const exampleBackend: SellingBackend = {
     const id = `example-draft-${Math.random().toString(36).slice(2, 10)}`;
     s.drafts.push({
       id, category, title: '', brand: '', size: '', colour: '', condition: null, description: '', pricePence: null,
-      parcelSize: null, declined: [], published: false, media: [], serial: '', updatedAt: now(),
+      parcelSize: null, declined: [], published: false, revision: 0, status: 'active', media: [], serial: '', updatedAt: now(),
     });
     save(s);
     return ok(id);
@@ -189,22 +216,24 @@ export const exampleBackend: SellingBackend = {
     return load().drafts.find((d) => d.id === id) ?? null;
   },
   async saveDraft(id, f) {
+    const cur = load().drafts.find((x) => x.id === id);
+    if (cur && cur.status !== 'active') return { ok: false, message: 'Someone is buying this item right now, so its listing can\'t be changed' };
     return update(id, (d) => {
-      if (d.published && f.category !== undefined && f.category !== d.category) return;
       Object.assign(d, Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined)));
       if (d.title === DRAFT_TITLE) d.title = '';
+      if (d.published) d.revision += 1;
     });
   },
   async saveSerial(id, serial) {
     const d = load().drafts.find((x) => x.id === id);
-    if (d?.published) return { ok: false, message: 'The serial number cannot change once the listing is live' };
+    if (d?.published) return { ok: false, message: 'Pause the listing to change its serial number' };
     return update(id, (x) => {
       x.serial = serial.trim();
     });
   },
   async addMedia(id, shot, media) {
     const d = load().drafts.find((x) => x.id === id);
-    if (d?.published) return { ok: false, message: 'Reference photos are fixed once the listing is live' };
+    if (d?.published) return { ok: false, message: 'Pause the listing to change its photos, then publish your changes' };
     const m: DraftMedia = { id: `m-${Math.random().toString(36).slice(2, 10)}`, shot, kind: media.kind, url: URL.createObjectURL(media.blob) };
     const r = update(id, (x) => {
       x.media.push(m);
@@ -213,7 +242,7 @@ export const exampleBackend: SellingBackend = {
   },
   async removeMedia(id, mediaId) {
     const d = load().drafts.find((x) => x.id === id);
-    if (d?.published) return { ok: false, message: 'Reference photos are fixed once the listing is live' };
+    if (d?.published) return { ok: false, message: 'Pause the listing to change its photos, then publish your changes' };
     return update(id, (x) => {
       x.media = x.media.filter((m) => m.id !== mediaId);
     });
@@ -228,28 +257,43 @@ export const exampleBackend: SellingBackend = {
     if (missing.length) return { ok: false, message: `Still needed: ${missing.join(', ')}` };
     return update(id, (x) => {
       x.published = true;
+      x.revision += 1;
     });
+  },
+  async pauseForEditing(id) {
+    const d = load().drafts.find((x) => x.id === id);
+    if (!d) return { ok: false, message: 'That listing no longer exists.' };
+    if (d.status !== 'active') return { ok: false, message: 'Someone is buying this item right now, so its listing can\'t be changed' };
+    return update(id, (x) => {
+      x.published = false;
+    });
+  },
+  async listingNow(listingId) {
+    return exampleVersion(listingId);
   },
   async quote(listingId) {
     const sold = load().orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid');
     return sold ? null : exampleQuote(listingId)?.quote ?? null;
   },
-  async startCheckout(listingId) {
+  async startCheckout(listingId, revision) {
     const s = load();
     if (!s.member) return { ok: false, message: 'Sign in to buy' };
     const q = exampleQuote(listingId);
+    if (q && revision !== undefined && q.listing.revision !== revision) {
+      return { ok: false, code: 'listing_changed', message: 'The seller changed this listing while you were looking. Check the changes before you pay.' };
+    }
     if (!q || s.orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid')) return { ok: false, message: 'This item is not available to buy' };
     const open = s.orders?.find((o) => o.listingId === listingId && o.paymentStatus === 'awaiting_payment');
-    if (open) return ok({ orderId: open.id, quote: open.quote!, holdExpiresAt: open.holdExpiresAt! });
+    if (open) return ok({ orderId: open.id, quote: open.quote!, holdExpiresAt: open.holdExpiresAt!, revision: open.bought?.revision ?? null });
     const hold = new Date(Date.now() + DEFAULT_FEES.checkoutHoldMinutes * 60_000).toISOString();
     const o: OrderSummary = {
       id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title, photoUrl: null, role: 'buyer',
-      paymentStatus: 'awaiting_payment', status: 'purchased', quote: q.quote, totalPence: q.quote.buyerTotalPence,
+      paymentStatus: 'awaiting_payment', status: 'purchased', quote: q.quote, bought: exampleVersion(listingId), totalPence: q.quote.buyerTotalPence,
       holdExpiresAt: hold, paidAt: null, createdAt: now(),
     };
     s.orders = [o, ...(s.orders ?? [])];
     save(s);
-    return ok({ orderId: o.id, quote: q.quote, holdExpiresAt: hold });
+    return ok({ orderId: o.id, quote: q.quote, holdExpiresAt: hold, revision: q.listing.revision });
   },
   async startPayment(orderId) {
     const o = load().orders?.find((x) => x.id === orderId);
@@ -281,7 +325,7 @@ export const exampleBackend: SellingBackend = {
   },
   async deleteDraft(id) {
     const s = load();
-    s.drafts = s.drafts.filter((d) => d.id !== id || d.published);
+    s.drafts = s.drafts.filter((d) => d.id !== id || d.published || d.revision > 0);
     save(s);
     return ok(undefined);
   },

@@ -173,6 +173,16 @@ try {
     if (await sp.getByRole('list', { name: 'Still needed' }).count()) fail(`sell @${width}: still-needed list should be gone when complete`);
     await publish.click();
     await sp.getByRole('heading', { name: 'Wool coat is live' }).waitFor();
+    // Edit the live listing: it goes off sale, then back on as version 2.
+    await sp.getByRole('button', { name: 'Edit listing' }).click();
+    await sp.getByText('Off sale while you edit.').waitFor();
+    if (await sp.getByRole('button', { name: 'Delete this draft' }).count()) fail(`edit @${width}: a listing that has been live must not offer delete`);
+    await sp.getByLabel('Price (£)').fill('40');
+    await sp.getByLabel('Price (£)').blur();
+    await sp.getByText('All changes saved').waitFor();
+    await sp.getByRole('button', { name: 'Publish changes' }).click();
+    await sp.getByRole('heading', { name: 'Wool coat is live' }).waitFor();
+    if (!(await sp.getByText('Live · version 2').isVisible())) fail(`edit @${width}: republished listing should be version 2`);
     await sp.goto(BASE + '/profile');
     await sp.getByRole('heading', { name: 'sian' }).waitFor();
     if (!(await sp.getByText('Wool coat').isVisible())) fail(`sell @${width}: published listing missing from the account page`);
@@ -283,15 +293,23 @@ try {
     const want = ['Item£890.00', 'Buyer protection', '£44.50', 'Processing fee', '£0.80', 'Courier witness', '£5.00', 'Authentication check', '£15.00', 'Total£955.30'];
     for (const w of want) if (!rows.some((r) => r.includes(w))) fail(`checkout: breakdown missing "${w}" (rows: ${rows.join(' | ')})`);
     if (rows.some((r) => r.startsWith('Postage'))) fail('checkout: free postage should not be listed');
+    // The seller drops the price while the buyer is looking: nothing is held, and the change is shown.
+    await bp.evaluate(() => sessionStorage.setItem('pv-example-edits', JSON.stringify({ 'example-6': { revision: 2, pricePence: 85000 } })));
     await bp.getByRole('button', { name: 'Continue to payment · £955.30' }).click();
+    await bp.getByRole('heading', { name: 'The seller changed this listing' }).waitFor();
+    if (!(await bp.getByText('Price: £890.00 → £850.00').isVisible())) fail('checkout: price change not shown');
+    await bp.getByRole('button', { name: 'Continue with the updated listing' }).click();
+    await bp.getByRole('button', { name: 'Continue to payment · £913.30' }).click();
     await bp.getByText('We’re holding this for you until').waitFor();
-    await bp.getByRole('button', { name: 'Pay £955.30 (test)' }).click();
+    await bp.getByRole('button', { name: 'Pay £913.30 (test)' }).click();
     await bp.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await bp.getByRole('heading', { level: 1, name: 'Paid' }).waitFor();
+    const bought = await bp.getByRole('heading', { name: 'What you bought' }).locator('..').textContent();
+    if (!bought?.includes('version 2') || !bought.includes('£850.00')) fail(`order: "what you bought" should show version 2 at £850 (${bought?.slice(0, 200)})`);
     await bp.goto(BASE + '/profile');
     await bp.getByRole('list', { name: 'Your orders' }).waitFor();
     const ordersText = await bp.getByRole('list', { name: 'Your orders' }).textContent();
-    if (!ordersText?.includes('Saint Laurent Kate bag') || !ordersText.includes('£955.30')) fail(`account: order missing (${ordersText})`);
+    if (!ordersText?.includes('Saint Laurent Kate bag') || !ordersText.includes('£913.30')) fail(`account: order missing (${ordersText})`);
     await bp.goto(BASE + '/checkout/example-6');
     await bp.getByRole('heading', { name: 'This item isn’t available' }).waitFor();
     if (berr.length) fail(`checkout: page errors: ${berr.slice(0, 2).join(' | ')}`);
