@@ -102,7 +102,9 @@ export function openApi(siteUrl: string) {
           properties: {
             listing_id: { type: 'string', format: 'uuid' }, currency: { type: 'string', const: 'GBP' }, fee_version: { type: 'integer' },
             tier: { type: 'string', enum: ['enhanced', 'verified', 'luxury', 'ultraLuxury'] },
-            price_pence: { type: 'integer' }, postage_pence: { type: 'integer' }, protection_pence: { type: 'integer' }, processing_pence: { type: 'integer' },
+            price_pence: { type: 'integer' }, postage_pence: { type: 'integer' },
+            transaction_rate_bp: { type: 'integer', description: 'The transaction fee rate in basis points (800 = 8%); 3–8% by price band.' },
+            protection_pence: { type: 'integer', description: 'The transaction fee, which pays for buyer protection.' }, processing_pence: { type: 'integer' },
             courier_witness_pence: { type: 'integer' }, authentication_pence: { type: 'integer' }, promotion_pence: { type: 'integer' }, total_pence: { type: 'integer' },
           },
         },

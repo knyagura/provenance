@@ -47,6 +47,7 @@ export async function freshDb() {
   await db.exec(read('007_accounts.sql'));
   await db.exec(read('008_checkout.sql'));
   await db.exec(read('009_listing_edits.sql'));
+  await db.exec(read('010_transaction_fee.sql'));
   return db;
 }
 
@@ -77,7 +78,8 @@ if (isMain) {
   await db.exec(read('007_accounts.sql'));
   await db.exec(read('008_checkout.sql'));
   await db.exec(read('009_listing_edits.sql'));
-  ok(true, 'schema + migrations 002-009 apply cleanly, and re-run idempotently');
+  await db.exec(read('010_transaction_fee.sql'));
+  ok(true, 'schema + migrations 002-010 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -214,11 +216,11 @@ if (isMain) {
 
   // --- 008: fees and checkout ---
   const baskets = JSON.parse(fs.readFileSync(path.join(here, '..', 'backend', 'fixtures', 'fee_baskets.json'), 'utf8')).baskets;
-  const camel = { promotionShareBp: 'promotion_share_bp' };
+  const camel = { promotionShareBp: 'promotion_share_bp', transactionMaxBp: 'transaction_max_bp' };
   let basketFails = [];
   for (const b of baskets) {
     const over = Object.fromEntries(Object.entries(b.settings ?? {}).map(([k, v]) => [camel[k], v]));
-    const r = (await as(db, null, `select public.compute_fees((select settings from public.fee_settings where version = 1) || $1::jsonb, $2, $3, $4, $5, 1) as q`, [JSON.stringify(over), b.price, b.postage, b.payer, b.boostBp])).rows[0].q;
+    const r = (await as(db, null, `select public.compute_fees((select settings from public.fee_settings where version = $6) || $1::jsonb, $2, $3, $4, $5, $6) as q`, [JSON.stringify(over), b.price, b.postage, b.payer, b.boostBp, b.version])).rows[0].q;
     const got = { tier: r.tier, protection: r.protection_pence, processing: r.processing_pence, courier: r.courier_pence, hub: r.hub_pence, promotion: r.promotion_pence, buyerTotal: r.buyer_total_pence, commission: r.commission_pence, sellerFees: r.seller_fees_pence, sellerPayout: r.seller_payout_pence };
     if (JSON.stringify(got) !== JSON.stringify(b.expect)) basketFails.push(`${b.name}: ${JSON.stringify(got)}`);
   }
@@ -228,25 +230,25 @@ if (isMain) {
   const shop = async (title, price, ship) => (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, shipping_pence, published) values ($1, $2, $3, $4, true) returning id`, [SELLER, title, price, ship])).rows[0].id;
   const coat = await shop('Wool coat to buy', 4000, 399);
   const quote = (await as(db, null, 'select public.order_quote($1) as q', [coat])).rows[0].q;
-  ok(quote.buyer_total_pence === 4679 && quote.fee_version === 1, 'anyone can see the price breakdown for a live listing (£40 + £3.99 postage → £46.79)');
+  ok(quote.buyer_total_pence === 4799 && quote.fee_version === 2 && quote.transaction_rate_bp === 800, 'anyone can see the price breakdown for a live listing, on fee version 2 (£40 + £3.99 postage + 8% + £0.80 → £47.99)');
   await rejects(as(db, null, 'select public.start_checkout($1)', [coat]), 'signed-out visitors cannot start a checkout', /permission denied|Sign in/);
   const co = (await as(db, BUYER, 'select public.start_checkout($1) as c', [coat])).rows[0].c;
   const ord = (await db.query('select * from public.orders where id = $1', [co.order_id])).rows[0];
   const held = (await db.query('select status from public.listings where id = $1', [coat])).rows[0].status;
-  ok(ord.payment_status === 'awaiting_payment' && ord.total_pence === 4679 && ord.seller_id === SELLER && held === 'reserved', 'checkout prices the order on the server and holds the item');
+  ok(ord.payment_status === 'awaiting_payment' && ord.total_pence === 4799 && ord.fee_version === 2 && ord.seller_id === SELLER && held === 'reserved', 'checkout prices the order on the server and holds the item');
   const again = (await as(db, BUYER, 'select public.start_checkout($1) as c', [coat])).rows[0].c;
   ok(again.order_id === co.order_id, 'pressing Pay twice continues the same order');
   await rejects(as(db, OTHER, 'select public.start_checkout($1)', [coat]), 'a second buyer cannot take a held item', /buying this right now/);
   await rejects(as(db, SELLER, 'select public.start_checkout($1)', [await shop('Own lamp', 1500, 295)]), 'sellers cannot buy their own items', /own listing/);
   await as(db, BUYER, `update public.orders set payment_status = 'paid', total_pence = 1, status = 'handover' where id = $1`, [co.order_id]);
   const tamper = (await db.query('select payment_status, total_pence, status from public.orders where id = $1', [co.order_id])).rows[0];
-  ok(tamper.payment_status === 'awaiting_payment' && tamper.total_pence === 4679 && tamper.status === 'purchased', 'buyers cannot mark an order paid, change its total or move an unpaid order along');
-  await rejects(as(db, BUYER, `select public.confirm_payment($1, 'pi_fake', 4679)`, [co.order_id]), 'buyers cannot confirm their own payment', /permission denied/);
+  ok(tamper.payment_status === 'awaiting_payment' && tamper.total_pence === 4799 && tamper.status === 'purchased', 'buyers cannot mark an order paid, change its total or move an unpaid order along');
+  await rejects(as(db, BUYER, `select public.confirm_payment($1, 'pi_fake', 4799)`, [co.order_id]), 'buyers cannot confirm their own payment', /permission denied/);
   const svc = async (sql, params) => { await db.exec('set role service_role'); try { return await db.query(sql, params); } finally { await db.exec('reset role'); } };
   ok((await svc(`select public.confirm_payment($1, 'pi_short', 100) as r`, [co.order_id])).rows[0].r === 'amount_mismatch', 'a payment for the wrong amount is held for review');
   await db.query(`update public.orders set payment_status = 'awaiting_payment' where id = $1`, [co.order_id]);
-  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4679) as r`, [co.order_id])).rows[0].r === 'paid', 'the payment service confirms a payment for the right amount');
-  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4679) as r`, [co.order_id])).rows[0].r === 'already_paid', 'the same payment confirmed twice changes nothing');
+  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4799) as r`, [co.order_id])).rows[0].r === 'paid', 'the payment service confirms a payment for the right amount');
+  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4799) as r`, [co.order_id])).rows[0].r === 'already_paid', 'the same payment confirmed twice changes nothing');
   ok((await db.query('select status from public.listings where id = $1', [coat])).rows[0].status === 'sold', 'once paid, the item is sold');
   await as(db, BUYER, `update public.orders set status = 'handover' where id = $1`, [co.order_id]);
   ok((await db.query('select status from public.orders where id = $1', [co.order_id])).rows[0].status === 'handover', 'a paid order can move along');

@@ -1,19 +1,554 @@
 {
-  "about": "The agreed test baskets for build step 5. Every figure is in pence and was worked out by hand from the fee model's defaults (fee settings version 1). The website's fee engine (web/lib/domain/fees.ts) and the database's (backend/008_checkout.sql) must both produce exactly these. buyerTotal includes postage; the fee model's buyer total does not, so subtract postage to compare.",
-  "baskets": [
-    { "name": "£15 dress, small parcel",            "price": 1500,    "postage": 295, "payer": "buyer",  "boostBp": null, "expect": { "tier": "enhanced",    "protection": 75,    "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 1950,    "commission": 0,   "sellerFees": 0,   "sellerPayout": 1500 } },
-    { "name": "£40 jacket, medium parcel",          "price": 4000,    "postage": 399, "payer": "buyer",  "boostBp": null, "expect": { "tier": "enhanced",    "protection": 200,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 4679,    "commission": 0,   "sellerFees": 0,   "sellerPayout": 4000 } },
-    { "name": "£74.99, just under witnessing",      "price": 7499,    "postage": 399, "payer": "buyer",  "boostBp": null, "expect": { "tier": "enhanced",    "protection": 375,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 8353,    "commission": 0,   "sellerFees": 0,   "sellerPayout": 7499 } },
-    { "name": "£75, courier witnessed",             "price": 7500,    "postage": 399, "payer": "buyer",  "boostBp": null, "expect": { "tier": "verified",    "protection": 375,   "processing": 80, "courier": 500, "hub": 0,    "promotion": 0,   "buyerTotal": 8854,    "commission": 0,   "sellerFees": 0,   "sellerPayout": 7500 } },
-    { "name": "£150 camera lens",                   "price": 15000,   "postage": 399, "payer": "buyer",  "boostBp": null, "expect": { "tier": "verified",    "protection": 750,   "processing": 80, "courier": 500, "hub": 0,    "promotion": 0,   "buyerTotal": 16729,   "commission": 0,   "sellerFees": 0,   "sellerPayout": 15000 } },
-    { "name": "£800 designer bag",                  "price": 80000,   "postage": 0,   "payer": "buyer",  "boostBp": null, "expect": { "tier": "luxury",      "protection": 4000,  "processing": 80, "courier": 500, "hub": 1500, "promotion": 0,   "buyerTotal": 86080,   "commission": 0,   "sellerFees": 0,   "sellerPayout": 80000 } },
-    { "name": "£2,000 watch",                       "price": 200000,  "postage": 0,   "payer": "buyer",  "boostBp": null, "expect": { "tier": "ultraLuxury", "protection": 10000, "processing": 80, "courier": 500, "hub": 3000, "promotion": 0,   "buyerTotal": 213580,  "commission": 0,   "sellerFees": 0,   "sellerPayout": 200000 } },
-    { "name": "£5 book, minimum protection fee",    "price": 500,     "postage": 295, "payer": "buyer",  "boostBp": null, "expect": { "tier": "enhanced",    "protection": 50,    "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 925,     "commission": 0,   "sellerFees": 0,   "sellerPayout": 500 } },
-    { "name": "£10,000, maximum protection fee",    "price": 1000000, "postage": 0,   "payer": "buyer",  "boostBp": null, "expect": { "tier": "ultraLuxury", "protection": 25000, "processing": 80, "courier": 500, "hub": 3000, "promotion": 0,   "buyerTotal": 1028580, "commission": 0,   "sellerFees": 0,   "sellerPayout": 1000000 } },
-    { "name": "£40 boosted at 5.5%, no promotion",  "price": 4000,    "postage": 399, "payer": "buyer",  "boostBp": 550,  "expect": { "tier": "enhanced",    "protection": 200,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 4679,    "commission": 300, "sellerFees": 0,   "sellerPayout": 3700 } },
-    { "name": "£40 boosted at 5.5%, 50% promotion", "price": 4000,    "postage": 399, "payer": "buyer",  "boostBp": 550,  "settings": { "promotionShareBp": 5000 }, "expect": { "tier": "enhanced", "protection": 200, "processing": 80, "courier": 0, "hub": 0, "promotion": 150, "buyerTotal": 4529, "commission": 300, "sellerFees": 0, "sellerPayout": 3700 } },
-    { "name": "£20 boost ignored below £25",        "price": 2000,    "postage": 295, "payer": "buyer",  "boostBp": 550,  "expect": { "tier": "enhanced",    "protection": 100,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 2475,    "commission": 0,   "sellerFees": 0,   "sellerPayout": 2000 } },
-    { "name": "£40 boost rate kept within 3–8%",    "price": 4000,    "postage": 399, "payer": "buyer",  "boostBp": 1200, "expect": { "tier": "enhanced",    "protection": 200,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 4679,    "commission": 400, "sellerFees": 0,   "sellerPayout": 3600 } },
-    { "name": "£40, seller pays protection",        "price": 4000,    "postage": 399, "payer": "seller", "boostBp": null, "expect": { "tier": "enhanced",    "protection": 200,   "processing": 80, "courier": 0,   "hub": 0,    "promotion": 0,   "buyerTotal": 4399,    "commission": 0,   "sellerFees": 280, "sellerPayout": 3720 } }
-  ]
+ "about": "The agreed test baskets. Every figure is in pence and was worked out by hand. Version 1 = the fee model's first defaults (5% buyer protection); version 2 = the transaction fee agreed on 11 Oct 2026 (8% under £75, 6% from £75, 4% from £500, 3% from £1,500, kept within 3–8%, plus £0.80 processing, paid by the buyer). The website's fee engine (web/lib/domain/fees.ts) and the database's (backend/008 and 010) must both produce exactly these. buyerTotal includes postage.",
+ "baskets": [
+  {
+   "name": "£15 dress, small parcel",
+   "price": 1500,
+   "postage": 295,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 75,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 1950,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 1500
+   },
+   "version": 1
+  },
+  {
+   "name": "£40 jacket, medium parcel",
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4679,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 4000
+   },
+   "version": 1
+  },
+  {
+   "name": "£74.99, just under witnessing",
+   "price": 7499,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 375,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 8353,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 7499
+   },
+   "version": 1
+  },
+  {
+   "name": "£75, courier witnessed",
+   "price": 7500,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "verified",
+    "protection": 375,
+    "processing": 80,
+    "courier": 500,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 8854,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 7500
+   },
+   "version": 1
+  },
+  {
+   "name": "£150 camera lens",
+   "price": 15000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "verified",
+    "protection": 750,
+    "processing": 80,
+    "courier": 500,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 16729,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 15000
+   },
+   "version": 1
+  },
+  {
+   "name": "£800 designer bag",
+   "price": 80000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "luxury",
+    "protection": 4000,
+    "processing": 80,
+    "courier": 500,
+    "hub": 1500,
+    "promotion": 0,
+    "buyerTotal": 86080,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 80000
+   },
+   "version": 1
+  },
+  {
+   "name": "£2,000 watch",
+   "price": 200000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "ultraLuxury",
+    "protection": 10000,
+    "processing": 80,
+    "courier": 500,
+    "hub": 3000,
+    "promotion": 0,
+    "buyerTotal": 213580,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 200000
+   },
+   "version": 1
+  },
+  {
+   "name": "£5 book, minimum protection fee",
+   "price": 500,
+   "postage": 295,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 50,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 925,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 500
+   },
+   "version": 1
+  },
+  {
+   "name": "£10,000, maximum protection fee",
+   "price": 1000000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "ultraLuxury",
+    "protection": 25000,
+    "processing": 80,
+    "courier": 500,
+    "hub": 3000,
+    "promotion": 0,
+    "buyerTotal": 1028580,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 1000000
+   },
+   "version": 1
+  },
+  {
+   "name": "£40 boosted at 5.5%, no promotion",
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": 550,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4679,
+    "commission": 300,
+    "sellerFees": 0,
+    "sellerPayout": 3700
+   },
+   "version": 1
+  },
+  {
+   "name": "£40 boosted at 5.5%, 50% promotion",
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": 550,
+   "settings": {
+    "promotionShareBp": 5000
+   },
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 150,
+    "buyerTotal": 4529,
+    "commission": 300,
+    "sellerFees": 0,
+    "sellerPayout": 3700
+   },
+   "version": 1
+  },
+  {
+   "name": "£20 boost ignored below £25",
+   "price": 2000,
+   "postage": 295,
+   "payer": "buyer",
+   "boostBp": 550,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 100,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 2475,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 2000
+   },
+   "version": 1
+  },
+  {
+   "name": "£40 boost rate kept within 3–8%",
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": 1200,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4679,
+    "commission": 400,
+    "sellerFees": 0,
+    "sellerPayout": 3600
+   },
+   "version": 1
+  },
+  {
+   "name": "£40, seller pays protection",
+   "price": 4000,
+   "postage": 399,
+   "payer": "seller",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4399,
+    "commission": 0,
+    "sellerFees": 280,
+    "sellerPayout": 3720
+   },
+   "version": 1
+  },
+  {
+   "name": "v2 · £15 dress, 8%",
+   "version": 2,
+   "price": 1500,
+   "postage": 295,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 120,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 1995,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 1500
+   }
+  },
+  {
+   "name": "v2 · £40 jacket, 8%",
+   "version": 2,
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 320,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4799,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 4000
+   }
+  },
+  {
+   "name": "v2 · £74.99, 8%, just under witnessing",
+   "version": 2,
+   "price": 7499,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 600,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 8578,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 7499
+   }
+  },
+  {
+   "name": "v2 · £75, 6%, courier witnessed",
+   "version": 2,
+   "price": 7500,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "verified",
+    "protection": 450,
+    "processing": 80,
+    "courier": 500,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 8929,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 7500
+   }
+  },
+  {
+   "name": "v2 · £150 lens, 6%",
+   "version": 2,
+   "price": 15000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "verified",
+    "protection": 900,
+    "processing": 80,
+    "courier": 500,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 16879,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 15000
+   }
+  },
+  {
+   "name": "v2 · £800 bag, 4%",
+   "version": 2,
+   "price": 80000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "luxury",
+    "protection": 3200,
+    "processing": 80,
+    "courier": 500,
+    "hub": 1500,
+    "promotion": 0,
+    "buyerTotal": 85280,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 80000
+   }
+  },
+  {
+   "name": "v2 · £2,000 watch, 3%",
+   "version": 2,
+   "price": 200000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "ultraLuxury",
+    "protection": 6000,
+    "processing": 80,
+    "courier": 500,
+    "hub": 3000,
+    "promotion": 0,
+    "buyerTotal": 209580,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 200000
+   }
+  },
+  {
+   "name": "v2 · £5 book, minimum fee 50p",
+   "version": 2,
+   "price": 500,
+   "postage": 295,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 50,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 925,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 500
+   }
+  },
+  {
+   "name": "v2 · £10,000, maximum fee £250",
+   "version": 2,
+   "price": 1000000,
+   "postage": 0,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "ultraLuxury",
+    "protection": 25000,
+    "processing": 80,
+    "courier": 500,
+    "hub": 3000,
+    "promotion": 0,
+    "buyerTotal": 1028580,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 1000000
+   }
+  },
+  {
+   "name": "v2 · £40 boosted at 5.5%",
+   "version": 2,
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": 550,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 320,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4799,
+    "commission": 300,
+    "sellerFees": 0,
+    "sellerPayout": 3700
+   }
+  },
+  {
+   "name": "v2 · £40 boosted, 50% promotion",
+   "version": 2,
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": 550,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 320,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 150,
+    "buyerTotal": 4649,
+    "commission": 300,
+    "sellerFees": 0,
+    "sellerPayout": 3700
+   },
+   "settings": {
+    "promotionShareBp": 5000
+   }
+  },
+  {
+   "name": "v2 · £40, seller pays the fees",
+   "version": 2,
+   "price": 4000,
+   "postage": 399,
+   "payer": "seller",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 320,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4399,
+    "commission": 0,
+    "sellerFees": 400,
+    "sellerPayout": 3600
+   }
+  },
+  {
+   "name": "v2 · £40, staff cap the rate at 5%",
+   "version": 2,
+   "price": 4000,
+   "postage": 399,
+   "payer": "buyer",
+   "boostBp": null,
+   "expect": {
+    "tier": "enhanced",
+    "protection": 200,
+    "processing": 80,
+    "courier": 0,
+    "hub": 0,
+    "promotion": 0,
+    "buyerTotal": 4679,
+    "commission": 0,
+    "sellerFees": 0,
+    "sellerPayout": 4000
+   },
+   "settings": {
+    "transactionMaxBp": 500
+   }
+  }
+ ]
 }

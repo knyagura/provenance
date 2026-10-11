@@ -40,6 +40,7 @@ export function quoteJson(listingId: string, q: FeeBreakdown) {
     tier: q.tier,
     price_pence: q.pricePence,
     postage_pence: q.postagePence,
+    transaction_rate_bp: q.payer === 'buyer' ? q.transactionRateBp : 0,
     protection_pence: q.payer === 'buyer' ? q.protectionPence : 0,
     processing_pence: q.payer === 'buyer' ? q.processingPence : 0,
     courier_witness_pence: q.courierPence,

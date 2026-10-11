@@ -290,18 +290,18 @@ try {
     const table = bp.getByRole('table', { name: 'What you pay' });
     await table.waitFor();
     const rows = (await table.getByRole('row').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
-    const want = ['Item£890.00', 'Buyer protection', '£44.50', 'Processing fee', '£0.80', 'Courier witness', '£5.00', 'Authentication check', '£15.00', 'Total£955.30'];
+    const want = ['Item£890.00', 'Transaction fee (4%)', '£35.60', 'Processing fee', '£0.80', 'Courier witness', '£5.00', 'Authentication check', '£15.00', 'Total£946.40'];
     for (const w of want) if (!rows.some((r) => r.includes(w))) fail(`checkout: breakdown missing "${w}" (rows: ${rows.join(' | ')})`);
     if (rows.some((r) => r.startsWith('Postage'))) fail('checkout: free postage should not be listed');
     // The seller drops the price while the buyer is looking: nothing is held, and the change is shown.
     await bp.evaluate(() => sessionStorage.setItem('pv-example-edits', JSON.stringify({ 'example-6': { revision: 2, pricePence: 85000 } })));
-    await bp.getByRole('button', { name: 'Continue to payment · £955.30' }).click();
+    await bp.getByRole('button', { name: 'Continue to payment · £946.40' }).click();
     await bp.getByRole('heading', { name: 'The seller changed this listing' }).waitFor();
     if (!(await bp.getByText('Price: £890.00 → £850.00').isVisible())) fail('checkout: price change not shown');
     await bp.getByRole('button', { name: 'Continue with the updated listing' }).click();
-    await bp.getByRole('button', { name: 'Continue to payment · £913.30' }).click();
+    await bp.getByRole('button', { name: 'Continue to payment · £904.80' }).click();
     await bp.getByText('We’re holding this for you until').waitFor();
-    await bp.getByRole('button', { name: 'Pay £913.30 (test)' }).click();
+    await bp.getByRole('button', { name: 'Pay £904.80 (test)' }).click();
     await bp.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await bp.getByRole('heading', { level: 1, name: 'Paid' }).waitFor();
     const bought = await bp.getByRole('heading', { name: 'What you bought' }).locator('..').textContent();
@@ -309,7 +309,7 @@ try {
     await bp.goto(BASE + '/profile');
     await bp.getByRole('list', { name: 'Your orders' }).waitFor();
     const ordersText = await bp.getByRole('list', { name: 'Your orders' }).textContent();
-    if (!ordersText?.includes('Saint Laurent Kate bag') || !ordersText.includes('£913.30')) fail(`account: order missing (${ordersText})`);
+    if (!ordersText?.includes('Saint Laurent Kate bag') || !ordersText.includes('£904.80')) fail(`account: order missing (${ordersText})`);
     await bp.goto(BASE + '/checkout/example-6');
     await bp.getByRole('heading', { name: 'This item isn’t available' }).waitFor();
     if (berr.length) fail(`checkout: page errors: ${berr.slice(0, 2).join(' | ')}`);
@@ -344,7 +344,7 @@ try {
   expectApi('categories', cats, 200, 'application/json');
   const q = await api('/api/v1/listings/example-1/quote', KEY);
   expectApi('quote', q, 200, 'application/json');
-  if (q.body.data?.total_pence !== 5519 || q.body.data?.protection_pence !== 240) fail(`API quote wrong: ${JSON.stringify(q.body.data)}`);
+  if (q.body.data?.total_pence !== 5663 || q.body.data?.protection_pence !== 384 || q.body.data?.transaction_rate_bp !== 800) fail(`API quote wrong: ${JSON.stringify(q.body.data)}`);
   if ('seller_payout_pence' in (q.body.data ?? {})) fail('API quote must not reveal what the seller receives');
   if (cats.body.data?.length !== 9) fail('API categories count');
   expectApi('unknown endpoint', await api('/api/v1/nothing', KEY), 404, 'application/problem+json');

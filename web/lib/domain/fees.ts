@@ -9,7 +9,10 @@ export interface FeeTier {
   key: TierKey;
   /** The tier applies from this price upwards. */
   fromPence: number;
-  /** Buyer protection, as basis points of the price. */
+  /**
+   * The transaction fee for this price band, as basis points of the price (800 = 8%). It pays for buyer
+   * protection and is kept between transactionMinBp and transactionMaxBp.
+   */
   protectionBp: number;
   /** Courier witness at collection and delivery. */
   courierPence: number;
@@ -23,6 +26,9 @@ export interface FeeSettings {
   processingPence: number;
   protectionMinPence: number;
   protectionMaxPence: number;
+  /** Every tier's transaction fee rate is kept within these (version 2: 3% to 8%). */
+  transactionMinBp: number;
+  transactionMaxBp: number;
   boostOn: boolean;
   boostMinPricePence: number;
   boostMinBp: number;
@@ -35,8 +41,8 @@ export interface FeeSettings {
   checkoutHoldMinutes: number;
 }
 
-/** Version 1: the fee model's defaults, agreed 11 Oct 2026. The live values come from the database. */
-export const DEFAULT_FEES: FeeSettings = {
+/** Version 1: the fee model's first defaults (5% buyer protection on every item). Kept for orders priced on it. */
+export const FEES_V1: FeeSettings = {
   version: 1,
   tiers: [
     { key: 'enhanced', fromPence: 0, protectionBp: 500, courierPence: 0, hubPence: 0 },
@@ -47,6 +53,8 @@ export const DEFAULT_FEES: FeeSettings = {
   processingPence: 80,
   protectionMinPence: 50,
   protectionMaxPence: 25000,
+  transactionMinBp: 0,
+  transactionMaxBp: 10000,
   boostOn: true,
   boostMinPricePence: 2500,
   boostMinBp: 300,
@@ -55,6 +63,24 @@ export const DEFAULT_FEES: FeeSettings = {
   promotionShareBp: 0,
   promotionCovers: { protection: true, processing: true, addOns: false },
   checkoutHoldMinutes: 30,
+};
+
+/**
+ * Version 2 (agreed 11 Oct 2026): every item carries a transaction fee of 3–8% by price band, paid by the
+ * buyer, plus the £0.80 processing fee. 8% under £75, 6% from £75, 4% from £500, 3% from £1,500.
+ * The live values come from the database; this copy is for screens and tests.
+ */
+export const DEFAULT_FEES: FeeSettings = {
+  ...FEES_V1,
+  version: 2,
+  tiers: [
+    { key: 'enhanced', fromPence: 0, protectionBp: 800, courierPence: 0, hubPence: 0 },
+    { key: 'verified', fromPence: 7500, protectionBp: 600, courierPence: 500, hubPence: 0 },
+    { key: 'luxury', fromPence: 50000, protectionBp: 400, courierPence: 500, hubPence: 1500 },
+    { key: 'ultraLuxury', fromPence: 150000, protectionBp: 300, courierPence: 500, hubPence: 3000 },
+  ],
+  transactionMinBp: 300,
+  transactionMaxBp: 800,
 };
 
 export interface FeeInput {
@@ -71,7 +97,10 @@ export interface FeeBreakdown {
   tier: TierKey;
   pricePence: number;
   postagePence: number;
+  /** The transaction fee (it pays for buyer protection). */
   protectionPence: number;
+  /** The rate it was charged at, in basis points. */
+  transactionRateBp: number;
   processingPence: number;
   courierPence: number;
   hubPence: number;
@@ -103,7 +132,8 @@ export function computeFees(s: FeeSettings, input: FeeInput): FeeBreakdown {
   const { pricePence: price, postagePence: postage, payer } = input;
   if (!Number.isInteger(price) || price < 0 || !Number.isInteger(postage) || postage < 0) throw new Error('Prices are whole pence');
   const t = tierFor(s, price);
-  const protection = clamp(divRound(price * t.protectionBp, 10000), s.protectionMinPence, s.protectionMaxPence);
+  const rateBp = clamp(t.protectionBp, s.transactionMinBp, s.transactionMaxBp);
+  const protection = clamp(divRound(price * rateBp, 10000), s.protectionMinPence, s.protectionMaxPence);
   const processing = s.processingPence;
   const addOns = t.courierPence + t.hubPence;
 
@@ -128,6 +158,7 @@ export function computeFees(s: FeeSettings, input: FeeInput): FeeBreakdown {
     pricePence: price,
     postagePence: postage,
     protectionPence: protection,
+    transactionRateBp: rateBp,
     processingPence: processing,
     courierPence: t.courierPence,
     hubPence: t.hubPence,
@@ -156,6 +187,8 @@ export function feeSettingsFromJson(version: number, j: Record<string, unknown>)
     processingPence: Number(j.processing_pence),
     protectionMinPence: Number(j.protection_min_pence),
     protectionMaxPence: Number(j.protection_max_pence),
+    transactionMinBp: j.transaction_min_bp === undefined ? 0 : Number(j.transaction_min_bp),
+    transactionMaxBp: j.transaction_max_bp === undefined ? 10000 : Number(j.transaction_max_bp),
     boostOn: Boolean(j.boost_on),
     boostMinPricePence: Number(j.boost_min_price_pence),
     boostMinBp: Number(j.boost_min_bp),
@@ -177,6 +210,7 @@ export function breakdownFromJson(j: Record<string, unknown> | null): FeeBreakdo
     pricePence: n('price_pence'),
     postagePence: n('postage_pence'),
     protectionPence: n('protection_pence'),
+    transactionRateBp: n('transaction_rate_bp'),
     processingPence: n('processing_pence'),
     courierPence: n('courier_pence'),
     hubPence: n('hub_pence'),
@@ -196,7 +230,12 @@ export function buyerLines(b: FeeBreakdown): { key: string; label: string; note:
     { key: 'postage', label: 'Postage', note: 'Tracked delivery to your door.', pence: b.postagePence },
     ...(b.payer === 'buyer'
       ? [
-          { key: 'protection', label: 'Buyer protection', note: 'Your money back if the item isn’t as described, backed by its custody record.', pence: b.protectionPence },
+          {
+            key: 'protection',
+            label: b.transactionRateBp ? `Transaction fee (${b.transactionRateBp / 100}%)` : 'Buyer protection',
+            note: 'Includes buyer protection: your money back if the item isn’t as described, backed by its custody record.',
+            pence: b.protectionPence,
+          },
           { key: 'processing', label: 'Processing fee', note: 'Card and payment handling.', pence: b.processingPence },
         ]
       : []),
