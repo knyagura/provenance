@@ -21,7 +21,7 @@ export function listingJson(l: Listing, siteUrl: string) {
     tier: l.tier,
     status: l.status,
     media: l.media.map((m) => ({ url: m.url, kind: m.kind, shot: m.shot })),
-    seller: { username: l.seller.username, verified: l.seller.verified, business: l.seller.business },
+    seller: { username: l.seller.username, verified: l.seller.verified, business: l.seller.business, away: l.seller.away },
     created_at: l.createdAt,
   };
 }

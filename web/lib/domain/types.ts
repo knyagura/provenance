@@ -24,6 +24,18 @@ export interface Seller {
   /** Identity checked. */
   verified: boolean;
   business: boolean;
+  /** On holiday: listings are hidden from browsing and buying is paused. */
+  away: boolean;
+}
+
+/** A member's public page. */
+export interface MemberPage {
+  username: string;
+  bio: string | null;
+  verified: boolean;
+  business: boolean;
+  away: boolean;
+  joined: string;
 }
 
 export interface Listing {
@@ -55,6 +67,8 @@ export type Sort = 'newest' | 'price_asc' | 'price_desc';
 export interface ListingQuery {
   q?: string;
   category?: string;
+  /** Only this seller's listings (username, any case). */
+  seller?: string;
   minPence?: number;
   maxPence?: number;
   condition?: string;

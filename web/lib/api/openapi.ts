@@ -30,6 +30,7 @@ export function openApi(siteUrl: string) {
           parameters: [
             { name: 'q', in: 'query', schema: { type: 'string', maxLength: 100 }, description: 'Words to find in the title, brand or description. Each word matches the start of a word, so "barb" finds "Barbour".' },
             { name: 'category', in: 'query', schema: { type: 'string' }, description: 'A category slug from /categories.' },
+            { name: 'seller', in: 'query', schema: { type: 'string' }, description: 'Only this seller’s listings, by username. Without it, sellers on holiday are left out.' },
             { name: 'condition', in: 'query', schema: { type: 'string', enum: CONDITIONS } },
             { name: 'min_price_pence', in: 'query', schema: { type: 'integer', minimum: 0 } },
             { name: 'max_price_pence', in: 'query', schema: { type: 'integer', minimum: 0 } },
@@ -104,7 +105,7 @@ export function openApi(siteUrl: string) {
             tier: { type: 'string', enum: ['enhanced', 'verified', 'luxury', 'ultraLuxury'] },
             status: { type: 'string', enum: ['active', 'reserved', 'sold'] },
             media: { type: 'array', items: { type: 'object', properties: { url: { type: 'string', format: 'uri' }, kind: { type: 'string', enum: ['photo', 'video'] }, shot: { type: ['string', 'null'] } } } },
-            seller: { type: 'object', properties: { username: { type: 'string' }, verified: { type: 'boolean' }, business: { type: 'boolean' } } },
+            seller: { type: 'object', properties: { username: { type: 'string' }, verified: { type: 'boolean' }, business: { type: 'boolean' }, away: { type: 'boolean', description: 'On holiday: buying is paused.' } } },
             created_at: { type: 'string', format: 'date-time' },
           },
         },

@@ -4,7 +4,7 @@ import { decodeCursor, encodeCursor, MAX_LIMIT, nextCursor, parseApiQuery, parse
 describe('API query parsing', () => {
   it('defaults', () => {
     const r = parseApiQuery(new URLSearchParams(''));
-    expect(r).toEqual({ ok: true, query: { q: undefined, category: undefined, condition: undefined, minPence: undefined, maxPence: undefined, sort: 'newest', limit: 24, offset: 0 } });
+    expect(r).toEqual({ ok: true, query: { q: undefined, category: undefined, seller: undefined, condition: undefined, minPence: undefined, maxPence: undefined, sort: 'newest', limit: 24, offset: 0 } });
   });
   it('reads every filter', () => {
     const r = parseApiQuery(new URLSearchParams('q=barbour&category=men&condition=Good&min_price_pence=1000&max_price_pence=5000&sort=price_asc&limit=10'));

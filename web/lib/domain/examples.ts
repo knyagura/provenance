@@ -63,7 +63,7 @@ export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   tier: s[8],
   status: 'active',
   media: [],
-  seller: { username: s[6], verified: s[7], business: s[6] === 'lens_vault' },
+  seller: { username: s[6], verified: s[7], business: s[6] === 'lens_vault', away: false },
   // Newest first in seed order, an hour apart.
   createdAt: new Date(Date.UTC(2026, 9, 10, 12) - i * 3_600_000).toISOString(),
   example: true,

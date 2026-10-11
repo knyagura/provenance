@@ -3,7 +3,7 @@ import { config } from '@/lib/config';
 import { exampleCatalogue, fallbackCategories } from './examples';
 import { nextCursor } from './query';
 import { filterInMemory, toPrefixTsQuery } from './search';
-import type { Category, Listing, ListingQuery, Media, Page } from './types';
+import type { Category, Listing, ListingQuery, Media, MemberPage, Page } from './types';
 
 // The catalogue domain module: the one place that reads listings and categories.
 // Website pages call it directly on the server; /api/v1 route handlers wrap the same functions.
@@ -15,6 +15,8 @@ export interface CatalogueSource {
   get(id: string): Promise<Listing | null>;
   /** True when no listing is published at all. */
   isEmpty(): Promise<boolean>;
+  /** A member's public page, by username (any case). */
+  member(username: string): Promise<MemberPage | null>;
 }
 
 export class CatalogueUnavailable extends Error {
@@ -39,6 +41,10 @@ export const exampleSource: CatalogueSource = {
   async isEmpty() {
     return false;
   },
+  async member(username) {
+    const l = exampleCatalogue.find((x) => x.seller.username.toLowerCase() === username.toLowerCase());
+    return l ? { username: l.seller.username, bio: null, verified: l.seller.verified, business: l.seller.business, away: false, joined: '2026-01-15T10:00:00.000Z' } : null;
+  },
 };
 
 // ---------- Supabase ----------
@@ -46,7 +52,7 @@ export const exampleSource: CatalogueSource = {
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
   'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint',
-  'seller:profiles!listings_seller_id_fkey(username, kyc_verified, is_pro)',
+  'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode)',
   'media:listing_media(path, kind, shot, position)',
 ].join(', ');
 
@@ -66,7 +72,7 @@ interface Row {
   status: Listing['status'];
   created_at: string;
   serial_hint?: string | null;
-  seller: { username: string; kyc_verified: boolean; is_pro: boolean } | null;
+  seller: { username: string; kyc_verified: boolean; is_pro: boolean; holiday_mode?: boolean } | null;
   media: { path: string; kind: Media['kind']; shot: string | null; position: number }[] | null;
 }
 
@@ -98,9 +104,15 @@ export function toListing(r: Row): Listing {
       username: r.seller?.username ?? 'unknown',
       verified: Boolean(r.seller?.kyc_verified),
       business: Boolean(r.seller?.is_pro),
+      away: Boolean(r.seller?.holiday_mode),
     },
     createdAt: r.created_at,
   };
+}
+
+/** An exact, case-insensitive match for ilike: escapes its wildcards (usernames often contain "_"). */
+export function likeExact(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -129,6 +141,9 @@ export const supabaseSource: CatalogueSource = {
       .eq('status', 'active');
     const ts = toPrefixTsQuery(query.q);
     if (ts) req = req.textSearch('search', ts, { config: 'simple' });
+    // Sellers on holiday drop out of browsing; their own page still lists their items.
+    if (query.seller) req = req.ilike('seller.username', likeExact(query.seller));
+    else req = req.eq('seller.holiday_mode', false);
     if (query.category) req = req.eq('category', query.category);
     if (query.condition) req = req.eq('condition_label', query.condition);
     if (query.minPence !== undefined) req = req.gte('price_pence', query.minPence);
@@ -149,6 +164,19 @@ export const supabaseSource: CatalogueSource = {
     const { data, error } = await db().from('listings').select(LISTING_COLUMNS).eq('id', id).maybeSingle();
     if (error) throw new CatalogueUnavailable(error);
     return data ? toListing(data as unknown as Row) : null;
+  },
+
+  async member(username) {
+    if (!/^[A-Za-z0-9._-]{3,30}$/.test(username)) return null;
+    const { data, error } = await db()
+      .from('profiles')
+      .select('username, bio, kyc_verified, is_pro, holiday_mode, created_at')
+      .ilike('username', likeExact(username))
+      .maybeSingle();
+    if (error) throw new CatalogueUnavailable(error);
+    return data
+      ? { username: data.username, bio: data.bio, verified: data.kyc_verified, business: data.is_pro, away: data.holiday_mode, joined: data.created_at }
+      : null;
   },
 
   async isEmpty() {
@@ -179,6 +207,18 @@ export async function siteCatalogue(): Promise<{ source: CatalogueSource; exampl
   const live = liveSource();
   if (live === exampleSource) return { source: exampleSource, examples: true };
   return (await live.isEmpty()) ? { source: exampleSource, examples: true } : { source: live, examples: false };
+}
+
+/** Member pages: example sellers come from the examples while the catalogue is empty. */
+export async function getMemberPage(username: string): Promise<{ member: MemberPage; source: CatalogueSource; examples: boolean } | null> {
+  const live = liveSource();
+  if (live !== exampleSource) {
+    const m = await live.member(username);
+    if (m) return { member: m, source: live, examples: false };
+    if (!(await live.isEmpty())) return null;
+  }
+  const ex = await exampleSource.member(username);
+  return ex ? { member: ex, source: exampleSource, examples: true } : null;
 }
 
 /** Item pages: example IDs always come from the examples, real IDs from the database. */

@@ -1,14 +1,21 @@
 import { DRAFT_TITLE, missingForPublish } from '@/lib/domain/evidence';
-import type { Draft, DraftMedia, Member, Result, SellingBackend } from './types';
+import { usernameProblem, BIO_MAX } from '@/lib/account/passkeyOffer';
+import type { Draft, DraftMedia, Member, Passkey, Profile, Result, SellingBackend } from './types';
 
 // A pretend backend that lives in this browser tab, for tests and demos without a database
 // (PV_DATA_SOURCE=examples). Any email and a password of 8+ characters signs in. Nothing leaves the browser.
 
 const KEY = 'pv-example-selling';
 
+interface StoredPasskey extends Passkey {
+  member: Member;
+}
+
 interface Store {
   member: Member | null;
   drafts: Draft[];
+  profile?: Profile;
+  passkeys?: StoredPasskey[];
 }
 
 function load(): Store {
@@ -30,6 +37,14 @@ function save(s: Store) {
 }
 
 let listeners: ((m: Member | null) => void)[] = [];
+const challenge = () => crypto.getRandomValues(new Uint8Array(32));
+
+function setMember(s: Store, m: Member | null) {
+  s.member = m;
+  if (m && !s.profile) s.profile = { username: m.username, bio: '', holidayMode: false, verified: false, business: false, joined: now() };
+  save(s);
+  listeners.forEach((l) => l(m));
+}
 const ok = <T,>(value: T): Result<T> => ({ ok: true, value });
 const now = () => new Date().toISOString();
 
@@ -57,20 +72,96 @@ export const exampleBackend: SellingBackend = {
     if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, message: 'Enter a valid email address.' };
     if (password.length < 8) return { ok: false, message: 'That email and password don’t match an account.' };
     const s = load();
-    s.member = { id: 'example-member', email, username: email.split('@')[0] };
-    save(s);
-    listeners.forEach((l) => l(s.member));
-    return ok(s.member);
+    setMember(s, { id: 'example-member', email, username: s.profile?.username ?? email.split('@')[0] });
+    return ok(s.member!);
   },
   async signUp(email, password) {
     if (password.length < 8) return { ok: false, message: 'Choose a password of at least 8 characters.' };
     return ok({ needsConfirmation: !email });
   },
   async signOut() {
+    setMember(load(), null);
+  },
+  // Example passkeys use the browser's real passkey prompt, scoped to this site, and are remembered in this tab.
+  async signInWithPasskey() {
+    try {
+      const cred = (await navigator.credentials.get({ publicKey: { challenge: challenge(), userVerification: 'preferred', timeout: 60_000 } })) as PublicKeyCredential | null;
+      const s = load();
+      const pk = s.passkeys?.find((p) => p.id === cred?.id);
+      if (!pk) return { ok: false, message: 'That passkey isn’t linked to an account here. Sign in with your password, then add a passkey from your account page.' };
+      pk.lastUsedAt = now();
+      const m = { ...pk.member, username: s.profile?.username ?? pk.member.username };
+      setMember(s, m);
+      return ok(m);
+    } catch {
+      return { ok: false, message: 'Passkey cancelled. Try again, or use your password.' };
+    }
+  },
+  async requestPasswordReset() {
+    return ok(undefined);
+  },
+  async setPassword(password) {
+    return password.length < 8 ? { ok: false, message: 'Choose a password of at least 8 characters.' } : ok(undefined);
+  },
+  onPasswordRecovery() {
+    return () => {};
+  },
+  async myProfile() {
     const s = load();
-    s.member = null;
+    return s.member ? s.profile ?? null : null;
+  },
+  async saveProfile(f) {
+    const s = load();
+    if (!s.member || !s.profile) return { ok: false, message: 'Sign in first.' };
+    if (f.username !== undefined && usernameProblem(f.username)) return { ok: false, message: usernameProblem(f.username)! };
+    if (f.username !== undefined && f.username.trim().toLowerCase() === 'taken') return { ok: false, message: 'That username is taken. Try another.' };
+    if (f.bio !== undefined && f.bio.length > BIO_MAX) return { ok: false, message: 'Keep your bio to 500 characters.' };
+    Object.assign(s.profile, Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined)));
+    if (f.username !== undefined) s.profile.username = f.username.trim();
+    setMember(s, { ...s.member, username: s.profile.username });
+    return ok(undefined);
+  },
+  async passkeys() {
+    const s = load();
+    return ok((s.passkeys ?? []).filter((p) => p.member.id === s.member?.id).map(({ member: _m, ...p }) => p));
+  },
+  async addPasskey() {
+    const s = load();
+    if (!s.member) return { ok: false, message: 'Sign in first.' };
+    try {
+      const cred = (await navigator.credentials.create({
+        publicKey: {
+          challenge: challenge(),
+          rp: { name: 'Provenance (example)' },
+          user: { id: new TextEncoder().encode(s.member.id), name: s.member.email, displayName: s.member.username },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+          timeout: 60_000,
+        },
+      })) as PublicKeyCredential | null;
+      if (!cred) return { ok: false, message: 'Passkey cancelled. Try again, or use your password.' };
+      const pk: StoredPasskey = { id: cred.id, name: 'Passkey on this device', createdAt: now(), lastUsedAt: null, member: s.member };
+      s.passkeys = [...(s.passkeys ?? []), pk];
+      save(s);
+      const { member: _m, ...rest } = pk;
+      return ok(rest);
+    } catch {
+      return { ok: false, message: 'Passkey cancelled. Try again, or use your password.' };
+    }
+  },
+  async renamePasskey(id, name) {
+    const s = load();
+    const pk = s.passkeys?.find((p) => p.id === id);
+    if (!pk) return { ok: false, message: 'That passkey no longer exists.' };
+    pk.name = name.trim().slice(0, 120) || pk.name;
     save(s);
-    listeners.forEach((l) => l(null));
+    return ok(undefined);
+  },
+  async removePasskey(id) {
+    const s = load();
+    s.passkeys = (s.passkeys ?? []).filter((p) => p.id !== id);
+    save(s);
+    return ok(undefined);
   },
   async myListings() {
     return [...load().drafts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

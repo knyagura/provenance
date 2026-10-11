@@ -60,6 +60,9 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
   const category = get(params, 'category');
   if (category && !/^[a-z0-9-]{1,40}$/.test(category)) errors.push({ name: 'category', reason: 'Unknown category.' });
 
+  const seller = get(params, 'seller');
+  if (seller && !/^[A-Za-z0-9._-]{3,30}$/.test(seller)) errors.push({ name: 'seller', reason: 'Not a username.' });
+
   const condition = get(params, 'condition');
   if (condition && !CONDITIONS.includes(condition as never)) {
     errors.push({ name: 'condition', reason: `Must be one of: ${CONDITIONS.join(', ')}.` });
@@ -88,7 +91,7 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
     errors.push({ name: 'max', reason: 'The highest price must be more than the lowest.' });
   }
 
-  return { q, category, condition, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
+  return { q, category, seller, condition, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
 }
 
 export function parseApiQuery(params: Params): Parsed {
@@ -111,6 +114,7 @@ export function parseSiteQuery(params: Params): { query: ListingQuery; errors: F
       ...query,
       q: bad.has('q') ? query.q?.slice(0, 100) : query.q,
       category: bad.has('category') ? undefined : query.category,
+      seller: bad.has('seller') ? undefined : query.seller,
       condition: bad.has('condition') ? undefined : query.condition,
       sort: bad.has('sort') ? 'newest' : query.sort,
       minPence: bad.has('min') || bad.has('max') ? undefined : query.minPence,

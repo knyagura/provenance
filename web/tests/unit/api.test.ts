@@ -90,6 +90,6 @@ describe('responses', () => {
     expect(l.media.map((m) => m.shot)).toEqual(['front', null]);
     expect(l.media[0].url).toBe(mediaUrl('a/b/1 x.jpg'));
     expect(l.media[0].url).toMatch(/listing-media\/a\/b\/1%20x\.jpg$/);
-    expect(l.seller).toEqual({ username: 'u', verified: true, business: false });
+    expect(l.seller).toEqual({ username: 'u', verified: true, business: false, away: false });
   });
 });

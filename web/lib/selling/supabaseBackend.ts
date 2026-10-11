@@ -2,7 +2,7 @@ import type { AuthError, PostgrestError } from '@supabase/supabase-js';
 import { mediaUrl } from '@/lib/domain/catalogue';
 import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
-import type { Draft, DraftFields, DraftMedia, Member, Result, SellingBackend } from './types';
+import type { Draft, DraftFields, DraftMedia, Member, Passkey, Result, SellingBackend } from './types';
 
 // Selling through Supabase with the signed-in member's session. Row Level Security and the database's
 // listing rules (migration 006) decide what is allowed; this file only translates.
@@ -54,8 +54,21 @@ function toDraft(r: DraftRow): Draft {
 }
 
 /** Plain-English messages for the errors people actually meet. */
-export function friendly(e: PostgrestError | AuthError | Error | { message: string }): string {
+export function friendly(e: PostgrestError | AuthError | Error | { message: string; code?: string; name?: string }): string {
   const m = e.message ?? '';
+  const code = String((e as { code?: unknown }).code ?? '');
+  const name = (e as { name?: string }).name ?? '';
+  if (code === 'passkey_disabled') return 'Passkey sign-in isn’t switched on yet. Use your email and password for now.';
+  if (code === 'webauthn_credential_not_found') return 'That passkey isn’t linked to an account here. Sign in with your password, then add a passkey from your account page.';
+  if (code === 'webauthn_credential_exists') return 'This device already has a passkey for your account.';
+  if (code === 'too_many_passkeys') return 'You have the most passkeys allowed. Remove one first.';
+  if (code === 'webauthn_challenge_expired' || code === 'webauthn_challenge_not_found') return 'That took too long. Try again.';
+  if (code === 'ERROR_CEREMONY_ABORTED' || name === 'NotAllowedError' || /NotAllowedError|cancel|aborted|timed out/i.test(m)) return 'Passkey cancelled. Try again, or use your password.';
+  if (code === 'same_password') return 'Choose a password different from your current one.';
+  if (code === 'weak_password' || /weak|pwned|compromised/i.test(m)) return 'That password is too easy to guess, or has appeared in a data breach. Choose another.';
+  if (/profiles_username_lower_idx|duplicate key.*username/i.test(m)) return 'That username is taken. Try another.';
+  if (/profiles_username_format/.test(m)) return 'Use 3–30 letters, numbers, dots, dashes or underscores.';
+  if (/profiles_bio_len/.test(m)) return 'Keep your bio to 500 characters.';
   if (/Not ready to publish/.test(m)) return m.replace('Not ready to publish:', 'Still needed:');
   if (/fixed once|cannot change once/.test(m)) return m;
   if (/Invalid login credentials/i.test(m)) return 'That email and password don’t match an account.';
@@ -70,6 +83,10 @@ export function friendly(e: PostgrestError | AuthError | Error | { message: stri
 }
 
 const fail = (e: Parameters<typeof friendly>[0]): { ok: false; message: string } => ({ ok: false, message: friendly(e) });
+
+function toPasskey(p: { id: string; friendly_name?: string; created_at: string; last_used_at?: string }): Passkey {
+  return { id: p.id, name: p.friendly_name || 'Passkey', createdAt: p.created_at, lastUsedAt: p.last_used_at ?? null };
+}
 
 async function memberFromSession(): Promise<Member | null> {
   const { data } = await supabase().auth.getSession();
@@ -114,6 +131,80 @@ export const supabaseBackend: SellingBackend = {
 
   async signOut() {
     await supabase().auth.signOut();
+  },
+
+  async signInWithPasskey() {
+    const { error } = await supabase().auth.signInWithPasskey();
+    if (error) return fail(error);
+    const m = await memberFromSession();
+    return m ? { ok: true, value: m } : { ok: false, message: 'Signed in, but we couldn’t load your account.' };
+  },
+
+  async requestPasswordReset(email) {
+    const { error } = await supabase().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset` });
+    // Only rate limits and network problems are worth reporting; never whether the email has an account.
+    if (error && /rate limit|fetch|network|timeout/i.test(error.message)) return fail(error);
+    return { ok: true, value: undefined };
+  },
+
+  async setPassword(password) {
+    const { error } = await supabase().auth.updateUser({ password });
+    return error ? fail(error) : { ok: true, value: undefined };
+  },
+
+  onPasswordRecovery(cb) {
+    const { data } = supabase().auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setTimeout(cb, 0);
+    });
+    return () => data.subscription.unsubscribe();
+  },
+
+  async myProfile() {
+    const me = await uid();
+    if (!me) return null;
+    const { data, error } = await supabase()
+      .from('profiles')
+      .select('username, bio, holiday_mode, kyc_verified, is_pro, created_at')
+      .eq('id', me)
+      .maybeSingle();
+    if (error) throw new Error(friendly(error));
+    if (!data) return null;
+    return {
+      username: data.username, bio: data.bio ?? '', holidayMode: data.holiday_mode,
+      verified: data.kyc_verified, business: data.is_pro, joined: data.created_at,
+    };
+  },
+
+  async saveProfile(f) {
+    const me = await uid();
+    if (!me) return { ok: false, message: 'Sign in first.' };
+    const row: Record<string, unknown> = {};
+    if (f.username !== undefined) row.username = f.username.trim();
+    if (f.bio !== undefined) row.bio = f.bio.trim() || null;
+    if (f.holidayMode !== undefined) row.holiday_mode = f.holidayMode;
+    const { error } = await supabase().from('profiles').update(row).eq('id', me);
+    return error ? fail(error) : { ok: true, value: undefined };
+  },
+
+  async passkeys() {
+    const { data, error } = await supabase().auth.passkey.list();
+    return error ? fail(error) : { ok: true, value: (data ?? []).map(toPasskey) };
+  },
+
+  async addPasskey() {
+    const { data, error } = await supabase().auth.registerPasskey();
+    if (error) return fail(error);
+    return { ok: true, value: { id: data.id, name: data.friendly_name || 'Passkey', createdAt: data.created_at, lastUsedAt: null } };
+  },
+
+  async renamePasskey(id, name) {
+    const { error } = await supabase().auth.passkey.update({ passkeyId: id, friendlyName: name.trim().slice(0, 120) });
+    return error ? fail(error) : { ok: true, value: undefined };
+  },
+
+  async removePasskey(id) {
+    const { error } = await supabase().auth.passkey.delete({ passkeyId: id });
+    return error ? fail(error) : { ok: true, value: undefined };
   },
 
   async myListings() {

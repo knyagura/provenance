@@ -12,7 +12,7 @@ export default function SignInPage() {
       <Suspense fallback={null}>
         <SignInForm />
       </Suspense>
-      <p className="pv-note">Face ID and fingerprint sign-in arrive with accounts in the next step.</p>
+      
     </section>
   );
 }

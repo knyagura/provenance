@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ChangePassword } from '@/components/account/ChangePassword';
+import { PasskeyManager } from '@/components/account/PasskeyManager';
+import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { MyListings } from '@/components/sell/MyListings';
 import type { Draft } from '@/lib/selling';
 import { useMember } from './MemberProvider';
@@ -45,6 +48,11 @@ export function ProfileView() {
       {mine === null && !error ? <p role="status">Loading your listings…</p> : null}
       {mine && mine.length === 0 ? <p>You haven’t listed anything yet.</p> : null}
       {mine ? <MyListings drafts={mine} heading="Your listings" /> : null}
+      <div className="pv-account">
+        <ProfileEditor />
+        <PasskeyManager />
+        <ChangePassword />
+      </div>
     </>
   );
 }

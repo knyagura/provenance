@@ -11,9 +11,9 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
-  '/sell', '/inbox', '/profile', '/signin',
+  '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive',
 ];
-const shots = { '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
+const shots = { '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
 const schemes = ['light', 'dark'];
 
@@ -146,10 +146,10 @@ try {
     await sp.waitForURL(/\/signin\?next=%2Fsell|\/signin\?next=\/sell/);
     await sp.getByLabel('Email').fill('sian@example.com');
     await sp.getByLabel('Password').fill('short');
-    await sp.getByRole('button', { name: 'Sign in' }).click();
+    await sp.getByRole('button', { name: 'Sign in', exact: true }).click();
     if (!(await sp.locator('p.pv-errors').textContent())?.includes('8 characters')) fail(`sell @${width}: short password not explained`);
     await sp.getByLabel('Password').fill('a-long-password');
-    await sp.getByRole('button', { name: 'Sign in' }).click();
+    await sp.getByRole('button', { name: 'Sign in', exact: true }).click();
     await sp.waitForURL(/\/sell$/);
     await sp.getByRole('button', { name: /Women/ }).click();
     await sp.waitForURL(/\/sell\/example-draft-/);
@@ -182,6 +182,85 @@ try {
     await sp.waitForURL(BASE + '/');
     if (serr.length) fail(`sell @${width}: page errors: ${serr.slice(0, 2).join(' | ')}`);
     await sctx.close();
+  }
+
+  // Account journey: the passkey offer on the third sign-in, adding a passkey, signing in with it,
+  // editing the profile and holiday mode. Chrome's virtual authenticator stands in for Face ID.
+  {
+    // Passkeys need a domain name, not an IP address, so this part uses localhost.
+    const ABASE = `http://localhost:${PORT}`;
+    const actx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const ap = await actx.newPage();
+    const aerr = [];
+    ap.on('pageerror', (e) => aerr.push(e.message));
+    const cdp = await actx.newCDPSession(ap);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true } });
+    const passwordSignIn = async () => {
+      await ap.goto(ABASE + '/signin?next=/profile');
+      await ap.getByLabel('Email').fill('kudzai@example.com');
+      await ap.getByLabel('Password').fill('a-long-password');
+      await ap.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await ap.waitForURL((u) => ['/profile', '/passkey'].includes(u.pathname));
+      const offered = ap.url().includes('/passkey');
+      if (!offered) {
+        await ap.getByRole('heading', { level: 1 }).waitFor();
+        await ap.getByRole('button', { name: 'Sign out' }).click();
+        await ap.waitForURL(ABASE + '/');
+      }
+      return offered;
+    };
+    const offers = [await passwordSignIn(), await passwordSignIn(), await passwordSignIn()];
+    if (offers.join() !== 'false,false,true') fail(`account: passkey offer pattern was ${offers.join()}, expected only on the third sign-in`);
+    await ap.getByRole('button', { name: 'Add a passkey' }).click();
+    await ap.getByRole('heading', { name: 'Passkey added' }).waitFor();
+    await ap.getByRole('link', { name: 'Continue' }).click();
+    await ap.waitForURL((u) => u.pathname === '/profile');
+    await ap.getByRole('list', { name: 'Your passkeys' }).waitFor();
+    if ((await ap.getByRole('list', { name: 'Your passkeys' }).getByRole('listitem').count()) !== 1) fail('account: passkey not listed');
+    await ap.getByRole('button', { name: 'Rename Passkey on this device' }).click();
+    await ap.getByLabel('Name for this passkey').fill('Kudzai’s phone');
+    await ap.getByRole('button', { name: 'Save', exact: true }).click();
+    await ap.getByText('Kudzai’s phone').waitFor();
+    // Profile: a bad username is explained; a good one saves and the heading follows.
+    await ap.getByLabel('Username').fill('no spaces');
+    if (!(await ap.getByText('Use letters, numbers, dots, dashes or underscores only.').isVisible())) fail('account: bad username not explained');
+    await ap.getByLabel('Username').fill('kudzai.n');
+    await ap.getByLabel('About you (optional)').fill('Vintage cameras and wax jackets.');
+    await ap.getByRole('button', { name: 'Save profile' }).click();
+    await ap.getByRole('heading', { level: 1, name: 'kudzai.n' }).waitFor();
+    const sw = ap.getByRole('switch', { name: 'Holiday mode' });
+    await sw.click();
+    if ((await sw.getAttribute('aria-checked')) !== 'true') fail('account: holiday switch did not turn on');
+    await sw.click();
+    // Sign out, then back in with the passkey: no password.
+    await ap.getByRole('button', { name: 'Sign out' }).click();
+    await ap.waitForURL(ABASE + '/');
+    await ap.goto(ABASE + '/signin?next=/profile');
+    await ap.getByRole('button', { name: 'Sign in with a passkey' }).click();
+    await ap.waitForURL((u) => u.pathname === '/profile');
+    await ap.getByRole('heading', { level: 1, name: 'kudzai.n' }).waitFor();
+    const over = await ap.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (over > 0) fail('account: page scrolls sideways');
+    await ap.screenshot({ path: 'test-results/account-390.png', fullPage: true });
+    // Remove the passkey; passkey sign-in then fails with a clear message.
+    await ap.getByRole('button', { name: 'Remove Kudzai’s phone' }).click();
+    await ap.getByText('No passkeys yet.').waitFor();
+    // Password reset never says whether an account exists.
+    await ap.goto(ABASE + '/reset');
+    await ap.getByLabel('Email').fill('nobody@example.com');
+    await ap.getByRole('button', { name: 'Email me a link' }).click();
+    await ap.getByText('If there’s an account for nobody@example.com').waitFor();
+    // A seller's public page.
+    await ap.goto(ABASE + '/item/example-1');
+    await ap.getByRole('link', { name: 'resole_archive' }).click();
+    await ap.waitForURL(/\/member\/resole_archive$/);
+    const theirs = await ap.getByRole('list', { name: 'Listings by resole_archive' }).getByRole('listitem').count();
+    if (theirs !== 3) fail(`member page lists ${theirs} items, expected 3`);
+    const ghost = await ap.goto(ABASE + '/member/nobody-here');
+    if (ghost?.status() !== 404) fail(`unknown member returned ${ghost?.status()}, expected 404`);
+    if (aerr.length) fail(`account: page errors: ${aerr.slice(0, 2).join(' | ')}`);
+    await actx.close();
   }
 
   // API v1

@@ -8,6 +8,8 @@ interface MemberState {
   /** True until we know whether someone is signed in. */
   loading: boolean;
   backend: SellingBackend;
+  /** Re-reads the member, e.g. after a username change. */
+  refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<MemberState | null>(null);
@@ -31,7 +33,8 @@ export function MemberProvider({ children }: { children: React.ReactNode }) {
       off();
     };
   }, [backend]);
-  return <Ctx.Provider value={{ member, loading, backend }}>{children}</Ctx.Provider>;
+  const refresh = useMemo(() => async () => setMember(await backend.member()), [backend]);
+  return <Ctx.Provider value={{ member, loading, backend, refresh }}>{children}</Ctx.Provider>;
 }
 
 export function useMember(): MemberState {

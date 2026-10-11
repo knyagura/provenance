@@ -43,6 +43,7 @@ export async function freshDb() {
   await db.exec(read('004_browsing_and_api.sql'));
   await db.exec(read('005_listing_media_storage.sql'));
   await db.exec(read('006_selling.sql'));
+  await db.exec(read('007_accounts.sql'));
   return db;
 }
 
@@ -70,7 +71,8 @@ if (isMain) {
   await db.exec(read('004_browsing_and_api.sql'));
   await db.exec(read('005_listing_media_storage.sql'));
   await db.exec(read('006_selling.sql'));
-  ok(true, 'schema + migrations 002-006 apply cleanly, and re-run idempotently');
+  await db.exec(read('007_accounts.sql'));
+  ok(true, 'schema + migrations 002-007 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -190,6 +192,20 @@ if (isMain) {
   const legacy = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, published) values ($1, 'From the old app', 1000, true) returning published`, [SELLER])).rows[0];
   ok(legacy.published, 'listings from the current app (evidence version 0) publish as before');
   ok((await db.query(`select file_size_limit, allowed_mime_types from storage.buckets where id = 'listing-media'`)).rows[0].allowed_mime_types.includes('video/quicktime'), 'the photo bucket accepts iPhone video');
+
+  // --- 007: accounts ---
+  await as(db, SELLER, `update public.profiles set username = 'Resole_Archive' where id = $1`, [SELLER]);
+  await rejects(as(db, OTHER, `update public.profiles set username = 'resole_archive' where id = $1`, [OTHER]), 'usernames are unique ignoring case', /profiles_username_lower_idx|duplicate key/);
+  for (const bad of ['ab', 'has space', 'emoji😀', 'x'.repeat(31), 'semi;colon']) {
+    await rejects(as(db, SELLER, `update public.profiles set username = $2 where id = $1`, [SELLER, bad]), `username "${bad.slice(0, 12)}" is refused`, /profiles_username_format/);
+  }
+  await rejects(as(db, SELLER, `update public.profiles set bio = $2 where id = $1`, [SELLER, 'x'.repeat(501)]), 'a bio is at most 500 characters', /profiles_bio_len/);
+  await as(db, SELLER, `update public.profiles set holiday_mode = true where id = $1`, [SELLER]);
+  ok((await db.query('select holiday_mode from public.profiles where id = $1', [SELLER])).rows[0].holiday_mode === true, 'a seller can turn holiday mode on');
+  await as(db, SELLER, `update public.profiles set holiday_mode = false where id = $1`, [SELLER]);
+  await db.query(`insert into auth.users (id, email) values ('44444444-4444-4444-4444-444444444444', 'Jo+Shop!@Example.com'), ('55555555-5555-5555-5555-555555555555', '+@example.com')`);
+  const made = (await db.query(`select username from public.profiles where id in ('44444444-4444-4444-4444-444444444444', '55555555-5555-5555-5555-555555555555') order by id`)).rows.map(r => r.username);
+  ok(made[0] === 'joshop_4444' && made[1] === 'member_5555', `sign-up makes usernames that fit the rules (${made.join(', ')})`);
 
   // --- 004: API keys ---
   const { createHash } = await import('node:crypto');

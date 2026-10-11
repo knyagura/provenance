@@ -107,6 +107,7 @@ export default async function ItemPage({ params }: Props) {
           {l.shippingPence ? `Postage ${formatPence(l.shippingPence)}` : 'Free postage'} · Buyer protection is added at checkout
         </p>
         {l.status !== 'active' ? <Badge tone="neutral">{l.status === 'sold' ? 'Sold' : 'Reserved'}</Badge> : null}
+        {l.seller.away ? <p className="pv-banner" role="note">{l.seller.username} is on holiday, so buying is paused until they’re back.</p> : null}
         <div className="pv-item__actions">
           <Button variant="primary" block disabled aria-describedby="buy-later">Buy now</Button>
           <Button variant="secondary" block disabled aria-describedby="buy-later">Make an offer</Button>
@@ -116,7 +117,7 @@ export default async function ItemPage({ params }: Props) {
         <section className="pv-seller" aria-label="Seller">
           <span className="pv-seller__avatar" aria-hidden="true">{l.seller.username.slice(0, 2).toUpperCase()}</span>
           <span>
-            <strong>{l.seller.username}</strong>
+            <Link href={`/member/${encodeURIComponent(l.seller.username)}`}><strong>{l.seller.username}</strong></Link>
             <span className="pv-note">
               {[l.seller.verified ? 'Identity checked' : null, l.seller.business ? 'Business seller' : null].filter(Boolean).join(' · ') || 'Member'}
             </span>

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { afterPasswordSignIn, loadOffer, passkeysAvailable, saveOffer } from '@/lib/account/passkeyOffer';
 import { useMember } from './MemberProvider';
 
 /** Only send people back to a page on this site. */
@@ -21,6 +22,33 @@ export function SignInForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [canPasskey, setCanPasskey] = useState(false);
+  useEffect(() => setCanPasskey(passkeysAvailable()), []);
+
+  /** After a password sign-in: offer a passkey on the third one on this device, unless they have one. */
+  async function afterPassword() {
+    let hasPasskey = true;
+    if (passkeysAvailable()) {
+      const pk = await backend.passkeys();
+      hasPasskey = !(pk.ok && pk.value.length === 0);
+    }
+    const { state, offer } = afterPasswordSignIn(loadOffer(), hasPasskey);
+    saveOffer(state);
+    router.push(offer ? `/passkey?next=${encodeURIComponent(next)}` : next);
+  }
+
+  async function withPasskey() {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      const r = await backend.signInWithPasskey();
+      if (!r.ok) return setError(r.message);
+      router.push(next);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (member) {
     return (
@@ -42,7 +70,7 @@ export function SignInForm() {
       if (mode === 'in') {
         const r = await backend.signIn(email.trim(), password);
         if (!r.ok) return setError(r.message);
-        router.push(next);
+        await afterPassword();
       } else {
         const r = await backend.signUp(email.trim(), password);
         if (!r.ok) return setError(r.message);
@@ -59,6 +87,15 @@ export function SignInForm() {
   }
 
   return (
+    <>
+    {canPasskey && mode === 'in' ? (
+      <div className="pv-panel">
+        <button type="button" className="pv-btn pv-btn--secondary pv-btn--block" onClick={withPasskey} disabled={busy}>
+          Sign in with a passkey
+        </button>
+        <p className="pv-note">Face ID, fingerprint or your phone’s screen lock, if you’ve set one up here.</p>
+      </div>
+    ) : null}
     <form className="pv-panel pv-form" onSubmit={submit} noValidate>
       <div className="pv-field">
         <label htmlFor="email">Email</label>
@@ -80,6 +117,8 @@ export function SignInForm() {
       <button type="button" className="pv-btn pv-btn--quiet" onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setError(null); }}>
         {mode === 'in' ? 'New here? Create an account' : 'Already have an account? Sign in'}
       </button>
+      {mode === 'in' ? <Link href="/reset" className="pv-btn pv-btn--quiet">Forgotten your password?</Link> : null}
     </form>
+    </>
   );
 }

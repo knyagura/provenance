@@ -45,6 +45,25 @@ export interface PreparedMedia {
   sha256: string;
 }
 
+export interface Profile {
+  username: string;
+  bio: string;
+  holidayMode: boolean;
+  verified: boolean;
+  business: boolean;
+  joined: string;
+}
+
+export type ProfileFields = Partial<Pick<Profile, 'username' | 'bio' | 'holidayMode'>>;
+
+export interface Passkey {
+  id: string;
+  /** e.g. "iCloud Keychain" or "Google Password Manager", or the member's own name for it. */
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 export type Result<T = void> = { ok: true; value: T } | { ok: false; message: string };
 
 export interface SellingBackend {
@@ -55,6 +74,21 @@ export interface SellingBackend {
   /** Creates an account. Supabase may ask the person to confirm their email first (needsConfirmation). */
   signUp(email: string, password: string): Promise<Result<{ needsConfirmation: boolean }>>;
   signOut(): Promise<void>;
+  /** Sign in with a passkey (Face ID, fingerprint, a password manager). */
+  signInWithPasskey(): Promise<Result<Member>>;
+  /** Emails a link to set a new password. Always succeeds, so it never reveals who has an account. */
+  requestPasswordReset(email: string): Promise<Result>;
+  /** Sets a new password for the signed-in member (including after following a reset link). */
+  setPassword(password: string): Promise<Result>;
+  /** Fires when someone arrives from a password-reset link. */
+  onPasswordRecovery(cb: () => void): () => void;
+
+  myProfile(): Promise<Profile | null>;
+  saveProfile(fields: ProfileFields): Promise<Result>;
+  passkeys(): Promise<Result<Passkey[]>>;
+  addPasskey(): Promise<Result<Passkey>>;
+  renamePasskey(id: string, name: string): Promise<Result>;
+  removePasskey(id: string): Promise<Result>;
 
   myListings(): Promise<Draft[]>;
   createDraft(category: string): Promise<Result<string>>;
