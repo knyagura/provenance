@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { ComingSoon } from '@/components/ComingSoon';
+import { Inbox } from '@/components/custody/Inbox';
 
-export const metadata: Metadata = { title: 'Inbox' };
+export const metadata: Metadata = { title: 'Inbox', robots: { index: false } };
 
 export default function Page() {
-  return <ComingSoon title="Inbox" step={6} what="Your orders and the custody steps arrive in step 6." />;
+  return <Inbox />;
 }

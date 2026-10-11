@@ -16,7 +16,7 @@ npm run dev          # http://localhost:3000, regenerates tokens first
 |---|---|
 | `npm run typecheck` | TypeScript |
 | `npm test` | Unit tests, including every colour pair in the design system meeting its contrast minimum in light and dark |
-| `PV_DATA_SOURCE=examples npm run build && PV_DATA_SOURCE=examples npm run test:e2e` | Real browser: every page at 360, 768, 1024 and 1440px in light and dark, then the browsing journey (search, open an item, category, filters, a 404) and the API (keys, errors, paging, OpenAPI). Fails on sideways scrolling, a misplaced bottom bar, text under 11px, tap targets under 44px or console errors. Screenshots go to `test-results/`. |
+| `PV_DATA_SOURCE=examples npm run build && PV_DATA_SOURCE=examples npm run test:e2e` | Real browser: every page at 360, 768, 1024 and 1440px in light and dark, then the journeys (browsing, selling, account and passkeys, buying, and an order handed over and confirmed by buyer, seller and courier in three tabs) and the API (keys, errors, paging, OpenAPI). Fails on sideways scrolling, a misplaced bottom bar, text under 11px, tap targets under 44px or console errors. Screenshots go to `test-results/`. |
 
 Netlify runs typecheck, unit tests and the build on every push, so a failing change is never published. GitHub Actions runs all three plus the browser check.
 
@@ -62,3 +62,14 @@ Passkeys use Supabase Auth's built-in WebAuthn support. They only work once swit
 - `lib/domain/fees.ts` is the fee engine the screens use. The database's `compute_fees()` (migration 008) decides real orders. Both must match the agreed baskets in `backend/fixtures/fee_baskets.json`; unit and database tests check this.
 - Checkout calls `start_checkout()` (prices the order on the server, holds the item), then the `checkout` Edge Function for Stripe's payment form. Stripe confirms through the `stripe-webhook` Edge Function. Both functions are in `../supabase/functions/`; their logic is in `_shared/payments.ts` and unit-tested here.
 - In example mode there is no Stripe: a "Pay (test)" button stands in. See [ADR 0005](../docs/adr/0005-payments.md) for the Stripe settings.
+
+## Orders and custody
+
+- `lib/domain/custody.ts` holds the steps for each tier and the hash used for every record. The database (migration 011) holds the same rules and decides. Both are tested against `backend/fixtures/custody_plans.json`. The database's attack tests are in `../tests/custody_attacks.mjs`.
+- `/inbox` lists your orders with the ones waiting for you first. Each order page shows its chain of custody, with the form for the current step when it's your turn. Pages refresh by themselves while someone else's step is pending.
+- Couriers and authentication hubs are separate accounts, listed in the `custody_agents` table. Staff add them; nobody can add themselves. See [ADR 0008](../docs/adr/0008-custody-on-the-server.md).
+- **In example mode:**
+  - Orders are kept in the browser's localStorage, so two tabs can act as two phones.
+  - The seller of an example listing signs in as `<their username>@example.test` (for example `brick_bench@example.test`).
+  - Emails starting `courier` are couriers, and emails starting `hub` are hubs.
+  - Any password of 8 or more characters works.

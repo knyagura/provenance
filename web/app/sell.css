@@ -91,3 +91,20 @@ label.pv-btn { cursor: pointer; }
 .pv-changed { border-color: var(--terracotta-text); border-width: 2px; }
 .pv-bought-photos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
 .pv-bought-photos img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: var(--radius-sm); }
+
+/* Custody steps and the inbox */
+.pv-turn { border-color: var(--terracotta-text); border-width: 2px; }
+.pv-code {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1);
+  padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px dashed var(--ink-muted); border-radius: var(--radius-sm);
+}
+.pv-code__value { font-size: 32px; line-height: 40px; letter-spacing: .12em; color: var(--ink); overflow-wrap: anywhere; }
+.pv-chain { font: 500 13px/18px var(--font-sans); padding: 2px var(--space-3); border-radius: var(--radius-pill); }
+.pv-chain--ok { background: var(--sage); color: var(--on-sage); }
+.pv-chain--bad { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.pv-wrap { overflow-wrap: anywhere; }
+.pv-row--turn { background: var(--surface-raised); }
+.pv-turn-line { font-weight: 600; color: var(--terracotta-text); }
+.pv-bought-photos video { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: var(--radius-sm); background: var(--surface-sand); }
+details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(--tap-min); display: flex; align-items: center; }
+.pv-step__evidence { overflow-wrap: anywhere; }

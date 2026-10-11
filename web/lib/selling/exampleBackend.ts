@@ -3,7 +3,8 @@ import { usernameProblem, BIO_MAX } from '@/lib/account/passkeyOffer';
 import { computeFees, DEFAULT_FEES } from '@/lib/domain/fees';
 import { exampleCatalogue } from '@/lib/domain/examples';
 import type { ListingVersion } from '@/lib/domain/versions';
-import type { Draft, DraftMedia, Member, OrderSummary, Passkey, Profile, Result, SellingBackend } from './types';
+import type { Draft, DraftMedia, Member, Passkey, Profile, Result, SellingBackend } from './types';
+import { beginCustody, exampleCustody, exampleSellerId, loadMarket, memberId, saveMarket, toSummary, type StoredOrder } from './exampleMarket';
 
 // A pretend backend that lives in this browser tab, for tests and demos without a database
 // (PV_DATA_SOURCE=examples). Any email and a password of 8+ characters signs in. Nothing leaves the browser.
@@ -19,7 +20,6 @@ interface Store {
   drafts: Draft[];
   profile?: Profile;
   passkeys?: StoredPasskey[];
-  orders?: OrderSummary[];
 }
 
 /**
@@ -107,7 +107,7 @@ export const exampleBackend: SellingBackend = {
     if (!/^\S+@\S+\.\S+$/.test(email)) return { ok: false, message: 'Enter a valid email address.' };
     if (password.length < 8) return { ok: false, message: 'That email and password don’t match an account.' };
     const s = load();
-    setMember(s, { id: 'example-member', email, username: s.profile?.username ?? email.split('@')[0] });
+    setMember(s, { id: memberId(email), email, username: s.profile?.username ?? email.split('@')[0] });
     return ok(s.member!);
   },
   async signUp(email, password) {
@@ -272,56 +272,93 @@ export const exampleBackend: SellingBackend = {
     return exampleVersion(listingId);
   },
   async quote(listingId) {
-    const sold = load().orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid');
+    const sold = loadMarket().orders.some((o) => o.summary.listingId === listingId && o.summary.paymentStatus === 'paid');
     return sold ? null : exampleQuote(listingId)?.quote ?? null;
   },
   async startCheckout(listingId, revision) {
-    const s = load();
-    if (!s.member) return { ok: false, message: 'Sign in to buy' };
+    const me = load().member;
+    if (!me) return { ok: false, message: 'Sign in to buy' };
     const q = exampleQuote(listingId);
     if (q && revision !== undefined && q.listing.revision !== revision) {
       return { ok: false, code: 'listing_changed', message: 'The seller changed this listing while you were looking. Check the changes before you pay.' };
     }
-    if (!q || s.orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid')) return { ok: false, message: 'This item is not available to buy' };
-    const open = s.orders?.find((o) => o.listingId === listingId && o.paymentStatus === 'awaiting_payment');
-    if (open) return ok({ orderId: open.id, quote: open.quote!, holdExpiresAt: open.holdExpiresAt!, revision: open.bought?.revision ?? null });
+    const market = loadMarket();
+    const sellerId = exampleSellerId(listingId);
+    if (sellerId === me.id) return { ok: false, message: 'You can’t buy your own listing' };
+    const now_ = new Date().toISOString();
+    const taken = market.orders.find((o) => o.summary.listingId === listingId &&
+      (o.summary.paymentStatus === 'paid' || (o.summary.paymentStatus === 'awaiting_payment' && o.buyerId !== me.id && (o.summary.holdExpiresAt ?? '') > now_)));
+    if (!q || !sellerId || taken) return { ok: false, message: 'This item is not available to buy' };
+    const open = market.orders.find((o) => o.summary.listingId === listingId && o.buyerId === me.id && o.summary.paymentStatus === 'awaiting_payment');
+    if (open) return ok({ orderId: open.summary.id, quote: open.summary.quote!, holdExpiresAt: open.summary.holdExpiresAt!, revision: open.summary.bought?.revision ?? null });
     const hold = new Date(Date.now() + DEFAULT_FEES.checkoutHoldMinutes * 60_000).toISOString();
-    const o: OrderSummary = {
-      id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title, photoUrl: null, role: 'buyer',
-      paymentStatus: 'awaiting_payment', status: 'purchased', quote: q.quote, bought: exampleVersion(listingId), totalPence: q.quote.buyerTotalPence,
-      holdExpiresAt: hold, paidAt: null, createdAt: now(),
+    const o: StoredOrder = {
+      summary: {
+        id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title, photoUrl: null,
+        paymentStatus: 'awaiting_payment', quote: q.quote, bought: exampleVersion(listingId), totalPence: q.quote.buyerTotalPence,
+        holdExpiresAt: hold, paidAt: null, createdAt: now(),
+      },
+      buyerId: me.id,
+      sellerId,
+      custody: null,
     };
-    s.orders = [o, ...(s.orders ?? [])];
-    save(s);
-    return ok({ orderId: o.id, quote: q.quote, holdExpiresAt: hold, revision: q.listing.revision });
+    market.orders = [o, ...market.orders];
+    saveMarket(market);
+    return ok({ orderId: o.summary.id, quote: q.quote, holdExpiresAt: hold, revision: q.listing.revision });
   },
   async startPayment(orderId) {
-    const o = load().orders?.find((x) => x.id === orderId);
-    if (!o || o.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
-    return ok({ kind: 'simulated' as const, amountPence: o.totalPence ?? 0 });
+    const o = loadMarket().orders.find((x) => x.summary.id === orderId);
+    if (!o || o.summary.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
+    return ok({ kind: 'simulated' as const, amountPence: o.summary.totalPence ?? 0 });
   },
   async simulatePayment(orderId) {
-    const s = load();
-    const o = s.orders?.find((x) => x.id === orderId);
-    if (!o || o.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
-    o.paymentStatus = 'paid';
-    o.paidAt = now();
-    save(s);
+    const market = loadMarket();
+    const o = market.orders.find((x) => x.summary.id === orderId);
+    if (!o || o.summary.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
+    o.summary.paymentStatus = 'paid';
+    o.summary.paidAt = now();
+    beginCustody(o);
+    saveMarket(market);
     return ok(undefined);
   },
   async cancelCheckout(orderId) {
-    const s = load();
-    const o = s.orders?.find((x) => x.id === orderId);
-    if (o && o.paymentStatus === 'awaiting_payment') o.paymentStatus = 'cancelled';
-    save(s);
+    const market = loadMarket();
+    const o = market.orders.find((x) => x.summary.id === orderId);
+    if (o && o.summary.paymentStatus === 'awaiting_payment') o.summary.paymentStatus = 'cancelled';
+    saveMarket(market);
   },
   async getOrder(orderId) {
-    const s = load();
-    return s.member ? s.orders?.find((o) => o.id === orderId) ?? null : null;
+    const me = load().member;
+    const o = me ? loadMarket().orders.find((x) => x.summary.id === orderId && (x.buyerId === me.id || x.sellerId === me.id)) : null;
+    return o && me ? toSummary(o, me) : null;
   },
   async myOrders() {
-    const s = load();
-    return s.member ? (s.orders ?? []).filter((o) => o.paymentStatus !== 'cancelled') : [];
+    const me = load().member;
+    if (!me) return [];
+    return loadMarket()
+      .orders.filter((o) => (o.buyerId === me.id || o.sellerId === me.id) && o.summary.paymentStatus !== 'cancelled' && o.summary.paymentStatus !== 'expired')
+      .map((o) => toSummary(o, me));
+  },
+  async custody(orderId) {
+    return exampleCustody.custody(orderId, load().member);
+  },
+  async issueChallenge(orderId) {
+    return exampleCustody.issueChallenge(orderId, load().member);
+  },
+  async issueSeal(orderId) {
+    return exampleCustody.issueSeal(orderId, load().member);
+  },
+  async uploadEvidence(orderId, media) {
+    return exampleCustody.uploadEvidence(orderId, media, load().member);
+  },
+  async recordStep(orderId, step, evidence) {
+    return exampleCustody.recordStep(orderId, step, evidence, load().member);
+  },
+  async openDispute(orderId, reason, note) {
+    return exampleCustody.openDispute(orderId, reason, note, load().member);
+  },
+  async agentTasks() {
+    return exampleCustody.agentTasks(load().member);
   },
   async deleteDraft(id) {
     const s = load();

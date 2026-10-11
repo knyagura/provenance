@@ -48,6 +48,7 @@ export async function freshDb() {
   await db.exec(read('008_checkout.sql'));
   await db.exec(read('009_listing_edits.sql'));
   await db.exec(read('010_transaction_fee.sql'));
+  await db.exec(read('011_custody.sql'));
   return db;
 }
 
@@ -79,7 +80,8 @@ if (isMain) {
   await db.exec(read('008_checkout.sql'));
   await db.exec(read('009_listing_edits.sql'));
   await db.exec(read('010_transaction_fee.sql'));
-  ok(true, 'schema + migrations 002-010 apply cleanly, and re-run idempotently');
+  await db.exec(read('011_custody.sql'));
+  ok(true, 'schema + migrations 002-011 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -250,8 +252,10 @@ if (isMain) {
   ok((await svc(`select public.confirm_payment($1, 'pi_1', 4799) as r`, [co.order_id])).rows[0].r === 'paid', 'the payment service confirms a payment for the right amount');
   ok((await svc(`select public.confirm_payment($1, 'pi_1', 4799) as r`, [co.order_id])).rows[0].r === 'already_paid', 'the same payment confirmed twice changes nothing');
   ok((await db.query('select status from public.listings where id = $1', [coat])).rows[0].status === 'sold', 'once paid, the item is sold');
-  await as(db, BUYER, `update public.orders set status = 'handover' where id = $1`, [co.order_id]);
-  ok((await db.query('select status from public.orders where id = $1', [co.order_id])).rows[0].status === 'handover', 'a paid order can move along');
+  await as(db, BUYER, `update public.orders set status = 'confirmed', custody_state = 'confirmed', payout_status = 'due', custody_step = 3 where id = $1`, [co.order_id]);
+  const cs = (await db.query('select status, custody_state, payout_status, custody_step, custody_tier from public.orders where id = $1', [co.order_id])).rows[0];
+  ok(cs.custody_state === 'in_progress' && cs.custody_tier === 'enhanced' && cs.custody_step === 0 && cs.payout_status === 'held' && cs.status === 'purchased',
+    'paying starts custody; buyers cannot move a paid order along or release its payment themselves (only custody steps can)');
 
   const belt = await shop('Belt to abandon', 1400, 295);
   const c2 = (await as(db, BUYER, 'select public.start_checkout($1) as c', [belt])).rows[0].c;

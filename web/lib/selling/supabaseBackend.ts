@@ -4,10 +4,12 @@ import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { versionFromSnapshot, type ListingVersion } from '@/lib/domain/versions';
+import { planFor, type Actor, type AgentTask, type CustodyEvent, type CustodyState, type CustodyView, type Evidence, type SealKind, type StepDef } from '@/lib/domain/custody';
+import type { Tier } from '@/lib/domain/types';
 import type { Draft, DraftFields, DraftMedia, Member, OrderSummary, Passkey, Result, SellingBackend } from './types';
 
 const ORDER_COLUMNS =
-  'id, listing_id, buyer_id, seller_id, payment_status, status, fees, total_pence, hold_expires_at, paid_at, created_at, listing_snapshot, ' +
+  'id, listing_id, buyer_id, seller_id, payment_status, custody_state, custody_tier, custody_step, fees, total_pence, hold_expires_at, paid_at, created_at, listing_snapshot, ' +
   'listing:listings(title, media:listing_media(path, kind, position))';
 
 interface OrderRow {
@@ -16,7 +18,9 @@ interface OrderRow {
   buyer_id: string;
   seller_id: string;
   payment_status: OrderSummary['paymentStatus'];
-  status: string;
+  custody_state: CustodyState;
+  custody_tier: Tier | null;
+  custody_step: number;
   fees: Record<string, unknown> | null;
   total_pence: number | null;
   hold_expires_at: string | null;
@@ -37,13 +41,51 @@ function toOrder(r: OrderRow, me: string): OrderSummary {
     photoUrl: photo ? mediaUrl(photo.path) : null,
     role: r.buyer_id === me ? 'buyer' : 'seller',
     paymentStatus: r.payment_status,
-    status: r.status,
+    custody: r.payment_status === 'paid' && r.custody_tier ? { state: r.custody_state, tier: r.custody_tier, step: r.custody_step } : null,
     quote: breakdownFromJson(fees),
     bought: versionFromSnapshot(r.listing_snapshot),
     totalPence: r.total_pence,
     holdExpiresAt: r.hold_expires_at,
     paidAt: r.paid_at,
     createdAt: r.created_at,
+  };
+}
+
+interface CustodyJson {
+  order_id: string;
+  listing_id: string;
+  title: string;
+  tier: Tier;
+  state: CustodyState;
+  current: StepDef | null;
+  events: { seq: number; step: string; actor_role: CustodyEvent['actorRole']; at: string; evidence: Evidence; hash: string; mine: boolean }[];
+  my_roles: Actor[];
+  chain_ok: boolean;
+  head: string;
+  weight_flag: boolean;
+  dispute_reason: string | null;
+  payout_status: CustodyView['payoutStatus'];
+  challenge: { code: string; expires_at: string } | null;
+  seal: { kind: SealKind; code: string } | null;
+}
+
+const EVIDENCE_BUCKET = 'custody-media';
+
+async function toCustody(j: CustodyJson | null): Promise<CustodyView | null> {
+  if (!j) return null;
+  const paths = j.events.map((e) => e.evidence.media).filter((p): p is string => typeof p === 'string');
+  const mediaUrls: Record<string, string> = {};
+  if (paths.length) {
+    const { data } = await supabase().storage.from(EVIDENCE_BUCKET).createSignedUrls(paths, 3600);
+    for (const d of data ?? []) if (d.path && d.signedUrl) mediaUrls[d.path] = d.signedUrl;
+  }
+  return {
+    orderId: j.order_id, listingId: j.listing_id, title: j.title, tier: j.tier, state: j.state, current: j.current,
+    events: j.events.map((e) => ({ seq: e.seq, step: e.step, actorRole: e.actor_role, at: e.at, evidence: e.evidence, hash: e.hash, mine: e.mine })),
+    myRoles: j.my_roles, chainOk: j.chain_ok, head: j.head, weightFlag: j.weight_flag, disputeReason: j.dispute_reason,
+    payoutStatus: j.payout_status, mediaUrls,
+    challenge: j.challenge ? { code: j.challenge.code, expiresAt: j.challenge.expires_at } : null,
+    seal: j.seal,
   };
 }
 
@@ -435,6 +477,53 @@ export const supabaseBackend: SellingBackend = {
       .limit(50);
     if (error) throw new Error(friendly(error));
     return (data as unknown as OrderRow[]).map((r) => toOrder(r, me));
+  },
+
+  async custody(orderId) {
+    const { data, error } = await supabase().rpc('order_custody', { p_order: orderId });
+    if (error) throw new Error(friendly(error));
+    return toCustody(data as CustodyJson | null);
+  },
+
+  async issueChallenge(orderId) {
+    const { data, error } = await supabase().rpc('issue_challenge', { p_order: orderId });
+    if (error) return fail(error);
+    const d = data as { code: string; expires_at: string };
+    return { ok: true, value: { code: d.code, expiresAt: d.expires_at } };
+  },
+
+  async issueSeal(orderId) {
+    const { data, error } = await supabase().rpc('issue_seal', { p_order: orderId });
+    return error ? fail(error) : { ok: true, value: data as { kind: string; code: string } };
+  },
+
+  async uploadEvidence(orderId, media) {
+    const path = `${orderId}/${crypto.randomUUID()}.${media.extension}`;
+    const { error } = await supabase().storage.from(EVIDENCE_BUCKET).upload(path, media.blob, { contentType: media.contentType, upsert: false });
+    return error ? fail(error) : { ok: true, value: { path, sha256: media.sha256, kind: media.kind } };
+  },
+
+  async recordStep(orderId, step, evidence) {
+    const { data, error } = await supabase().rpc('record_custody_step', { p_order: orderId, p_step: step, p_evidence: evidence });
+    if (error) return fail(error);
+    const v = await toCustody(data as CustodyJson);
+    return v ? { ok: true, value: v } : { ok: false, message: 'Order not found.' };
+  },
+
+  async openDispute(orderId, reason, note) {
+    const { data, error } = await supabase().rpc('open_dispute', { p_order: orderId, p_reason: reason, p_note: note });
+    if (error) return fail(error);
+    const v = await toCustody(data as CustodyJson);
+    return v ? { ok: true, value: v } : { ok: false, message: 'Order not found.' };
+  },
+
+  async agentTasks() {
+    const { data, error } = await supabase().rpc('agent_queue');
+    if (error) throw new Error(friendly(error));
+    return ((data as { order_id: string; title: string; tier: Tier; state: CustodyState; step: string | null; updated_at: string | null }[]) ?? []).map((t) => {
+      const step = t.step ? planFor(t.tier).find((p) => p.key === t.step) ?? null : null;
+      return { orderId: t.order_id, title: t.title, tier: t.tier, state: t.state, step, updatedAt: t.updated_at } satisfies AgentTask;
+    });
   },
 
   async deleteDraft(id) {

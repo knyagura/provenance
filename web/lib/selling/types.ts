@@ -1,5 +1,7 @@
 import type { FeeBreakdown } from '@/lib/domain/fees';
 import type { ListingVersion } from '@/lib/domain/versions';
+import type { AgentTask, CustodyState, CustodyView, Evidence } from '@/lib/domain/custody';
+import type { Tier } from '@/lib/domain/types';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -80,8 +82,8 @@ export interface OrderSummary {
   /** Whether the signed-in member bought or sold it. */
   role: 'buyer' | 'seller';
   paymentStatus: PaymentStatus;
-  /** Custody progress: purchased, handover, hub, unboxing, confirmed, disputed. */
-  status: string;
+  /** Custody once paid: the tier's steps, how far along, and whether it's complete or on hold. */
+  custody: { state: CustodyState; tier: Tier; step: number } | null;
   quote: FeeBreakdown | null;
   /** Exactly what was bought: the listing as it was when checkout started. */
   bought: ListingVersion | null;
@@ -157,4 +159,19 @@ export interface SellingBackend {
   cancelCheckout(orderId: string): Promise<void>;
   getOrder(orderId: string): Promise<OrderSummary | null>;
   myOrders(): Promise<OrderSummary[]>;
+
+  /** An order's chain of custody as the signed-in person may see it; null if they can't. */
+  custody(orderId: string): Promise<CustodyView | null>;
+  /** A one-time code to say on camera, for the current step. */
+  issueChallenge(orderId: string): Promise<Result<{ code: string; expiresAt: string }>>;
+  /** The seal code to fit at the current step. */
+  issueSeal(orderId: string): Promise<Result<{ kind: string; code: string }>>;
+  /** Uploads a photo or video to the order's private evidence. */
+  uploadEvidence(orderId: string, media: PreparedMedia): Promise<Result<{ path: string; sha256: string; kind: 'photo' | 'video' }>>;
+  /** Records the current step. The server decides whether it is accepted. */
+  recordStep(orderId: string, step: string, evidence: Evidence): Promise<Result<CustodyView>>;
+  /** The buyer reports a problem; payment stays held. */
+  openDispute(orderId: string, reason: string, note: string): Promise<Result<CustodyView>>;
+  /** For couriers and hubs: orders waiting for them, and ones they've worked on. */
+  agentTasks(): Promise<AgentTask[]>;
 }

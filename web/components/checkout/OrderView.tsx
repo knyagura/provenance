@@ -8,6 +8,8 @@ import { mediaUrl } from '@/lib/domain/catalogue';
 import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
+import { CustodyPanel } from '@/components/custody/CustodyPanel';
+import { ACTOR_LABEL, type CustodyView } from '@/lib/domain/custody';
 
 const HEADINGS: Record<OrderSummary['paymentStatus'], string> = {
   paid: 'Paid',
@@ -23,6 +25,11 @@ export function OrderView({ id }: { id: string }) {
   const { member, loading, backend } = useMember();
   const justPaid = useSearchParams().get('paid') === '1';
   const [order, setOrder] = useState<OrderSummary | null | undefined>(undefined);
+  // Couriers and hubs aren't the buyer or seller: they reach the order through its custody record.
+  const [task, setTask] = useState<CustodyView | null | undefined>(undefined);
+  useEffect(() => {
+    if (member && order === null) backend.custody(id).then(setTask).catch(() => setTask(null));
+  }, [member, order, backend, id]);
 
   useEffect(() => {
     if (!member) return;
@@ -43,7 +50,22 @@ export function OrderView({ id }: { id: string }) {
 
   if (loading || (member && order === undefined)) return <p role="status">Loading your order…</p>;
   if (!member) return <p><Link href={`/signin?next=/orders/${id}`}>Sign in</Link> to see this order.</p>;
-  if (!order) return <section className="pv-section"><h1>Order not found</h1><p><Link href="/profile">Your account</Link></p></section>;
+  if (order === null && task === undefined) return <p role="status">Loading your order…</p>;
+  if (!order && task) {
+    const role = task.myRoles.find((r) => r !== 'buyer' && r !== 'seller');
+    return (
+      <div className="pv-checkout">
+        <header className="pv-section">
+          <p className="pv-eyebrow">{role ? ACTOR_LABEL[role] : 'Order'}</p>
+          <h1>{task.title}</h1>
+          <p className="pv-note pv-mono">Order {task.orderId.slice(0, 8).toUpperCase()}</p>
+        </header>
+        <CustodyPanel orderId={id} />
+        <p><Link href="/inbox">Back to your inbox</Link></p>
+      </div>
+    );
+  }
+  if (!order) return <section className="pv-section"><h1>Order not found</h1><p><Link href="/inbox">Your inbox</Link></p></section>;
 
   const waitingForStripe = order.paymentStatus === 'awaiting_payment' && justPaid;
   return (
@@ -55,17 +77,7 @@ export function OrderView({ id }: { id: string }) {
       </header>
 
       {order.paymentStatus === 'paid' ? (
-        <section className="pv-panel" aria-labelledby="next-h">
-          <h2 id="next-h">What happens next</h2>
-          {order.role === 'buyer' ? (
-            <p>The seller is told to get it ready. You’ll follow every step, from packing to your door, on this page once orders and custody arrive in the next build step.</p>
-          ) : (
-            <p>
-              Get it ready to hand over. You’ll receive {formatPence(order.quote?.sellerPayoutPence ?? 0)} once the buyer confirms
-              the item is as described.
-            </p>
-          )}
-        </section>
+        <CustodyPanel orderId={order.id} sellerPayoutPence={order.role === 'seller' ? order.quote?.sellerPayoutPence : undefined} />
       ) : order.paymentStatus === 'review' ? (
         <p className="pv-banner" role="status">Something didn’t match, so a person is checking this payment. If it can’t go ahead you’ll get a full refund.</p>
       ) : waitingForStripe ? (

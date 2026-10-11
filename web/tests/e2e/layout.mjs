@@ -3,7 +3,7 @@
 // Usage: npm run build && npm run test:e2e   (starts `next start` itself). Screenshots go to test-results/.
 // Runs with PV_DATA_SOURCE=examples: no database needed, the example catalogue stands in.
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const PORT = 3107;
@@ -314,6 +314,133 @@ try {
     await bp.getByRole('heading', { name: 'This item isn’t available' }).waitFor();
     if (berr.length) fail(`checkout: page errors: ${berr.slice(0, 2).join(' | ')}`);
     await bctx.close();
+  }
+
+  // Orders and custody: the buyer's phone, the seller's phone and a courier, sharing one example
+  // marketplace (localStorage), each signed in on their own tab. A £75 item: courier-witnessed tier.
+  {
+    const cctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const cerr = [];
+    const CLIP = { name: 'clip.webm', mimeType: 'video/webm', buffer: readFileSync(new URL('./fixtures/clip.webm', import.meta.url)) };
+    const tab = async (email, next = '/inbox') => {
+      const p = await cctx.newPage();
+      p.on('pageerror', (e) => cerr.push(`${email}: ${e.message}`));
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      // The third sign-in on a device offers a passkey; these tabs share a device.
+      await p.waitForURL((u) => u.pathname === next || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') {
+        await p.getByRole('button', { name: 'Not now' }).click();
+        await p.waitForURL((u) => u.pathname === next);
+      }
+      return p;
+    };
+    const step = (p, name) => p.getByRole('heading', { level: 2, name, exact: true }).waitFor({ timeout: 10000 });
+    const record = async (p) => {
+      await p.getByRole('button', { name: 'Record this step' }).click();
+      await p.getByRole('button', { name: 'Recording…' }).waitFor({ state: 'detached' }).catch(() => {});
+    };
+    const addPhoto = async (p) => { await p.getByLabel('Take photo').setInputFiles(photo('evidence.png')); await p.getByText('Photo added.').waitFor(); };
+    const addVideo = async (p) => { await p.getByLabel('Record video').setInputFiles(CLIP); await p.getByText('Video added.').waitFor(); };
+    const openFromInbox = async (p) => {
+      await p.goto(BASE + '/inbox');
+      await p.getByRole('heading', { name: 'Your turn' }).waitFor();
+      await p.getByRole('link', { name: 'Open LEGO Technic 42110' }).click();
+      await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    };
+
+    // The buyer pays (£75 + £3.99 postage + 6% + £0.80 + £5 courier witness).
+    const buyer = await tab('buyer2@example.com', '/checkout/example-11');
+    await buyer.getByRole('button', { name: 'Continue to payment · £89.29' }).click();
+    await buyer.getByRole('button', { name: 'Pay £89.29 (test)' }).click();
+    await buyer.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    const orderUrl = buyer.url();
+    await buyer.getByText('Waiting for the seller').waitFor();
+
+    // The seller sees it in their inbox and does the handover.
+    const seller = await tab('brick_bench@example.test');
+    await openFromInbox(seller);
+    await step(seller, 'Start recording and read the code aloud');
+    await seller.getByRole('button', { name: 'Start recording: get my code' }).click();
+    const code = (await seller.locator('.pv-code__value').textContent())?.trim();
+    if (!/^\d{6}$/.test(code ?? '')) fail(`custody: challenge code looks wrong (${code})`);
+    await addVideo(seller);
+    await record(seller);
+    await step(seller, 'Show the item on camera');
+    await addPhoto(seller);
+    await record(seller);
+    await step(seller, 'Weigh the parcel');
+    await seller.getByLabel('Weight in grams').fill('820');
+    await record(seller);
+    await step(seller, 'Seal the parcel with the ProofSeal');
+    await seller.getByRole('button', { name: 'Get the seal code' }).click();
+    const seal = (await seller.locator('.pv-code__value').textContent())?.trim() ?? '';
+    if (!/^PS-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(seal)) fail(`custody: seal code looks wrong (${seal})`);
+    await seller.getByLabel('Type the code on the seal you fitted').fill(seal.toLowerCase().replace(/-/g, ' '));
+    await record(seller);
+    await step(seller, 'Photograph the sealed parcel');
+    await addPhoto(seller);
+    await record(seller);
+    await seller.getByText('Waiting for the courier').waitFor();
+    await seller.screenshot({ path: 'test-results/custody-seller-390.png', fullPage: true });
+
+    // The buyer follows along but never sees the seal code they will have to check.
+    await buyer.reload();
+    await buyer.getByText('Waiting for the courier').waitFor();
+    const buyerText = (await buyer.locator('main').textContent()) ?? '';
+    if (buyerText.includes(seal) || !buyerText.includes('hidden until you check it')) fail('custody: the buyer must not see the seal code before checking it');
+
+    // The courier: independent account, own session.
+    const courier = await tab('courier@example.test');
+    await openFromInbox(courier);
+    await step(courier, 'Courier witnesses packing and takes the parcel');
+    await courier.getByLabel('Carrier').fill('DPD');
+    await courier.getByLabel('Tracking number').fill('15501234567890');
+    await courier.getByRole('button', { name: 'Record this step' }).click();
+    await courier.getByRole('alert').filter({ hasText: 'Tick to confirm.' }).waitFor();
+    await courier.getByLabel('I watched the item being packed and sealed, and I have the parcel.').check();
+    await record(courier);
+    await step(courier, 'Courier weighs it at your door');
+    await courier.getByLabel('Weight in grams').fill('815');
+    await record(courier);
+
+    // The buyer opens it on camera and checks the seal.
+    await buyer.goto(orderUrl);
+    await step(buyer, 'Start recording and read the code aloud');
+    await buyer.getByRole('button', { name: 'Start recording: get my code' }).click();
+    await addVideo(buyer);
+    await record(buyer);
+    await step(buyer, 'Check the ProofSeal');
+    await buyer.getByLabel('Type the code printed on the seal').fill(seal);
+    await record(buyer);
+    await step(buyer, 'Photograph the item');
+    await addPhoto(buyer);
+    await record(buyer);
+    await buyer.screenshot({ path: 'test-results/custody-buyer-390.png', fullPage: true });
+
+    await openFromInbox(courier);
+    await step(courier, 'Courier confirms the opening');
+    await courier.getByLabel('I watched the buyer open the sealed parcel and take out the item.').check();
+    await record(courier);
+
+    await buyer.reload();
+    await step(buyer, 'Confirm it’s as described');
+    await buyer.getByRole('button', { name: 'Confirm it’s as described' }).click();
+    await buyer.getByText('The payment has been released to the seller.').waitFor();
+
+    await seller.reload();
+    await seller.getByText('released and will be paid out').waitFor();
+    if (!(await seller.getByText('Record verified').isVisible())) fail('custody: the seller should see a verified record');
+    const done = await seller.locator('.pv-step--done').count();
+    if (done !== 12) fail(`custody: expected 12 recorded steps, saw ${done}`);
+    const evidence = await seller.getByRole('list', { name: 'Evidence photos and videos' }).locator('li').count();
+    if (evidence !== 5) fail(`custody: expected 5 evidence photos and videos, saw ${evidence}`);
+    await seller.goto(BASE + '/inbox');
+    await seller.getByText('Nothing needs you right now.').waitFor();
+    if (cerr.length) fail(`custody: page errors: ${cerr.slice(0, 3).join(' | ')}`);
+    await cctx.close();
   }
 
   // API v1
