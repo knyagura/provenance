@@ -15,6 +15,7 @@ const read = (f) => fs.readFileSync(path.join(here, '..', 'backend', f), 'utf8')
 export const SUPABASE_STUBS = `
   do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
   do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
+  do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;
   create schema if not exists auth;
   create table if not exists auth.users (id uuid primary key, email text);
   create or replace function auth.uid() returns uuid language sql stable as $$
@@ -44,6 +45,7 @@ export async function freshDb() {
   await db.exec(read('005_listing_media_storage.sql'));
   await db.exec(read('006_selling.sql'));
   await db.exec(read('007_accounts.sql'));
+  await db.exec(read('008_checkout.sql'));
   return db;
 }
 
@@ -72,7 +74,8 @@ if (isMain) {
   await db.exec(read('005_listing_media_storage.sql'));
   await db.exec(read('006_selling.sql'));
   await db.exec(read('007_accounts.sql'));
-  ok(true, 'schema + migrations 002-007 apply cleanly, and re-run idempotently');
+  await db.exec(read('008_checkout.sql'));
+  ok(true, 'schema + migrations 002-008 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -206,6 +209,64 @@ if (isMain) {
   await db.query(`insert into auth.users (id, email) values ('44444444-4444-4444-4444-444444444444', 'Jo+Shop!@Example.com'), ('55555555-5555-5555-5555-555555555555', '+@example.com')`);
   const made = (await db.query(`select username from public.profiles where id in ('44444444-4444-4444-4444-444444444444', '55555555-5555-5555-5555-555555555555') order by id`)).rows.map(r => r.username);
   ok(made[0] === 'joshop_4444' && made[1] === 'member_5555', `sign-up makes usernames that fit the rules (${made.join(', ')})`);
+
+  // --- 008: fees and checkout ---
+  const baskets = JSON.parse(fs.readFileSync(path.join(here, '..', 'backend', 'fixtures', 'fee_baskets.json'), 'utf8')).baskets;
+  const camel = { promotionShareBp: 'promotion_share_bp' };
+  let basketFails = [];
+  for (const b of baskets) {
+    const over = Object.fromEntries(Object.entries(b.settings ?? {}).map(([k, v]) => [camel[k], v]));
+    const r = (await as(db, null, `select public.compute_fees((select settings from public.fee_settings where version = 1) || $1::jsonb, $2, $3, $4, $5, 1) as q`, [JSON.stringify(over), b.price, b.postage, b.payer, b.boostBp])).rows[0].q;
+    const got = { tier: r.tier, protection: r.protection_pence, processing: r.processing_pence, courier: r.courier_pence, hub: r.hub_pence, promotion: r.promotion_pence, buyerTotal: r.buyer_total_pence, commission: r.commission_pence, sellerFees: r.seller_fees_pence, sellerPayout: r.seller_payout_pence };
+    if (JSON.stringify(got) !== JSON.stringify(b.expect)) basketFails.push(`${b.name}: ${JSON.stringify(got)}`);
+  }
+  ok(basketFails.length === 0, `the database's fee engine gives the agreed figures for all ${baskets.length} test baskets${basketFails.length ? ' — ' + basketFails.join(' | ') : ''}`);
+  await rejects(as(db, BUYER, `insert into public.fee_settings (version, settings) values (2, '{}')`), 'customers cannot change the fees', /permission denied/);
+
+  const shop = async (title, price, ship) => (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, shipping_pence, published) values ($1, $2, $3, $4, true) returning id`, [SELLER, title, price, ship])).rows[0].id;
+  const coat = await shop('Wool coat to buy', 4000, 399);
+  const quote = (await as(db, null, 'select public.order_quote($1) as q', [coat])).rows[0].q;
+  ok(quote.buyer_total_pence === 4679 && quote.fee_version === 1, 'anyone can see the price breakdown for a live listing (£40 + £3.99 postage → £46.79)');
+  await rejects(as(db, null, 'select public.start_checkout($1)', [coat]), 'signed-out visitors cannot start a checkout', /permission denied|Sign in/);
+  const co = (await as(db, BUYER, 'select public.start_checkout($1) as c', [coat])).rows[0].c;
+  const ord = (await db.query('select * from public.orders where id = $1', [co.order_id])).rows[0];
+  const held = (await db.query('select status from public.listings where id = $1', [coat])).rows[0].status;
+  ok(ord.payment_status === 'awaiting_payment' && ord.total_pence === 4679 && ord.seller_id === SELLER && held === 'reserved', 'checkout prices the order on the server and holds the item');
+  const again = (await as(db, BUYER, 'select public.start_checkout($1) as c', [coat])).rows[0].c;
+  ok(again.order_id === co.order_id, 'pressing Pay twice continues the same order');
+  await rejects(as(db, OTHER, 'select public.start_checkout($1)', [coat]), 'a second buyer cannot take a held item', /buying this right now/);
+  await rejects(as(db, SELLER, 'select public.start_checkout($1)', [await shop('Own lamp', 1500, 295)]), 'sellers cannot buy their own items', /own listing/);
+  await as(db, BUYER, `update public.orders set payment_status = 'paid', total_pence = 1, status = 'handover' where id = $1`, [co.order_id]);
+  const tamper = (await db.query('select payment_status, total_pence, status from public.orders where id = $1', [co.order_id])).rows[0];
+  ok(tamper.payment_status === 'awaiting_payment' && tamper.total_pence === 4679 && tamper.status === 'purchased', 'buyers cannot mark an order paid, change its total or move an unpaid order along');
+  await rejects(as(db, BUYER, `select public.confirm_payment($1, 'pi_fake', 4679)`, [co.order_id]), 'buyers cannot confirm their own payment', /permission denied/);
+  const svc = async (sql, params) => { await db.exec('set role service_role'); try { return await db.query(sql, params); } finally { await db.exec('reset role'); } };
+  ok((await svc(`select public.confirm_payment($1, 'pi_short', 100) as r`, [co.order_id])).rows[0].r === 'amount_mismatch', 'a payment for the wrong amount is held for review');
+  await db.query(`update public.orders set payment_status = 'awaiting_payment' where id = $1`, [co.order_id]);
+  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4679) as r`, [co.order_id])).rows[0].r === 'paid', 'the payment service confirms a payment for the right amount');
+  ok((await svc(`select public.confirm_payment($1, 'pi_1', 4679) as r`, [co.order_id])).rows[0].r === 'already_paid', 'the same payment confirmed twice changes nothing');
+  ok((await db.query('select status from public.listings where id = $1', [coat])).rows[0].status === 'sold', 'once paid, the item is sold');
+  await as(db, BUYER, `update public.orders set status = 'handover' where id = $1`, [co.order_id]);
+  ok((await db.query('select status from public.orders where id = $1', [co.order_id])).rows[0].status === 'handover', 'a paid order can move along');
+
+  const belt = await shop('Belt to abandon', 1400, 295);
+  const c2 = (await as(db, BUYER, 'select public.start_checkout($1) as c', [belt])).rows[0].c;
+  await as(db, BUYER, 'select public.cancel_checkout($1)', [c2.order_id]);
+  ok((await db.query('select status from public.listings where id = $1', [belt])).rows[0].status === 'active', 'cancelling a checkout frees the item');
+  const c3 = (await as(db, OTHER, 'select public.start_checkout($1) as c', [belt])).rows[0].c;
+  await db.query(`update public.orders set hold_expires_at = now() - interval '1 minute' where id = $1`, [c3.order_id]);
+  const c4 = (await as(db, BUYER, 'select public.start_checkout($1) as c', [belt])).rows[0].c;
+  ok(c4.order_id !== c3.order_id && (await db.query('select payment_status from public.orders where id = $1', [c3.order_id])).rows[0].payment_status === 'expired', 'an unpaid hold expires, and the next buyer can check out');
+  ok((await svc(`select public.confirm_payment($1, 'pi_late', $2) as r`, [c3.order_id, c3.quote.buyer_total_pence])).rows[0].r === 'needs_refund', 'a late payment for an item someone else now holds is flagged for a refund');
+
+  const lamp = await shop('Lamp from someone away', 1500, 295);
+  await as(db, SELLER, `update public.profiles set holiday_mode = true where id = $1`, [SELLER]);
+  ok((await as(db, null, 'select public.order_quote($1) as q', [lamp])).rows[0].q === null, 'items from sellers on holiday cannot be bought');
+  await as(db, SELLER, `update public.profiles set holiday_mode = false where id = $1`, [SELLER]);
+  const legacyItem = await shop('Bought in the old app', 2000, 0);
+  await as(db, BUYER, `insert into public.orders (listing_id, buyer_id, seller_id, price_pence, payment_status, paid_at) values ($1, $2, $2, 1, 'paid', now())`, [legacyItem, BUYER]);
+  const lo = (await db.query('select payment_status, paid_at, price_pence from public.orders where listing_id = $1', [legacyItem])).rows[0];
+  ok(lo.payment_status === 'legacy' && lo.paid_at === null && lo.price_pence === 2000, 'orders from the current app still work, and cannot claim to be paid');
 
   // --- 004: API keys ---
   const { createHash } = await import('node:crypto');

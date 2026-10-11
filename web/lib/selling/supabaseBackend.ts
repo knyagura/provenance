@@ -2,7 +2,46 @@ import type { AuthError, PostgrestError } from '@supabase/supabase-js';
 import { mediaUrl } from '@/lib/domain/catalogue';
 import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
-import type { Draft, DraftFields, DraftMedia, Member, Passkey, Result, SellingBackend } from './types';
+import { breakdownFromJson } from '@/lib/domain/fees';
+import type { Draft, DraftFields, DraftMedia, Member, OrderSummary, Passkey, Result, SellingBackend } from './types';
+
+const ORDER_COLUMNS =
+  'id, listing_id, buyer_id, seller_id, payment_status, status, fees, total_pence, hold_expires_at, paid_at, created_at, ' +
+  'listing:listings(title, media:listing_media(path, kind, position))';
+
+interface OrderRow {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  payment_status: OrderSummary['paymentStatus'];
+  status: string;
+  fees: Record<string, unknown> | null;
+  total_pence: number | null;
+  hold_expires_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  listing: { title: string; media: { path: string; kind: string; position: number }[] | null } | null;
+}
+
+function toOrder(r: OrderRow, me: string): OrderSummary {
+  const photo = [...(r.listing?.media ?? [])].filter((m) => m.kind === 'photo').sort((a, b) => a.position - b.position)[0];
+  const fees = r.fees && Object.keys(r.fees).length && 'buyer_total_pence' in r.fees ? r.fees : null;
+  return {
+    id: r.id,
+    listingId: r.listing_id,
+    title: r.listing?.title ?? 'Item',
+    photoUrl: photo ? mediaUrl(photo.path) : null,
+    role: r.buyer_id === me ? 'buyer' : 'seller',
+    paymentStatus: r.payment_status,
+    status: r.status,
+    quote: breakdownFromJson(fees),
+    totalPence: r.total_pence,
+    holdExpiresAt: r.hold_expires_at,
+    paidAt: r.paid_at,
+    createdAt: r.created_at,
+  };
+}
 
 // Selling through Supabase with the signed-in member's session. Row Level Security and the database's
 // listing rules (migration 006) decide what is allowed; this file only translates.
@@ -70,7 +109,7 @@ export function friendly(e: PostgrestError | AuthError | Error | { message: stri
   if (/profiles_username_format/.test(m)) return 'Use 3–30 letters, numbers, dots, dashes or underscores.';
   if (/profiles_bio_len/.test(m)) return 'Keep your bio to 500 characters.';
   if (/Not ready to publish/.test(m)) return m.replace('Not ready to publish:', 'Still needed:');
-  if (/fixed once|cannot change once/.test(m)) return m;
+  if (/fixed once|cannot change once|buying this right now|not available to buy|cannot buy your own|Sign in to buy/.test(m)) return m;
   if (/Invalid login credentials/i.test(m)) return 'That email and password don’t match an account.';
   if (/Email not confirmed/i.test(m)) return 'Confirm your email first: open the link we sent you.';
   if (/already registered|already been registered/i.test(m)) return 'There is already an account with that email. Sign in instead.';
@@ -298,6 +337,63 @@ export const supabaseBackend: SellingBackend = {
   async publish(id) {
     const { error } = await supabase().from('listings').update({ published: true }).eq('id', id);
     return error ? fail(error) : { ok: true, value: undefined };
+  },
+
+  async quote(listingId) {
+    const { data, error } = await supabase().rpc('order_quote', { p_listing: listingId });
+    if (error) throw new Error(friendly(error));
+    return breakdownFromJson(data as Record<string, unknown> | null);
+  },
+
+  async startCheckout(listingId) {
+    const { data, error } = await supabase().rpc('start_checkout', { p_listing: listingId });
+    if (error) return fail(error);
+    const d = data as { order_id: string; quote: Record<string, unknown>; hold_expires_at: string };
+    return { ok: true, value: { orderId: d.order_id, quote: breakdownFromJson(d.quote)!, holdExpiresAt: d.hold_expires_at } };
+  },
+
+  async startPayment(orderId) {
+    const { data, error } = await supabase().functions.invoke('checkout', { body: { order_id: orderId } });
+    if (error) {
+      // The function answers with { error, message }; read it from the response when there is one.
+      const ctx = (error as { context?: Response }).context;
+      const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+      if (body?.error === 'payments_not_configured') {
+        return { ok: false, code: 'not_configured', message: 'Payments aren’t switched on yet, so no money has been taken.' };
+      }
+      return { ok: false, code: body?.error, message: body?.message ?? friendly(error) };
+    }
+    return { ok: true, value: { kind: 'stripe', clientSecret: data.client_secret, publishableKey: data.publishable_key, amountPence: data.amount_pence } };
+  },
+
+  async simulatePayment() {
+    return { ok: false, message: 'Test payments only work in example mode.' };
+  },
+
+  async cancelCheckout(orderId) {
+    await supabase().rpc('cancel_checkout', { p_order: orderId });
+  },
+
+  async getOrder(orderId) {
+    const me = await uid();
+    if (!me) return null;
+    const { data, error } = await supabase().from('orders').select(ORDER_COLUMNS).eq('id', orderId).maybeSingle();
+    if (error) throw new Error(friendly(error));
+    return data ? toOrder(data as unknown as OrderRow, me) : null;
+  },
+
+  async myOrders() {
+    const me = await uid();
+    if (!me) return [];
+    const { data, error } = await supabase()
+      .from('orders')
+      .select(ORDER_COLUMNS)
+      .or(`buyer_id.eq.${me},seller_id.eq.${me}`)
+      .neq('payment_status', 'legacy')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw new Error(friendly(error));
+    return (data as unknown as OrderRow[]).map((r) => toOrder(r, me));
   },
 
   async deleteDraft(id) {

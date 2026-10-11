@@ -58,6 +58,8 @@ export default async function ItemPage({ params }: Props) {
   if (!l) notFound();
   const cat = categoryName(fallbackCategories, l.category);
   const photos = l.media.filter((m) => m.kind === 'photo');
+  const exampleMode = process.env.PV_DATA_SOURCE === 'examples';
+  const buyable = l.status === 'active' && !l.seller.away && (!l.example || exampleMode);
   const videos = l.media.filter((m) => m.kind === 'video');
   const details: [string, string | null][] = [
     ['Brand', l.brand],
@@ -109,9 +111,21 @@ export default async function ItemPage({ params }: Props) {
         {l.status !== 'active' ? <Badge tone="neutral">{l.status === 'sold' ? 'Sold' : 'Reserved'}</Badge> : null}
         {l.seller.away ? <p className="pv-banner" role="note">{l.seller.username} is on holiday, so buying is paused until they’re back.</p> : null}
         <div className="pv-item__actions">
-          <Button variant="primary" block disabled aria-describedby="buy-later">Buy now</Button>
-          <Button variant="secondary" block disabled aria-describedby="buy-later">Make an offer</Button>
-          <p id="buy-later" className="pv-note">Buying and offers arrive in a later build step.</p>
+          {buyable ? (
+            <Link className="pv-btn pv-btn--primary pv-btn--block" href={`/checkout/${l.id}`}>Buy now</Link>
+          ) : (
+            <Button variant="primary" block disabled aria-describedby="buy-note">Buy now</Button>
+          )}
+          <Button variant="secondary" block disabled aria-describedby="buy-note">Make an offer</Button>
+          <p id="buy-note" className="pv-note">
+            {l.example && !exampleMode
+              ? 'This is an example listing, so it can’t be bought.'
+              : l.status !== 'active'
+                ? 'This item is no longer available.'
+                : l.seller.away
+                  ? 'Buying is paused while the seller is away.'
+                  : 'Offers arrive in a later build step.'}
+          </p>
         </div>
 
         <section className="pv-seller" aria-label="Seller">

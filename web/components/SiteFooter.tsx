@@ -10,7 +10,7 @@ export function SiteFooter() {
           <li><a href="https://knyagura.github.io/provenance/">The working prototype</a></li>
         </ul>
       </nav>
-      <p className="pv-note">Provenance is being built in stages. You can list items now; buying arrives in a later step.</p>
+      <p className="pv-note">Provenance is being built in stages. You can list and buy items now; delivery with its custody steps comes next.</p>
     </footer>
   );
 }

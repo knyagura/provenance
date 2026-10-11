@@ -3,6 +3,7 @@ import { config } from '@/lib/config';
 import { exampleCatalogue, fallbackCategories } from './examples';
 import { nextCursor } from './query';
 import { filterInMemory, toPrefixTsQuery } from './search';
+import { breakdownFromJson, computeFees, DEFAULT_FEES, type FeeBreakdown } from './fees';
 import type { Category, Listing, ListingQuery, Media, MemberPage, Page } from './types';
 
 // The catalogue domain module: the one place that reads listings and categories.
@@ -17,6 +18,8 @@ export interface CatalogueSource {
   isEmpty(): Promise<boolean>;
   /** A member's public page, by username (any case). */
   member(username: string): Promise<MemberPage | null>;
+  /** Today's price breakdown; null when the listing can't be bought. */
+  quote(id: string): Promise<FeeBreakdown | null>;
 }
 
 export class CatalogueUnavailable extends Error {
@@ -40,6 +43,10 @@ export const exampleSource: CatalogueSource = {
   },
   async isEmpty() {
     return false;
+  },
+  async quote(id) {
+    const l = exampleCatalogue.find((x) => x.id === id);
+    return l ? computeFees(DEFAULT_FEES, { pricePence: l.pricePence, postagePence: l.shippingPence, payer: 'buyer', boostBp: null }) : null;
   },
   async member(username) {
     const l = exampleCatalogue.find((x) => x.seller.username.toLowerCase() === username.toLowerCase());
@@ -164,6 +171,13 @@ export const supabaseSource: CatalogueSource = {
     const { data, error } = await db().from('listings').select(LISTING_COLUMNS).eq('id', id).maybeSingle();
     if (error) throw new CatalogueUnavailable(error);
     return data ? toListing(data as unknown as Row) : null;
+  },
+
+  async quote(id) {
+    if (!UUID.test(id)) return null;
+    const { data, error } = await db().rpc('order_quote', { p_listing: id });
+    if (error) throw new CatalogueUnavailable(error);
+    return breakdownFromJson(data as Record<string, unknown> | null);
   },
 
   async member(username) {

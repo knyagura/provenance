@@ -59,6 +59,19 @@ export function openApi(siteUrl: string) {
           },
         },
       },
+      '/listings/{id}/quote': {
+        get: {
+          operationId: 'quoteListing',
+          summary: 'What a buyer would pay',
+          description: 'Today’s full price breakdown: item, postage, buyer protection, processing, courier witness and authentication. Only what the buyer pays; never the seller’s fees.',
+          'x-scope': 'listings:read',
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+          responses: {
+            '200': { description: 'The breakdown', content: { 'application/json': { schema: { type: 'object', properties: { data: { $ref: '#/components/schemas/Quote' } } } } } },
+            '401': problem, '403': problem, '404': problem, '429': problem,
+          },
+        },
+      },
       '/categories': {
         get: {
           operationId: 'listCategories',
@@ -82,6 +95,15 @@ export function openApi(siteUrl: string) {
           properties: {
             type: { type: 'string' }, title: { type: 'string' }, status: { type: 'integer' }, detail: { type: 'string' },
             errors: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, reason: { type: 'string' } } } },
+          },
+        },
+        Quote: {
+          type: 'object',
+          properties: {
+            listing_id: { type: 'string', format: 'uuid' }, currency: { type: 'string', const: 'GBP' }, fee_version: { type: 'integer' },
+            tier: { type: 'string', enum: ['enhanced', 'verified', 'luxury', 'ultraLuxury'] },
+            price_pence: { type: 'integer' }, postage_pence: { type: 'integer' }, protection_pence: { type: 'integer' }, processing_pence: { type: 'integer' },
+            courier_witness_pence: { type: 'integer' }, authentication_pence: { type: 'integer' }, promotion_pence: { type: 'integer' }, total_pence: { type: 'integer' },
           },
         },
         Category: { type: 'object', properties: { slug: { type: 'string' }, name: { type: 'string' }, parent: { type: ['string', 'null'] } } },

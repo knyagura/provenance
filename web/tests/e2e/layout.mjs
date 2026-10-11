@@ -11,9 +11,9 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
-  '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive',
+  '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
 ];
-const shots = { '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
+const shots = { '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
 const schemes = ['light', 'dark'];
 
@@ -263,6 +263,41 @@ try {
     await actx.close();
   }
 
+  // Buying: the breakdown matches the fee model, then a test payment and the order page.
+  {
+    const bctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const bp = await bctx.newPage();
+    const berr = [];
+    bp.on('pageerror', (e) => berr.push(e.message));
+    await bp.goto(BASE + '/item/example-6');
+    await bp.getByRole('link', { name: 'Buy now' }).click();
+    await bp.waitForURL((u) => u.pathname === '/checkout/example-6');
+    await bp.getByRole('link', { name: 'Sign in to buy' }).click();
+    await bp.getByLabel('Email').fill('buyer@example.com');
+    await bp.getByLabel('Password').fill('a-long-password');
+    await bp.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await bp.waitForURL((u) => u.pathname === '/checkout/example-6');
+    const table = bp.getByRole('table', { name: 'What you pay' });
+    await table.waitFor();
+    const rows = (await table.getByRole('row').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim());
+    const want = ['Item£890.00', 'Buyer protection', '£44.50', 'Processing fee', '£0.80', 'Courier witness', '£5.00', 'Authentication check', '£15.00', 'Total£955.30'];
+    for (const w of want) if (!rows.some((r) => r.includes(w))) fail(`checkout: breakdown missing "${w}" (rows: ${rows.join(' | ')})`);
+    if (rows.some((r) => r.startsWith('Postage'))) fail('checkout: free postage should not be listed');
+    await bp.getByRole('button', { name: 'Continue to payment · £955.30' }).click();
+    await bp.getByText('We’re holding this for you until').waitFor();
+    await bp.getByRole('button', { name: 'Pay £955.30 (test)' }).click();
+    await bp.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    await bp.getByRole('heading', { level: 1, name: 'Paid' }).waitFor();
+    await bp.goto(BASE + '/profile');
+    await bp.getByRole('list', { name: 'Your orders' }).waitFor();
+    const ordersText = await bp.getByRole('list', { name: 'Your orders' }).textContent();
+    if (!ordersText?.includes('Saint Laurent Kate bag') || !ordersText.includes('£955.30')) fail(`account: order missing (${ordersText})`);
+    await bp.goto(BASE + '/checkout/example-6');
+    await bp.getByRole('heading', { name: 'This item isn’t available' }).waitFor();
+    if (berr.length) fail(`checkout: page errors: ${berr.slice(0, 2).join(' | ')}`);
+    await bctx.close();
+  }
+
   // API v1
   const KEY = 'pv_test_Example1_' + 'x'.repeat(43);
   const api = async (path, key) => {
@@ -289,6 +324,10 @@ try {
   expectApi('missing listing', await api('/api/v1/listings/00000000-0000-0000-0000-000000000000', KEY), 404, 'application/problem+json');
   const cats = await api('/api/v1/categories', KEY);
   expectApi('categories', cats, 200, 'application/json');
+  const q = await api('/api/v1/listings/example-1/quote', KEY);
+  expectApi('quote', q, 200, 'application/json');
+  if (q.body.data?.total_pence !== 5519 || q.body.data?.protection_pence !== 240) fail(`API quote wrong: ${JSON.stringify(q.body.data)}`);
+  if ('seller_payout_pence' in (q.body.data ?? {})) fail('API quote must not reveal what the seller receives');
   if (cats.body.data?.length !== 9) fail('API categories count');
   expectApi('unknown endpoint', await api('/api/v1/nothing', KEY), 404, 'application/problem+json');
   const spec = await api('/api/v1/openapi.json');

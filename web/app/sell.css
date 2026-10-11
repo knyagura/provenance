@@ -78,3 +78,12 @@ label.pv-btn { cursor: pointer; }
   font: 600 14px/1 var(--font-sans); border: 1px solid var(--ink-soft); background: var(--surface); color: var(--ink);
 }
 .pv-switch[aria-checked="true"] { background: var(--olive); border-color: var(--olive); color: var(--on-olive); }
+
+/* Checkout and orders */
+.pv-checkout { display: flex; flex-direction: column; gap: var(--space-4); max-width: 640px; }
+.pv-fees { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pv-fees th, .pv-fees td { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pv-fees th { text-align: left; font-weight: 400; padding-right: var(--space-4); }
+.pv-fees th .pv-note { display: block; margin-top: 2px; }
+.pv-fees td { text-align: right; white-space: nowrap; }
+.pv-fees tfoot th, .pv-fees tfoot td { font-weight: 600; font-size: 17px; border-bottom: 0; padding-top: var(--space-3); }

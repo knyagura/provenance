@@ -1,6 +1,8 @@
 import { DRAFT_TITLE, missingForPublish } from '@/lib/domain/evidence';
 import { usernameProblem, BIO_MAX } from '@/lib/account/passkeyOffer';
-import type { Draft, DraftMedia, Member, Passkey, Profile, Result, SellingBackend } from './types';
+import { computeFees, DEFAULT_FEES } from '@/lib/domain/fees';
+import { exampleCatalogue } from '@/lib/domain/examples';
+import type { Draft, DraftMedia, Member, OrderSummary, Passkey, Profile, Result, SellingBackend } from './types';
 
 // A pretend backend that lives in this browser tab, for tests and demos without a database
 // (PV_DATA_SOURCE=examples). Any email and a password of 8+ characters signs in. Nothing leaves the browser.
@@ -16,6 +18,12 @@ interface Store {
   drafts: Draft[];
   profile?: Profile;
   passkeys?: StoredPasskey[];
+  orders?: OrderSummary[];
+}
+
+function exampleQuote(listingId: string) {
+  const l = exampleCatalogue.find((x) => x.id === listingId);
+  return l ? { listing: l, quote: computeFees(DEFAULT_FEES, { pricePence: l.pricePence, postagePence: l.shippingPence, payer: 'buyer', boostBp: null }) } : null;
 }
 
 function load(): Store {
@@ -221,6 +229,55 @@ export const exampleBackend: SellingBackend = {
     return update(id, (x) => {
       x.published = true;
     });
+  },
+  async quote(listingId) {
+    const sold = load().orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid');
+    return sold ? null : exampleQuote(listingId)?.quote ?? null;
+  },
+  async startCheckout(listingId) {
+    const s = load();
+    if (!s.member) return { ok: false, message: 'Sign in to buy' };
+    const q = exampleQuote(listingId);
+    if (!q || s.orders?.some((o) => o.listingId === listingId && o.paymentStatus === 'paid')) return { ok: false, message: 'This item is not available to buy' };
+    const open = s.orders?.find((o) => o.listingId === listingId && o.paymentStatus === 'awaiting_payment');
+    if (open) return ok({ orderId: open.id, quote: open.quote!, holdExpiresAt: open.holdExpiresAt! });
+    const hold = new Date(Date.now() + DEFAULT_FEES.checkoutHoldMinutes * 60_000).toISOString();
+    const o: OrderSummary = {
+      id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title, photoUrl: null, role: 'buyer',
+      paymentStatus: 'awaiting_payment', status: 'purchased', quote: q.quote, totalPence: q.quote.buyerTotalPence,
+      holdExpiresAt: hold, paidAt: null, createdAt: now(),
+    };
+    s.orders = [o, ...(s.orders ?? [])];
+    save(s);
+    return ok({ orderId: o.id, quote: q.quote, holdExpiresAt: hold });
+  },
+  async startPayment(orderId) {
+    const o = load().orders?.find((x) => x.id === orderId);
+    if (!o || o.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
+    return ok({ kind: 'simulated' as const, amountPence: o.totalPence ?? 0 });
+  },
+  async simulatePayment(orderId) {
+    const s = load();
+    const o = s.orders?.find((x) => x.id === orderId);
+    if (!o || o.paymentStatus !== 'awaiting_payment') return { ok: false, message: 'This checkout has ended. Start again from the item.' };
+    o.paymentStatus = 'paid';
+    o.paidAt = now();
+    save(s);
+    return ok(undefined);
+  },
+  async cancelCheckout(orderId) {
+    const s = load();
+    const o = s.orders?.find((x) => x.id === orderId);
+    if (o && o.paymentStatus === 'awaiting_payment') o.paymentStatus = 'cancelled';
+    save(s);
+  },
+  async getOrder(orderId) {
+    const s = load();
+    return s.member ? s.orders?.find((o) => o.id === orderId) ?? null : null;
+  },
+  async myOrders() {
+    const s = load();
+    return s.member ? (s.orders ?? []).filter((o) => o.paymentStatus !== 'cancelled') : [];
   },
   async deleteDraft(id) {
     const s = load();

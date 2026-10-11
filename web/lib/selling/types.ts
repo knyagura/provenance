@@ -1,3 +1,4 @@
+import type { FeeBreakdown } from '@/lib/domain/fees';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -64,6 +65,35 @@ export interface Passkey {
   lastUsedAt: string | null;
 }
 
+export type PaymentStatus = 'legacy' | 'awaiting_payment' | 'paid' | 'cancelled' | 'expired' | 'review';
+
+export interface OrderSummary {
+  id: string;
+  listingId: string;
+  title: string;
+  photoUrl: string | null;
+  /** Whether the signed-in member bought or sold it. */
+  role: 'buyer' | 'seller';
+  paymentStatus: PaymentStatus;
+  /** Custody progress: purchased, handover, hub, unboxing, confirmed, disputed. */
+  status: string;
+  quote: FeeBreakdown | null;
+  totalPence: number | null;
+  holdExpiresAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface CheckoutStarted {
+  orderId: string;
+  quote: FeeBreakdown;
+  holdExpiresAt: string;
+}
+
+export type PaymentStart =
+  | { kind: 'stripe'; clientSecret: string; publishableKey: string; amountPence: number }
+  | { kind: 'simulated'; amountPence: number };
+
 export type Result<T = void> = { ok: true; value: T } | { ok: false; message: string };
 
 export interface SellingBackend {
@@ -99,4 +129,16 @@ export interface SellingBackend {
   removeMedia(id: string, mediaId: string): Promise<Result>;
   publish(id: string): Promise<Result>;
   deleteDraft(id: string): Promise<Result>;
+
+  /** Today's price breakdown for a listing; null when it can't be bought. */
+  quote(listingId: string): Promise<FeeBreakdown | null>;
+  /** Prices the order on the server and holds the item while the buyer pays. */
+  startCheckout(listingId: string): Promise<Result<CheckoutStarted>>;
+  /** Gets the payment form ready. code 'not_configured' when payments aren't switched on. */
+  startPayment(orderId: string): Promise<Result<PaymentStart> & { code?: string }>;
+  /** Example mode only: pretend the card payment succeeded. */
+  simulatePayment(orderId: string): Promise<Result>;
+  cancelCheckout(orderId: string): Promise<void>;
+  getOrder(orderId: string): Promise<OrderSummary | null>;
+  myOrders(): Promise<OrderSummary[]>;
 }

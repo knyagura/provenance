@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ChangePassword } from '@/components/account/ChangePassword';
+import { MyOrders } from '@/components/checkout/MyOrders';
 import { PasskeyManager } from '@/components/account/PasskeyManager';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { MyListings } from '@/components/sell/MyListings';
@@ -44,6 +45,7 @@ export function ProfileView() {
           </button>
         </div>
       </section>
+      <MyOrders />
       {error ? <p className="pv-errors" role="alert">{error}</p> : null}
       {mine === null && !error ? <p role="status">Loading your listings…</p> : null}
       {mine && mine.length === 0 ? <p>You haven’t listed anything yet.</p> : null}

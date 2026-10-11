@@ -1,3 +1,4 @@
+import type { FeeBreakdown } from '@/lib/domain/fees';
 import type { Category, Listing } from '@/lib/domain/types';
 
 // API v1 field names (snake_case, money in pence). Changing a name here breaks partners: add, never rename.
@@ -28,4 +29,21 @@ export function listingJson(l: Listing, siteUrl: string) {
 
 export function categoryJson(c: Category) {
   return { slug: c.slug, name: c.name, parent: c.parentSlug };
+}
+
+export function quoteJson(listingId: string, q: FeeBreakdown) {
+  return {
+    listing_id: listingId,
+    currency: 'GBP',
+    fee_version: q.feeVersion,
+    tier: q.tier,
+    price_pence: q.pricePence,
+    postage_pence: q.postagePence,
+    protection_pence: q.payer === 'buyer' ? q.protectionPence : 0,
+    processing_pence: q.payer === 'buyer' ? q.processingPence : 0,
+    courier_witness_pence: q.courierPence,
+    authentication_pence: q.hubPence,
+    promotion_pence: q.promotionPence,
+    total_pence: q.buyerTotalPence,
+  };
 }

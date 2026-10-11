@@ -7,6 +7,6 @@ export function GET() {
     version: '1',
     docs: `${config.siteUrl}/developers`,
     openapi: `${config.siteUrl}/api/v1/openapi.json`,
-    endpoints: ['/api/v1/listings', '/api/v1/listings/{id}', '/api/v1/categories'],
+    endpoints: ['/api/v1/listings', '/api/v1/listings/{id}', '/api/v1/listings/{id}/quote', '/api/v1/categories'],
   });
 }
