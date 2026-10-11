@@ -4,6 +4,7 @@ Newest first. Each entry says what changed for people using the site, and which 
 
 | Date | Change | Documents updated |
 |---|---|---|
+| 2026-10-11 | Premium+ starting price set at £17.50 a month incl. VAT (about £4 margin per member); all plan prices and allowances stay configurable | Plan (Account plans), Backlog (B56), [Fee model](https://claude.ai/artifact/VUH2mjkuZAwTDNZjSrQS6x) |
 | 2026-10-11 | Premium+ added to the fee model: price options, perk costs, break-even (about £13 a month with default perks); £15 suggested | [Fee model](https://claude.ai/artifact/VUH2mjkuZAwTDNZjSrQS6x), Plan (Account plans) |
 | 2026-10-11 | Premium+ added as a paid plan; Premium (free) set to at least match Vinted Pro; APIs split between Premium (core) and Premium+ (full set) | Plan (Account plans, APIs), Backlog (B56), Data model (settings) |
 | 2026-10-11 | Premium set to free (£0) for now; price stays a setting; fee-free orders and boost credit start at 0 until modelled | Plan (Account plans), Backlog (B56) |
