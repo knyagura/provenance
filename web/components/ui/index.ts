@@ -5,3 +5,4 @@ export * from './CustodyTimeline';
 export * from './BottomNav';
 export * from './TopBar';
 export * from './icons';
+export * from './SearchBox';

@@ -3,4 +3,6 @@
 export const config = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://tkjmnivvcrcqkqjywafb.supabase.co',
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_LTjW96u1jivRuw1QPaSslw_OP-mrKxV',
+  /** Used for absolute links: link previews, API "url" fields. */
+  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lucky-gnome-de81b6.netlify.app').replace(/\/$/, ''),
 } as const;

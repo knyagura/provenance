@@ -36,6 +36,9 @@ jobs:
     defaults:
       run:
         working-directory: web
+    # Build and browser-test against the example catalogue, so the checks never depend on live data.
+    env:
+      PV_DATA_SOURCE: examples
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
