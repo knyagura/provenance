@@ -42,6 +42,7 @@ export async function freshDb() {
   await db.exec(read('003_advisor_fixes.sql'));
   await db.exec(read('004_browsing_and_api.sql'));
   await db.exec(read('005_listing_media_storage.sql'));
+  await db.exec(read('006_selling.sql'));
   return db;
 }
 
@@ -68,7 +69,8 @@ if (isMain) {
   await db.exec(read('003_advisor_fixes.sql'));
   await db.exec(read('004_browsing_and_api.sql'));
   await db.exec(read('005_listing_media_storage.sql'));
-  ok(true, 'schema + migrations 002-005 apply cleanly, and re-run idempotently');
+  await db.exec(read('006_selling.sql'));
+  ok(true, 'schema + migrations 002-006 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
@@ -131,7 +133,10 @@ if (isMain) {
   const L2 = (await as(db, SELLER, `insert into public.listings (seller_id, title, brand, description, price_pence, published, size_label, colour, category) values ($1, 'Beaufort wax jacket', 'Barbour', 'Re-waxed in March', 12000, true, 'M', 'Olive', 'men') returning id`, [SELLER])).rows[0];
   const hit = await as(db, null, `select id from public.listings where search @@ to_tsquery('simple', 'barbour & jacket:*')`);
   ok(hit.rows.some(r => r.id === L2.id), 'full-text search finds a listing by brand and title prefix');
-  await rejects(as(db, SELLER, `update public.listings set item_id = 'nope' where id = $1`, [L2.id]), 'Item ID must look like IT-2026-00001', /item_id_format/);
+  await rejects(db.query(`update public.listings set item_id = 'nope' where id = $1`, [L2.id]), 'Item ID must look like IT-2026-00001', /item_id_format/);
+  await as(db, SELLER, `update public.listings set item_id = 'IT-2026-00001', views = 999 where id = $1`, [L2.id]);
+  const prot = (await db.query('select item_id, views from public.listings where id = $1', [L2.id])).rows[0];
+  ok(prot.item_id === null && prot.views === 0, 'sellers cannot set the Item ID or view counts themselves');
 
   // --- 004: listing media ---
   const Ldraft = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence) values ($1, 'Draft lamp', 1500) returning id`, [SELLER])).rows[0];
@@ -145,6 +150,46 @@ if (isMain) {
   await as(db, SELLER, `insert into storage.objects (bucket_id, name) values ('listing-media', $1)`, [`${SELLER}/${L2.id}/2.jpg`]);
   ok((await db.query(`select count(*)::int as n from storage.objects`)).rows[0].n === 1, 'seller can upload into their own folder');
   await rejects(as(db, OTHER, `insert into storage.objects (bucket_id, name) values ('listing-media', $1)`, [`${SELLER}/${L2.id}/evil.jpg`]), "cannot upload into another seller's folder");
+
+  // --- 006: selling ---
+  const prof006 = (await as(db, null, `select evidence_profile from public.categories where slug = 'electronics'`)).rows[0].evidence_profile;
+  ok(prof006.shots.some(x => x.key === 'working' && x.kind === 'video' && x.required) && prof006.serial.required, 'electronics needs a working video and a serial number');
+  const E = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, category, evidence_version, item_id, views) values ($1, 'Untitled draft', 98000, 'electronics', 1, 'IT-2026-00009', 5) returning id, tier, item_id, views`, [SELLER])).rows[0];
+  ok(E.tier === 'luxury' && E.item_id === null && E.views === 0, 'a new draft gets its tier from the price (£980 → luxury) and cannot set platform fields');
+  await rejects(as(db, SELLER, `update public.listings set published = true where id = $1`, [E.id]), 'an empty draft cannot be published, and the reason lists what is missing', /Front.*Back.*Serial number or IMEI.*Working video.*title.*condition.*parcel size/);
+  const put = (shot, kind = 'photo', listing = E.id, who = SELLER) => as(db, who, `insert into public.listing_media (listing_id, seller_id, path, shot, kind) values ($1, $2, $3, $4, $5)`, [listing, who, `${who}/${listing}/${shot}.jpg`, shot, kind]);
+  await put('front'); await put('back'); await put('serial');
+  await put('working', 'photo');
+  await as(db, SELLER, `update public.listings set title = 'Fujifilm X100V', condition_label = 'Very good', parcel_size = 'medium' where id = $1`, [E.id]);
+  await rejects(as(db, SELLER, `update public.listings set published = true where id = $1`, [E.id]), 'a photo does not count where the profile needs a video, and the serial is still missing', /Working video, Serial number or IMEI$/);
+  await put('working', 'video');
+  await rejects(as(db, SELLER, `insert into public.listing_media (listing_id, seller_id, path, shot) values ($1, $2, $3, 'x')`, [E.id, SELLER, `${SELLER}/someone-else/x.jpg`]), 'media must sit in the listing’s own folder', /own folder/);
+  await rejects(as(db, OTHER, `insert into public.listing_secrets (listing_id, seller_id, serial_number) values ($1, $2, 'ABCD1234')`, [E.id, OTHER]), "cannot add a serial to someone else's listing", /row-level security/);
+  await as(db, SELLER, `insert into public.listing_secrets (listing_id, seller_id, serial_number) values ($1, $2, '7k3 m 4d7k')`, [E.id, SELLER]);
+  await as(db, SELLER, `update public.listings set published = true where id = $1`, [E.id]);
+  const Epub = (await as(db, null, 'select published, serial_hint from public.listings where id = $1', [E.id])).rows[0];
+  ok(Epub.published && Epub.serial_hint === '4D7K', 'with every required shot, the video and the serial, the listing goes live; buyers see only the last 4 characters');
+  ok((await as(db, BUYER, 'select * from public.listing_secrets')).rows.length === 0, 'other users cannot read the serial number');
+  await rejects(as(db, null, 'select * from public.listing_secrets'), 'signed-out visitors cannot read serial numbers', /permission denied/);
+  ok((await as(db, SELLER, 'select serial_number from public.listing_secrets')).rows[0].serial_number === '7k3 m 4d7k', 'the seller can read their own serial');
+  await rejects(as(db, SELLER, `delete from public.listing_media where listing_id = $1 and shot = 'front'`, [E.id]), 'reference photos cannot be removed once the listing is live', /fixed once/);
+  await rejects(put('extra'), 'nor can photos be added after it is live', /fixed once/);
+  await rejects(as(db, SELLER, `update public.listing_secrets set serial_number = 'ZZZZ9999' where listing_id = $1`, [E.id]), 'the serial cannot change once live', /cannot change/);
+  await rejects(as(db, SELLER, `update public.listings set category = 'home' where id = $1`, [E.id]), 'the category cannot change once live', /category cannot change/);
+  await as(db, SELLER, `update public.listings set evidence_version = 0, price_pence = 5000 where id = $1`, [E.id]);
+  const Edown = (await db.query('select evidence_version, tier from public.listings where id = $1', [E.id])).rows[0];
+  ok(Edown.evidence_version === 1 && Edown.tier === 'enhanced', 'sellers cannot switch the rules off; a lower price lowers the tier (£50 → enhanced)');
+  const C = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, category, evidence_version, condition_label, parcel_size) values ($1, 'Wool coat', 4500, 'women', 1, 'Good', 'large') returning id`, [SELLER])).rows[0];
+  await put('front', 'photo', C.id); await put('back', 'photo', C.id);
+  await rejects(as(db, SELLER, `update public.listings set published = true where id = $1`, [C.id]), 'clothing needs its label photo', /Size and care label/);
+  await as(db, SELLER, `update public.listings set declined_shots = '{label}', published = true where id = $1`, [C.id]);
+  ok((await as(db, null, 'select id from public.listings where id = $1', [C.id])).rows.length === 1, 'or the seller can say "No label" and publish');
+  const D = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, category, evidence_version, condition_label, parcel_size, declined_shots) values ($1, 'Bag', 90000, 'designer', 1, 'Good', 'medium', '{front,back,label,hardware}') returning id`, [SELLER])).rows[0];
+  await rejects(as(db, SELLER, `update public.listings set published = true where id = $1`, [D.id]), 'shots without a "No …" option cannot be declined', /Front, Back, Brand stamp or label, Serial or date code, Hardware close-up/);
+  await rejects(as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, category, evidence_version, published) values ($1, 'Instant', 1000, 'home', 1, true)`, [SELLER]), 'a listing cannot be created already live without its evidence', /Not ready/);
+  const legacy = (await as(db, SELLER, `insert into public.listings (seller_id, title, price_pence, published) values ($1, 'From the old app', 1000, true) returning published`, [SELLER])).rows[0];
+  ok(legacy.published, 'listings from the current app (evidence version 0) publish as before');
+  ok((await db.query(`select file_size_limit, allowed_mime_types from storage.buckets where id = 'listing-media'`)).rows[0].allowed_mime_types.includes('video/quicktime'), 'the photo bucket accepts iPhone video');
 
   // --- 004: API keys ---
   const { createHash } = await import('node:crypto');

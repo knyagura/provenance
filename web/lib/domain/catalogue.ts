@@ -45,7 +45,7 @@ export const exampleSource: CatalogueSource = {
 
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
-  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at',
+  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint',
   'seller:profiles!listings_seller_id_fkey(username, kyc_verified, is_pro)',
   'media:listing_media(path, kind, shot, position)',
 ].join(', ');
@@ -65,6 +65,7 @@ interface Row {
   tier: Listing['tier'];
   status: Listing['status'];
   created_at: string;
+  serial_hint?: string | null;
   seller: { username: string; kyc_verified: boolean; is_pro: boolean } | null;
   media: { path: string; kind: Media['kind']; shot: string | null; position: number }[] | null;
 }
@@ -85,6 +86,7 @@ export function toListing(r: Row): Listing {
     size: r.size_label,
     colour: r.colour,
     condition: r.condition_label,
+    serialHint: r.serial_hint ?? null,
     pricePence: r.price_pence,
     shippingPence: r.shipping_pence,
     tier: r.tier,

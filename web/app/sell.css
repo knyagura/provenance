@@ -1,0 +1,64 @@
+/* Selling, signing in and the account page. Colours from tokens.css only. */
+
+.pv-narrow { max-width: 520px; }
+.pv-actions { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; }
+
+.pv-panel {
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0;
+}
+@media (min-width: 768px) { .pv-panel { padding: var(--space-6); } }
+.pv-panel__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+.pv-form { gap: var(--space-4); }
+.pv-field textarea {
+  width: 100%; min-width: 0; padding: var(--space-2) var(--space-3); font: inherit; font-size: 15px; line-height: 22px;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--ink-muted); border-radius: var(--radius-sm); resize: vertical;
+}
+.pv-field input[aria-invalid="true"], .pv-field textarea[aria-invalid="true"] { border-color: var(--danger); border-width: 2px; }
+.pv-grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+@media (min-width: 600px) { .pv-grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Category picker */
+.pv-picks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 600px) { .pv-picks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .pv-picks { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pv-pick {
+  width: 100%; min-height: 64px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  padding: var(--space-3) var(--space-4); font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-md);
+}
+.pv-pick:hover:not(:disabled) { background: var(--surface-sand); }
+.pv-pick:disabled { cursor: progress; opacity: .7; }
+
+/* A seller's listings */
+.pv-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pv-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
+.pv-row__thumb { width: 56px; height: 56px; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-sand); }
+.pv-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pv-row__text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+
+/* Draft editor */
+.pv-sell { display: flex; flex-direction: column; gap: var(--space-4); max-width: 760px; }
+.pv-sell h2 { font-size: 19px; line-height: 26px; }
+.pv-shots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-shot { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+@media (min-width: 600px) { .pv-shot { grid-template-columns: 128px minmax(0, 1fr); } }
+.pv-shot--done { border-color: var(--sage); }
+.pv-shot__frame { aspect-ratio: 1 / 1; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-sand); display: grid; place-items: center; }
+.pv-shot__frame img, .pv-shot__frame video { width: 100%; height: 100%; object-fit: cover; }
+.pv-shot__empty { font-size: 12px; color: var(--ink-muted); text-align: center; padding: var(--space-1); }
+.pv-shot__body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.pv-shot__title { font: 600 15px/21px var(--font-sans); overflow-wrap: anywhere; }
+label.pv-btn { cursor: pointer; }
+.pv-visually-hidden:focus-visible + label.pv-btn { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pv-btn--busy { opacity: .7; cursor: progress; }
+
+.pv-choices { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-choice {
+  display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); min-height: var(--tap-min);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-weight: 400 !important;
+}
+.pv-choice:has(input:checked) { border-color: var(--ink); border-width: 2px; padding: calc(var(--space-3) - 1px); }
+.pv-field .pv-choice input { width: 20px; height: 20px; min-height: 0; margin: 1px 0 0; padding: 0; flex: none; accent-color: var(--olive); }
+
+.pv-publish { border-color: var(--ink-muted); }

@@ -11,12 +11,14 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
-  '/sell', '/inbox', '/profile',
+  '/sell', '/inbox', '/profile', '/signin',
 ];
 const shots = { '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
 const schemes = ['light', 'dark'];
 
+// A server left running from an earlier run would serve an old build; refuse rather than test the wrong thing.
+try { await fetch(BASE); console.error(`Port ${PORT} is already in use; stop the old server first.`); process.exit(2); } catch {}
 const server = spawn('npx', ['next', 'start', '-p', String(PORT), '-H', '127.0.0.1'], { stdio: 'pipe', env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', PV_DATA_SOURCE: 'examples' } });
 const stop = () => { try { server.kill('SIGTERM'); } catch {} };
 process.on('exit', stop);
@@ -130,6 +132,57 @@ try {
   const missing = await page.goto(BASE + '/item/not-a-real-item');
   if (missing?.status() !== 404) fail(`unknown item returned ${missing?.status()}, expected 404`);
   await ctx.close();
+
+  // Selling journey (example mode: a pretend account that lives in this browser tab).
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAU0lEQVR4nO3PQQ3AIADAQMA3TlCGmongcVnSU9DOe/b4s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaB9d7oCU2vyq0kAAAAASUVORK5CYII=', 'base64'); // 64×48 terracotta PNG
+  const photo = (name) => ({ name, mimeType: 'image/png', buffer: PNG });
+  for (const width of [360, 1280]) {
+    const sctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const sp = await sctx.newPage();
+    const serr = [];
+    sp.on('pageerror', (e) => serr.push(e.message));
+    await sp.goto(BASE + '/sell');
+    await sp.getByRole('link', { name: 'Sign in to sell' }).click();
+    await sp.waitForURL(/\/signin\?next=%2Fsell|\/signin\?next=\/sell/);
+    await sp.getByLabel('Email').fill('sian@example.com');
+    await sp.getByLabel('Password').fill('short');
+    await sp.getByRole('button', { name: 'Sign in' }).click();
+    if (!(await sp.locator('p.pv-errors').textContent())?.includes('8 characters')) fail(`sell @${width}: short password not explained`);
+    await sp.getByLabel('Password').fill('a-long-password');
+    await sp.getByRole('button', { name: 'Sign in' }).click();
+    await sp.waitForURL(/\/sell$/);
+    await sp.getByRole('button', { name: /Women/ }).click();
+    await sp.waitForURL(/\/sell\/example-draft-/);
+    await sp.getByRole('heading', { name: 'New listing' }).waitFor();
+    const publish = sp.getByRole('button', { name: 'Publish listing' });
+    if (!(await publish.isDisabled())) fail(`sell @${width}: Publish should be disabled on an empty draft`);
+    const needed = await sp.getByRole('list', { name: 'Still needed' }).getByRole('listitem').allTextContents();
+    if (needed.join('|') !== 'Photo: Front|Photo: Back|Photo: Size and care label|A title|The condition|A price of at least £1|A parcel size') fail(`sell @${width}: still-needed list was ${needed.join('|')}`);
+    await sp.getByLabel('Add Front photo').setInputFiles(photo('front.png'));
+    await sp.getByRole('img', { name: 'Front photo' }).waitFor();
+    await sp.getByLabel('Add Back photo').setInputFiles(photo('back.png'));
+    await sp.getByRole('img', { name: 'Back photo' }).waitFor();
+    await sp.getByRole('button', { name: 'No label?' }).click();
+    await sp.getByLabel('Title').fill('Wool coat');
+    await sp.getByLabel('Condition').selectOption('Good');
+    await sp.getByLabel('Price (£)').fill('45');
+    await sp.getByLabel('Price (£)').blur();
+    if ((await sp.getByLabel('Price (£)').inputValue()) !== '45.00') fail(`sell @${width}: price not tidied to 45.00`);
+    await sp.getByText('Large ·').click();
+    await sp.getByText('All changes saved').waitFor();
+    if (await sp.getByRole('list', { name: 'Still needed' }).count()) fail(`sell @${width}: still-needed list should be gone when complete`);
+    await publish.click();
+    await sp.getByRole('heading', { name: 'Wool coat is live' }).waitFor();
+    await sp.goto(BASE + '/profile');
+    await sp.getByRole('heading', { name: 'sian' }).waitFor();
+    if (!(await sp.getByText('Wool coat').isVisible())) fail(`sell @${width}: published listing missing from the account page`);
+    const over = await sp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if (over > 0) fail(`sell @${width}: account page scrolls sideways`);
+    await sp.getByRole('button', { name: 'Sign out' }).click();
+    await sp.waitForURL(BASE + '/');
+    if (serr.length) fail(`sell @${width}: page errors: ${serr.slice(0, 2).join(' | ')}`);
+    await sctx.close();
+  }
 
   // API v1
   const KEY = 'pv_test_Example1_' + 'x'.repeat(43);

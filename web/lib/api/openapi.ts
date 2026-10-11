@@ -97,6 +97,7 @@ export function openApi(siteUrl: string) {
             size: { type: ['string', 'null'] },
             colour: { type: ['string', 'null'] },
             condition: { type: ['string', 'null'] },
+            serial_hint: { type: ['string', 'null'], description: 'Last 4 characters of the serial number or IMEI, to match against the item on arrival. The full number is never shared.' },
             price_pence: { type: 'integer' },
             shipping_pence: { type: 'integer' },
             currency: { type: 'string', const: 'GBP' },

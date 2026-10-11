@@ -57,6 +57,7 @@ export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   size: s[3],
   colour: null,
   condition: s[4],
+  serialHint: s[2] === 'electronics' ? '4D7K' : null,
   pricePence: s[5],
   shippingPence: s[5] >= 50000 ? 0 : 399,
   tier: s[8],

@@ -7,9 +7,11 @@ import '@fontsource/ibm-plex-mono/400.css';
 import './tokens.css';
 import './globals.css';
 import './browse.css';
+import './sell.css';
 import '@/components/ui/ui.css';
 import { BottomNav, TopBar } from '@/components/ui';
 import { SiteFooter } from '@/components/SiteFooter';
+import { MemberProvider } from '@/components/auth/MemberProvider';
 import { config } from '@/lib/config';
 
 export const metadata: Metadata = {
@@ -32,12 +34,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-GB">
       <body>
-        <TopBar />
-        <main className="pv-main" id="main">
-          {children}
-          <SiteFooter />
-        </main>
-        <BottomNav />
+        <MemberProvider>
+          <TopBar />
+          <main className="pv-main" id="main">
+            {children}
+            <SiteFooter />
+          </main>
+          <BottomNav />
+        </MemberProvider>
       </body>
     </html>
   );

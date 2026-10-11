@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { ComingSoon } from '@/components/ComingSoon';
+import { ProfileView } from '@/components/auth/ProfileView';
 
-export const metadata: Metadata = { title: 'Profile' };
+export const metadata: Metadata = { title: 'Your account', robots: { index: false } };
 
-export default function Page() {
-  return <ComingSoon title="Profile" step={4} what="Signing in, your profile and passkeys arrive in step 4." />;
+export default function ProfilePage() {
+  return <ProfileView />;
 }

@@ -14,6 +14,7 @@ export function listingJson(l: Listing, siteUrl: string) {
     size: l.size,
     colour: l.colour,
     condition: l.condition,
+    serial_hint: l.serialHint,
     price_pence: l.pricePence,
     shipping_pence: l.shippingPence,
     currency: 'GBP',

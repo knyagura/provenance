@@ -37,6 +37,8 @@ export interface Listing {
   size: string | null;
   colour: string | null;
   condition: string | null;
+  /** Last 4 characters of the serial number or IMEI; the full number stays private. */
+  serialHint: string | null;
   pricePence: number;
   shippingPence: number;
   tier: Tier;

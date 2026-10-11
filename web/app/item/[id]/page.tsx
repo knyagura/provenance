@@ -58,6 +58,7 @@ export default async function ItemPage({ params }: Props) {
   if (!l) notFound();
   const cat = categoryName(fallbackCategories, l.category);
   const photos = l.media.filter((m) => m.kind === 'photo');
+  const videos = l.media.filter((m) => m.kind === 'video');
   const details: [string, string | null][] = [
     ['Brand', l.brand],
     ['Size', l.size],
@@ -65,6 +66,7 @@ export default async function ItemPage({ params }: Props) {
     ['Colour', l.colour],
     ['Category', cat ?? null],
     ['Evidence', TIER_LABEL[l.tier]],
+    ['Serial ends', l.serialHint],
   ];
 
   return (
@@ -89,6 +91,12 @@ export default async function ItemPage({ params }: Props) {
         ) : (
           <div className="pv-gallery__empty" style={{ background: `var(--${placeholderFor(l.id)})` }} role="img" aria-label={l.example ? 'Example item: no photo' : 'No photo yet'} />
         )}
+        {videos.map((v) => (
+          <figure key={v.url} className="pv-item__video">
+            <video src={v.url} controls playsInline preload="metadata" aria-label={`${l.title}: ${v.shot === 'working' ? 'working video' : 'video'}`} />
+            <figcaption className="pv-note">{v.shot === 'working' ? 'Working video, recorded by the seller when listing' : 'Video'}</figcaption>
+          </figure>
+        ))}
       </div>
 
       <div className="pv-item__buy">

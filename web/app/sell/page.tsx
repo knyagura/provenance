@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { ComingSoon } from '@/components/ComingSoon';
+import { SellStart } from '@/components/sell/SellStart';
 
-export const metadata: Metadata = { title: 'Sell now' };
+export const metadata: Metadata = { title: 'Sell an item', robots: { index: false } };
 
-export default function Page() {
-  return <ComingSoon title="Sell now" step={3} what="Listing an item, with photo prompts for its category, arrives in step 3." />;
+export default function SellPage() {
+  return <SellStart />;
 }
