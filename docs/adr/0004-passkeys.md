@@ -1,6 +1,6 @@
 # ADR 0004: Passkeys through Supabase Auth, tied to the site's domain
 
-Date: 2026-10-11 · Status: accepted; the domain question is open · Build step 4
+Date: 2026-10-11 · Status: accepted · Build step 4
 
 ## Context
 
@@ -19,7 +19,7 @@ A passkey is bound to one domain, the "relying party". Supabase allows one relyi
 - **Option A, use the Netlify address now.** Works today; passkeys are re-added after the switch-over (step 7). Acceptable while only testers use them.
 - **Option B, buy the domain first.** Point it at Netlify, set it as the relying party, and passkeys survive the switch-over.
 
-Until decided, passkeys are switched off in Supabase and the site says so when someone tries one.
+**Decided 11 Oct 2026: Option A.** Passkeys are switched on in Supabase with the relying party `lucky-gnome-de81b6.netlify.app` (checked: Supabase's sign-in challenge names that domain). Passkeys made now must be added again after the switch-over to our own domain; the switch-over checklist must say so to members.
 
 ## Consequences
 
