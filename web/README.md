@@ -33,7 +33,9 @@ Netlify runs typecheck, unit tests and the build on every push, so a failing cha
 | `lib/domain/evidence.ts` | What each category must photograph before a listing can go live. The database holds the same lists (migration 006) and has the final say; a unit test fails if the two drift apart. |
 | `lib/selling/` | Signing in and selling. `supabaseBackend.ts` uses the member's own session, so Row Level Security applies; `exampleBackend.ts` is a pretend account in the browser tab for tests. |
 | `lib/media.ts` | Prepares photos in the browser: at most 2000 px, re-saved as JPEG (which drops location data), with a SHA-256 fingerprint. Videos up to 30 seconds and 50 MB. |
-| `app/` | Pages: home, `/search`, `/item/[id]` (with a link-preview image), `/sell`, `/sell/[id]` (the draft editor), `/signin`, `/profile`, `/developers`, `/styleguide`. |
+| `lib/account/passkeyOffer.ts` | When to offer a passkey (third password sign-in on a device; "Not now" waits three more), and the username rules. |
+| `components/account/` | Account page sections (profile and holiday mode, passkeys, password), the passkey offer and password reset. |
+| `app/` | Pages: home, `/search`, `/item/[id]` (with a link-preview image), `/member/[username]`, `/sell`, `/sell/[id]` (the draft editor), `/signin`, `/passkey`, `/reset`, `/profile`, `/developers`, `/styleguide`. |
 
 ## Example catalogue
 
@@ -50,3 +52,7 @@ Only the Supabase **publishable** key is used here (`lib/config.ts`). Never add 
 `netlify.toml` (repo root) names Netlify's Next.js adapter (`@netlify/plugin-nextjs`). Without it Netlify publishes the raw build folder and every page returns 404.
 
 `.npmrc` sets `legacy-peer-deps` because npm 10 fails to resolve this dependency tree without it.
+
+## Passkeys
+
+Passkeys use Supabase Auth's built-in WebAuthn support. They only work once switched on in Supabase (Authentication → Passkeys) with the relying party set to the site's domain; see [ADR 0004](../docs/adr/0004-passkeys.md). The browser test uses Chrome's virtual authenticator on `localhost`, because passkeys refuse IP addresses such as 127.0.0.1.
