@@ -42,3 +42,17 @@ export const ProfileIcon = (p: IconProps) => (
 export const AlertIcon = (p: IconProps) => (
   <svg {...base(p)} strokeWidth={2}><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17v.5" /></svg>
 );
+export const CameraIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M4 8h3l2-2.5h6L17 8h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+);
+/** A round seal with a tick: authenticated. */
+export const SealIcon = (p: IconProps) => (
+  <svg {...base(p)}><circle cx="12" cy="12" r="8" /><path d="M8.5 12.2l2.4 2.4 4.6-4.8" /></svg>
+);
+/** Two overlapping seals: checked twice. */
+export const DoubleSealIcon = (p: IconProps) => (
+  <svg {...base(p)}><circle cx="9.5" cy="12" r="6.5" /><circle cx="15" cy="12" r="6.5" /><path d="M12.4 12.3l1.7 1.7 3.2-3.4" /></svg>
+);
+export const PackageIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M4 8l8-4 8 4v8l-8 4-8-4z" /><path d="M4 8l8 4 8-4M12 12v8" /></svg>
+);

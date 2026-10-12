@@ -290,3 +290,49 @@ export function describeEvidence(e: Evidence): string {
   if (e.note) parts.push(String(e.note));
   return parts.join(' · ');
 }
+
+// ---------- Stages ----------
+
+export type StageKey = 'handover' | 'hub' | 'door' | 'complete';
+
+export const STAGE_TITLE: Record<StageKey, string> = {
+  handover: 'Handover',
+  hub: 'Authentication',
+  door: 'At the door',
+  complete: 'Complete',
+};
+
+/** Which stage a step belongs to, so a long record reads as four chapters. */
+export function stageOf(stepKey: string): StageKey {
+  if (stepKey === 'confirm') return 'complete';
+  if (stepKey.startsWith('hub_')) return 'hub';
+  if (stepKey === 'courier_delivery' || stepKey.startsWith('unbox_') || stepKey === 'witness_opening') return 'door';
+  return 'handover';
+}
+
+export interface Stage {
+  key: StageKey;
+  title: string;
+  steps: StepDef[];
+}
+
+/** The tier's steps grouped into stages, in order; stages the tier doesn't have are left out. */
+export function stagesFor(tier: Tier): Stage[] {
+  const out: Stage[] = [];
+  for (const step of planFor(tier)) {
+    const key = stageOf(step.key);
+    const last = out.at(-1);
+    if (last?.key === key) last.steps.push(step);
+    else out.push({ key, title: STAGE_TITLE[key], steps: [step] });
+  }
+  return out;
+}
+
+/** How far along an order is: steps recorded of the total, and the stage it's in. */
+export function progressOf(v: Pick<CustodyView, 'tier' | 'events' | 'state' | 'current'>): { done: number; total: number; stage: StageKey } {
+  const plan = planFor(v.tier);
+  const recorded = new Set(v.events.map((e) => e.step));
+  const done = plan.filter((s) => recorded.has(s.key)).length;
+  const stage = v.current ? stageOf(v.current.key) : v.state === 'confirmed' ? 'complete' : stageOf(plan[Math.max(0, done - 1)]?.key ?? 'confirm');
+  return { done, total: plan.length, stage };
+}

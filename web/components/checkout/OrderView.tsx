@@ -103,7 +103,7 @@ export function OrderView({ id }: { id: string }) {
           {order.bought.media.some((m) => m.kind === 'photo') ? (
             <ul className="pv-bought-photos" aria-label="Photos when bought">
               {order.bought.media.filter((m) => m.kind === 'photo').map((m, i) => (
-                <li key={m.path}><img src={m.path.startsWith('http') ? m.path : mediaUrl(m.path)} alt={`${order.bought!.title}, photo ${i + 1}${m.shot ? ` (${m.shot})` : ''}`} loading="lazy" /></li>
+                <li key={m.path}><img src={/^(https?:)?\//.test(m.path) ? m.path : mediaUrl(m.path)} alt={`${order.bought!.title}, photo ${i + 1}${m.shot ? ` (${m.shot})` : ''}`} loading="lazy" /></li>
               ))}
             </ul>
           ) : null}

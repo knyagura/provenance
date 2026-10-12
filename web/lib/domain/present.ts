@@ -26,16 +26,38 @@ export function toCard(l: Listing): ListingCardProps {
     seller: l.seller.username,
     photoUrl: photo?.url,
     placeholder: placeholderFor(l.id),
-    verified: l.seller.verified,
+    tier: l.tier,
   };
 }
 
+/** The protection each price band gets, in the words the badges use. */
 export const TIER_LABEL: Record<Tier, string> = {
-  enhanced: 'Standard evidence',
+  enhanced: 'Photo evidence',
   verified: 'Courier witnessed',
-  luxury: 'Courier witnessed, with seal',
-  ultraLuxury: 'Specialist checked',
+  luxury: 'Authenticated',
+  ultraLuxury: 'Double authenticated',
 };
+
+/** One line on what each level of protection means, for item pages and the home page. */
+export const TIER_NOTE: Record<Tier, string> = {
+  enhanced: 'Photographed when listed and when packed, posted with tracking.',
+  verified: 'A courier watches it packed and sealed, and watches you open it.',
+  luxury: 'Courier witnessed, plus an authentication hub checks it before it reaches you.',
+  ultraLuxury: 'Courier witnessed, and two independent authenticators check it.',
+};
+
+/** The price each level starts at, in pence. */
+export const TIER_FROM: Record<Tier, number> = { enhanced: 0, verified: 7500, luxury: 50000, ultraLuxury: 150000 };
+
+const SHOT_LABEL: Record<string, string> = {
+  front: 'Front', back: 'Back', label: 'Label', detail: 'Close-up', wear: 'Wear and marks', working: 'Working',
+};
+
+/** "Front", "Close-up"… for a photo's shot key; unknown keys are tidied ("serial_plate" → "Serial plate"). */
+export function shotLabel(shot: string | null | undefined): string | null {
+  if (!shot) return null;
+  return SHOT_LABEL[shot] ?? shot.charAt(0).toUpperCase() + shot.slice(1).replace(/[_-]+/g, ' ');
+}
 
 export function categoryName(categories: Category[], slug: string | null | undefined): string | undefined {
   return slug ? categories.find((c) => c.slug === slug)?.name : undefined;

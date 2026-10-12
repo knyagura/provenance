@@ -44,7 +44,8 @@ function exampleVersion(listingId: string): ListingVersion | null {
   const l = exampleListing(listingId);
   return l
     ? { revision: l.revision, title: l.title, description: l.description, brand: l.brand, size: l.size, colour: l.colour, condition: l.condition,
-        pricePence: l.pricePence, shippingPence: l.shippingPence, serialHint: l.serialHint, media: [] }
+        pricePence: l.pricePence, shippingPence: l.shippingPence, serialHint: l.serialHint,
+        media: l.media.map((m) => ({ path: m.url, kind: m.kind, shot: m.shot })) }
     : null;
 }
 
@@ -294,7 +295,8 @@ export const exampleBackend: SellingBackend = {
     const hold = new Date(Date.now() + DEFAULT_FEES.checkoutHoldMinutes * 60_000).toISOString();
     const o: StoredOrder = {
       summary: {
-        id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title, photoUrl: null,
+        id: `example-order-${Math.random().toString(36).slice(2, 10)}`, listingId, title: q.listing.title,
+        photoUrl: q.listing.media.find((m) => m.kind === 'photo')?.url ?? null,
         paymentStatus: 'awaiting_payment', quote: q.quote, bought: exampleVersion(listingId), totalPence: q.quote.buyerTotalPence,
         holdExpiresAt: hold, paidAt: null, createdAt: now(),
       },

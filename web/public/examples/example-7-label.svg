@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500" preserveAspectRatio="xMidYMid slice"><rect x="-100" y="-100" width="600" height="700" fill="#EFE7DC"/><ellipse cx="200" cy="400" rx="110" ry="14" fill="#000" opacity=".08"/>
+    <path d="M110 120 L290 120 L290 380 L110 380 Z" fill="#FBF8F2"/>
+    <circle cx="200" cy="150" r="10" fill="#EFE7DC" stroke="#D8CEBF" stroke-width="2"/>
+    <path d="M200 60 Q240 90 200 140" stroke="#3E3B33" stroke-width="2" fill="none"/>
+    <text x="200" y="215" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#3E3B33">4,200 shots</text>
+    <path d="M140 240 h120" stroke="#D8CEBF" stroke-width="2"/>
+    <text x="200" y="278" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="16" fill="#5E5A4F">Very good</text>
+    <text x="200" y="340" text-anchor="middle" font-family="Courier, monospace" font-size="13" fill="#80776B">EXAMPLE-7</text></svg>

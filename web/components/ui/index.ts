@@ -6,3 +6,5 @@ export * from './BottomNav';
 export * from './TopBar';
 export * from './icons';
 export * from './SearchBox';
+export * from './TierBadge';
+export * from './Logo';

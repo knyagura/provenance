@@ -73,3 +73,7 @@ Passkeys use Supabase Auth's built-in WebAuthn support. They only work once swit
   - The seller of an example listing signs in as `<their username>@example.test` (for example `brick_bench@example.test`).
   - Emails starting `courier` are couriers, and emails starting `hub` are hubs.
   - Any password of 8 or more characters works.
+
+## Pictures
+
+The example catalogue's pictures are drawn by `scripts/example-art.mjs` (three views per item: front, close-up, label) into `public/examples/`. They are original drawings with no brand names or logos. Run `node scripts/example-art.mjs` after changing a drawing. The app icon is `app/icon.svg` (and `app/apple-icon.png` for home screens).

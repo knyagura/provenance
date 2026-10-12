@@ -9,11 +9,15 @@ import {
   DISPUTE_REASONS,
   describeEvidence,
   isMyTurn,
-  planFor,
+  progressOf,
+  STAGE_TITLE,
+  stagesFor,
   stepCopy,
   type CustodyView,
+  type StepDef,
 } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { SealMark } from './SealMark';
 import { StepForm } from './StepForm';
 
 const REFRESH_MS = 8000;
@@ -25,22 +29,68 @@ const CHOICES: Record<(typeof BUYER_DISPUTE_REASONS)[number], string> = {
 };
 const at = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-/** Builds the timeline from the tier's steps and what has been recorded so far. */
-export function timelineSteps(v: CustodyView): CustodyStep[] {
+/** One stage's steps for the timeline, each with what was recorded beside it. */
+function stageSteps(v: CustodyView, steps: StepDef[]): CustodyStep[] {
   const done = new Map(v.events.map((e) => [e.step, e]));
-  return planFor(v.tier).map((s) => {
+  return steps.map((s) => {
     const ev = done.get(s.key);
     const copy = stepCopy(s, v.tier);
     const now = v.current?.key === s.key;
     const by = ACTOR_LABEL[s.actor];
+    const media = ev && typeof ev.evidence.media === 'string' ? v.mediaUrls[ev.evidence.media] : undefined;
+    const label = `${copy.title}, ${ev ? at(ev.at) : ''}`;
+    const evidence = ev ? { ...ev.evidence } : null;
+    if (evidence?.seal) delete evidence.seal; // shown as a seal below
     return {
       title: copy.title,
-      note: ev ? `${ev.actorRole === 'system' ? 'Automatic' : by} · ${at(ev.at)}` : `${by}${now ? '' : ' · to come'}`,
+      note: ev ? `${ev.actorRole === 'system' ? 'Automatic' : by} · ${at(ev.at)}` : now ? `${by} · now` : by,
       state: ev ? 'done' : now ? 'now' : 'later',
-      evidence: ev ? [describeEvidence(ev.evidence), `#${ev.hash.slice(0, 10)}`].filter(Boolean).join(' · ') : undefined,
+      evidence: ev ? [describeEvidence(evidence!), `#${ev.hash.slice(0, 10)}`].filter(Boolean).join(' · ') : undefined,
       yourTurn: now && v.myRoles.includes(s.actor) && v.state === 'in_progress',
+      extra: ev && (media || ev.evidence.seal) ? (
+        <>
+          {media ? (
+            <span className="pv-step__media">
+              {ev.evidence.media_kind === 'video' ? <video src={media} controls preload="metadata" aria-label={label} /> : <img src={media} alt={label} loading="lazy" />}
+            </span>
+          ) : null}
+          {ev.evidence.seal ? <SealMark evidence={ev.evidence} /> : null}
+        </>
+      ) : undefined,
     } satisfies CustodyStep;
   });
+}
+
+/** Where the order is: a bar split into its stages, filled as steps are recorded. */
+function Progress({ view }: { view: CustodyView }) {
+  const { done, total, stage } = progressOf(view);
+  const stages = stagesFor(view.tier);
+  const recorded = new Set(view.events.map((e) => e.step));
+  const label =
+    view.state === 'confirmed' ? 'Complete' : view.state === 'disputed' ? `On hold at ${STAGE_TITLE[stage].toLowerCase()}` : STAGE_TITLE[stage];
+  return (
+    <div className="pv-progress">
+      <div className="pv-progress__head">
+        <strong>{label}</strong>
+        <span className="pv-note">{done} of {total} steps recorded</span>
+      </div>
+      <div className={`pv-progress__bar${view.state === 'disputed' ? ' pv-progress__bar--held' : ''}`} role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Steps recorded">
+        {stages.map((st) => {
+          const n = st.steps.filter((s) => recorded.has(s.key)).length;
+          return (
+            <span key={st.key} className="pv-progress__seg" style={{ flexGrow: st.steps.length }}>
+              <span className="pv-progress__fill" style={{ width: `${(n / st.steps.length) * 100}%` }} />
+            </span>
+          );
+        })}
+      </div>
+      <ol className="pv-progress__stages" aria-hidden="true">
+        {stages.map((st) => (
+          <li key={st.key} style={{ flexGrow: st.steps.length }} className={st.key === stage ? 'pv-progress__now' : undefined}>{st.title}</li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 /** An order's chain of custody: where it is, the evidence so far, and the form when it's your turn. */
@@ -71,7 +121,6 @@ export function CustodyPanel({ orderId, sellerPayoutPence }: { orderId: string; 
 
   const mine = isMyTurn(view);
   const dispute = view.events.find((e) => e.step === 'dispute');
-  const media = view.events.filter((e) => typeof e.evidence.media === 'string' && view.mediaUrls[e.evidence.media as string]);
   const seller = view.myRoles.includes('seller');
 
   return (
@@ -108,26 +157,22 @@ export function CustodyPanel({ orderId, sellerPayoutPence }: { orderId: string; 
         {seller && view.state === 'in_progress' && sellerPayoutPence ? (
           <p className="pv-note">You receive {formatPence(sellerPayoutPence)} when the buyer confirms, or automatically after the protection window.</p>
         ) : null}
-        <CustodyTimeline steps={timelineSteps(view)} label="Custody steps" />
+        <Progress view={view} />
+        {stagesFor(view.tier).map((st) => {
+          const recorded = st.steps.filter((s) => view.events.some((e) => e.step === s.key)).length;
+          const status = recorded === st.steps.length ? 'Done' : st.steps.some((s) => s.key === view.current?.key) ? 'In progress' : recorded ? 'Part done' : 'To come';
+          return (
+            <details key={st.key} className="pv-stage" open={status !== 'Done'}>
+              <summary>
+                <span className="pv-stage__title">{st.title}</span>
+                <span className={`pv-stage__status pv-stage__status--${status.replace(' ', '-').toLowerCase()}`}>{status} · {recorded}/{st.steps.length}</span>
+              </summary>
+              <CustodyTimeline steps={stageSteps(view, st.steps)} label={`${st.title} steps`} />
+            </details>
+          );
+        })}
         <p className="pv-note pv-mono pv-wrap">Each step is signed into one chain; the latest fingerprint is #{view.head.slice(0, 16)}.</p>
       </section>
-
-      {media.length ? (
-        <section className="pv-panel" aria-labelledby={`evidence-${orderId}`}>
-          <h2 id={`evidence-${orderId}`}>Evidence</h2>
-          <ul className="pv-bought-photos" aria-label="Evidence photos and videos">
-            {media.map((e) => {
-              const url = view.mediaUrls[e.evidence.media as string];
-              const label = `${stepCopy(planFor(view.tier).find((p) => p.key === e.step) ?? { key: e.step, actor: 'seller', needs: [] }, view.tier).title}, ${at(e.at)}`;
-              return (
-                <li key={e.seq}>
-                  {e.evidence.media_kind === 'video' ? <video src={url} controls preload="metadata" aria-label={label} /> : <img src={url} alt={label} loading="lazy" />}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
 
       {view.myRoles.includes('buyer') && view.state === 'in_progress' ? <DisputeForm view={view} onDone={setView} /> : null}
     </>

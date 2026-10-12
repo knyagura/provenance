@@ -13,7 +13,7 @@ const pages = [
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
 ];
-const shots = { '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
+const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
 const schemes = ['light', 'dark'];
 
@@ -361,10 +361,12 @@ try {
 
     // The seller sees it in their inbox and does the handover.
     const seller = await tab('brick_bench@example.test');
+    await seller.getByRole('heading', { name: 'Your turn' }).waitFor();
+    await seller.screenshot({ path: 'test-results/inbox-seller-390.png', fullPage: true });
     await openFromInbox(seller);
     await step(seller, 'Start recording and read the code aloud');
     await seller.getByRole('button', { name: 'Start recording: get my code' }).click();
-    const code = (await seller.locator('.pv-code__value').textContent())?.trim();
+    const code = (await seller.locator('.pv-code__value').textContent())?.replace(/\s/g, '');
     if (!/^\d{6}$/.test(code ?? '')) fail(`custody: challenge code looks wrong (${code})`);
     await addVideo(seller);
     await record(seller);
@@ -435,7 +437,7 @@ try {
     if (!(await seller.getByText('Record verified').isVisible())) fail('custody: the seller should see a verified record');
     const done = await seller.locator('.pv-step--done').count();
     if (done !== 12) fail(`custody: expected 12 recorded steps, saw ${done}`);
-    const evidence = await seller.getByRole('list', { name: 'Evidence photos and videos' }).locator('li').count();
+    const evidence = await seller.locator('.pv-step__media').count();
     if (evidence !== 5) fail(`custody: expected 5 evidence photos and videos, saw ${evidence}`);
     await seller.goto(BASE + '/inbox');
     await seller.getByText('Nothing needs you right now.').waitFor();

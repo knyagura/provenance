@@ -2,11 +2,11 @@ import type { CustodyStep, ListingCardProps } from '@/components/ui';
 
 // Example content for the style guide and the empty home page. Clearly not real listings.
 export const exampleListings: ListingCardProps[] = [
-  { href: '#', title: 'Barbour jacket', pricePence: 4800, details: 'M · Very good', seller: 'resole_archive', verified: true, placeholder: 'blush' },
-  { href: '#', title: 'Floral midi dress', pricePence: 1200, details: '10 · Good', seller: 'mia.k', favourited: true, placeholder: 'sage' },
-  { href: '#', title: 'Ceramic table lamp', pricePence: 1500, details: 'Habitat · Good', seller: 'mia.k', boosted: true, placeholder: 'peach' },
-  { href: '#', title: 'Leather belt', pricePence: 1400, details: 'Ted Baker · Very good', seller: 'resole_archive', placeholder: 'surface-sand' },
-  { href: '#', title: 'Running shorts', pricePence: 1000, details: 'Adidas · Good', seller: 'resole_archive', placeholder: 'blush' },
+  { href: '#', title: 'Barbour jacket', pricePence: 4800, details: 'M · Very good', seller: 'resole_archive', tier: 'enhanced', placeholder: 'blush', photoUrl: '/examples/example-1-front.svg' },
+  { href: '#', title: 'Floral midi dress', pricePence: 1200, details: '10 · Good', seller: 'mia.k', favourited: true, tier: 'enhanced', placeholder: 'sage', photoUrl: '/examples/example-2-front.svg' },
+  { href: '#', title: 'Ceramic table lamp', pricePence: 1500, details: 'Habitat · Good', seller: 'mia.k', boosted: true, tier: 'enhanced', placeholder: 'peach', photoUrl: '/examples/example-3-front.svg' },
+  { href: '#', title: 'Leather belt', pricePence: 1400, details: 'Ted Baker · Very good', seller: 'resole_archive', tier: 'verified', placeholder: 'surface-sand', photoUrl: '/examples/example-4-front.svg' },
+  { href: '#', title: 'Running shorts', pricePence: 1000, details: 'Adidas · Good', seller: 'resole_archive', tier: 'luxury', placeholder: 'blush', photoUrl: '/examples/example-5-front.svg' },
 ];
 
 export const exampleSteps: CustodyStep[] = [

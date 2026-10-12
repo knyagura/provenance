@@ -10,6 +10,8 @@ import {
   normaliseSeal,
   planFor,
   PLANS,
+  progressOf,
+  stagesFor,
   SEAL_CODE,
   stepCopy,
   type StepDef,
@@ -132,5 +134,28 @@ describe('whose turn it is', () => {
     expect(custodyHeadline({ state: 'in_progress', current: plan[0], myRoles: ['seller'], tier: 'verified' })).toBe('Your turn: start recording and read the code aloud');
     expect(custodyHeadline({ state: 'in_progress', current: plan[5], myRoles: ['buyer'], tier: 'verified' })).toMatch(/^Waiting for the courier/);
     expect(custodyHeadline({ state: 'disputed', current: plan[5], myRoles: ['buyer'], tier: 'verified' })).toMatch(/On hold/);
+  });
+});
+
+describe('stages', () => {
+  it('group every step, in order, without losing any', () => {
+    for (const tier of tiers) {
+      const stages = stagesFor(tier);
+      expect(stages.flatMap((st) => st.steps)).toEqual(planFor(tier));
+      expect(new Set(stages.map((st) => st.key)).size).toBe(stages.length);
+      expect(stages.at(-1)?.key).toBe('complete');
+    }
+  });
+  it('only tiers with a hub have an authentication stage, and only witnessed tiers a door stage', () => {
+    expect(stagesFor('enhanced').map((s) => s.key)).toEqual(['handover', 'complete']);
+    expect(stagesFor('verified').map((s) => s.key)).toEqual(['handover', 'door', 'complete']);
+    expect(stagesFor('luxury').map((s) => s.key)).toEqual(['handover', 'hub', 'door', 'complete']);
+  });
+  it('measures progress from what has been recorded', () => {
+    const plan = planFor('verified');
+    const ev = (step: string) => ({ seq: 1, step, actorRole: 'seller' as const, at: '', mine: false, evidence: {}, hash: '' });
+    expect(progressOf({ tier: 'verified', events: [], state: 'in_progress', current: plan[0] })).toEqual({ done: 0, total: 12, stage: 'handover' });
+    expect(progressOf({ tier: 'verified', events: plan.slice(0, 7).map((p) => ev(p.key)), state: 'in_progress', current: plan[7] })).toEqual({ done: 7, total: 12, stage: 'door' });
+    expect(progressOf({ tier: 'verified', events: plan.map((p) => ev(p.key)), state: 'confirmed', current: null })).toEqual({ done: 12, total: 12, stage: 'complete' });
   });
 });

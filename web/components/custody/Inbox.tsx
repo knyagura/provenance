@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
-import { custodyHeadline, isMyTurn, stepAt, type AgentTask } from '@/lib/domain/custody';
+import { custodyHeadline, isMyTurn, planFor, stepAt, type AgentTask, type CustodyState } from '@/lib/domain/custody';
+import { PackageIcon } from '@/components/ui';
+import { EmptyState } from '@/components/EmptyState';
 import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
 
@@ -20,15 +22,28 @@ interface Row {
   turn: boolean;
   group: 'buying' | 'selling' | 'work';
   amount: string | null;
+  chip: { tone: 'turn' | 'waiting' | 'done' | 'held'; label: string };
+  progress: { done: number; total: number } | null;
+}
+
+function chipFor(state: CustodyState | null, turn: boolean): Row['chip'] {
+  if (state === 'confirmed') return { tone: 'done', label: 'Complete' };
+  if (state === 'disputed') return { tone: 'held', label: 'On hold' };
+  if (turn) return { tone: 'turn', label: 'Your turn' };
+  return { tone: 'waiting', label: state ? 'In progress' : 'Payment' };
 }
 
 function orderRow(o: OrderSummary): Row {
   const step = o.custody ? stepAt(o.custody.tier, o.custody.step, o.custody.state) : null;
   const v = o.custody ? { state: o.custody.state, current: step, myRoles: [o.role], tier: o.custody.tier } : null;
+  const turn = v ? isMyTurn(v) : false;
+  const total = o.custody ? planFor(o.custody.tier).length : 0;
   return {
     id: o.id, title: o.title, photoUrl: o.photoUrl,
     line: v ? custodyHeadline(v) : PAYMENT[o.paymentStatus],
-    turn: v ? isMyTurn(v) : false,
+    turn,
+    chip: chipFor(o.custody?.state ?? null, turn),
+    progress: o.custody ? { done: o.custody.state === 'confirmed' ? total : o.custody.step, total } : null,
     group: o.role === 'buyer' ? 'buying' : 'selling',
     amount: o.totalPence ? formatPence(o.role === 'buyer' ? o.totalPence : o.quote?.sellerPayoutPence ?? 0) : null,
   };
@@ -40,6 +55,8 @@ function taskRow(t: AgentTask): Row {
     id: t.orderId, title: t.title, photoUrl: null,
     line: turn ? custodyHeadline({ state: t.state, current: t.step, myRoles: [t.step!.actor], tier: t.tier }) : custodyHeadline({ state: t.state, current: t.step, myRoles: [], tier: t.tier }),
     turn, group: 'work', amount: null,
+    chip: chipFor(t.state, turn),
+    progress: null,
   };
 }
 
@@ -95,7 +112,7 @@ export function Inbox() {
         </p>
       </header>
       {error ? <p className="pv-banner pv-banner--warn" role="status">We couldn’t refresh just now. We’ll keep trying.</p> : null}
-      {rows.length === 0 ? <p>No orders yet. Anything you buy or sell appears here.</p> : null}
+      {rows.length === 0 ? <EmptyState title="No orders yet" note="Anything you buy or sell appears here, with each step of its handover." action={{ href: '/search', label: 'Start browsing' }} /> : null}
       {turn.length ? <RowList title="Your turn" rows={turn} /> : null}
       {GROUPS.map((g) => {
         const list = rows.filter((r) => r.group === g.key && !r.turn);
@@ -113,11 +130,19 @@ function RowList({ title, rows }: { title: string; rows: Row[] }) {
       <ul className="pv-rows">
         {rows.map((r) => (
           <li key={`${r.group}-${r.id}`} className={`pv-row${r.turn ? ' pv-row--turn' : ''}`}>
-            <span className="pv-row__thumb" aria-hidden="true">{r.photoUrl ? <img src={r.photoUrl} alt="" /> : null}</span>
+            <span className="pv-row__thumb" aria-hidden="true">{r.photoUrl ? <img src={r.photoUrl} alt="" /> : <PackageIcon />}</span>
             <span className="pv-row__text">
-              <strong>{r.title}</strong>
+              <span className="pv-row__top">
+                <strong>{r.title}</strong>
+                <span className={`pv-status pv-status--${r.chip.tone}`}>{r.chip.label}</span>
+              </span>
               <span className="pv-note">{[r.group === 'buying' ? 'Buying' : r.group === 'selling' ? 'Selling' : null, r.amount].filter(Boolean).join(' · ')}</span>
               <span className={r.turn ? 'pv-turn-line' : 'pv-note'}>{r.line}</span>
+              {r.progress ? (
+                <span className="pv-minibar" role="progressbar" aria-label="Custody steps recorded" aria-valuemin={0} aria-valuemax={r.progress.total} aria-valuenow={r.progress.done}>
+                  <span style={{ width: `${(r.progress.done / r.progress.total) * 100}%` }} />
+                </span>
+              ) : null}
             </span>
             <Link className={`pv-btn ${r.turn ? 'pv-btn--primary' : 'pv-btn--secondary'}`} href={`/orders/${r.id}`} aria-label={`${r.turn ? 'Open' : 'View'} ${r.title}`}>
               {r.turn ? 'Open' : 'View'}

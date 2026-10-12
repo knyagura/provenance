@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
-import { Badge, Button, CustodyTimeline, type CustodyStep } from '@/components/ui';
+import { Badge, Button, CustodyTimeline, TierBadge, type CustodyStep } from '@/components/ui';
+import { Gallery } from '@/components/browse/Gallery';
 import { getListing } from '@/lib/domain/catalogue';
 import { fallbackCategories } from '@/lib/domain/examples';
-import { categoryName, placeholderFor, TIER_LABEL } from '@/lib/domain/present';
-import type { Listing } from '@/lib/domain/types';
+import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
+import type { Listing, Tier } from '@/lib/domain/types';
 import { formatPence } from '@/lib/format';
 
 export const revalidate = 60;
@@ -36,21 +37,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: summary(l),
       url: `/item/${l.id}`,
       // With a real photo, use it; otherwise opengraph-image.tsx draws a card.
-      ...(photo ? { images: [{ url: photo.url, alt: l.title }] } : {}),
+      ...(photo && !l.example ? { images: [{ url: photo.url, alt: l.title }] } : {}),
     },
   };
 }
 
-function journey(l: Listing): CustodyStep[] {
-  const witnessed = l.tier !== 'enhanced';
-  return [
+/** What happens after buying, for this item's level of protection (the same stages as the order's custody record). */
+function journey(tier: Tier): CustodyStep[] {
+  const witnessed = tier !== 'enhanced';
+  const hub = tier === 'luxury' || tier === 'ultraLuxury';
+  const steps: CustodyStep[] = [
     { title: 'Photographed when listed', note: 'The seller took these photos in the app; they are the reference for the item.', state: 'done' },
     witnessed
-      ? { title: 'Packed in front of a courier', note: 'The courier watches it go into the box, seals it and records the weight.', state: 'later' }
-      : { title: 'Packed and sealed on camera', note: 'The seller films the item going into the box and the seal going on.', state: 'later' },
-    { title: 'Opened on camera', note: 'You film the seal before you cut it. It takes about a minute.', state: 'later' },
-    { title: 'Payment released', note: 'The seller is paid once you confirm the item is as described.', state: 'later' },
+      ? {
+          title: 'Handed over in front of a courier',
+          note: `The seller reads a one-time code on video, weighs the parcel and fits a numbered seal${hub ? ', plus an Item Seal on the item itself' : ''}, while a courier watches.`,
+          state: 'later',
+        }
+      : { title: 'Photographed as it’s packed, posted with tracking', note: 'The seller photographs it going into the parcel and adds the tracking number.', state: 'later' },
   ];
+  if (hub) {
+    steps.push({
+      title: tier === 'ultraLuxury' ? 'Authenticated twice' : 'Authenticated',
+      note: `An authentication hub checks the seals, opens it on camera and checks it against reference data${tier === 'ultraLuxury' ? ', then a second, independent authenticator checks it too' : ''}. It is resealed for the last leg.`,
+      state: 'later',
+    });
+  }
+  if (witnessed) {
+    steps.push({ title: 'Opened on camera, with the courier', note: 'The courier weighs it at your door. You check the seal code, then open it on camera while they watch.', state: 'later' });
+  }
+  steps.push({ title: 'You confirm, the seller is paid', note: 'If something’s wrong, report it and the payment stays held while it’s sorted out.', state: 'later' });
+  return steps;
 }
 
 export default async function ItemPage({ params }: Props) {
@@ -67,7 +84,6 @@ export default async function ItemPage({ params }: Props) {
     ['Condition', l.condition],
     ['Colour', l.colour],
     ['Category', cat ?? null],
-    ['Evidence', TIER_LABEL[l.tier]],
     ['Serial ends', l.serialHint],
   ];
 
@@ -83,13 +99,7 @@ export default async function ItemPage({ params }: Props) {
 
       <div className="pv-item__gallery">
         {photos.length ? (
-          <ul className="pv-gallery" aria-label="Photos">
-            {photos.map((m, i) => (
-              <li key={m.url}>
-                <img src={m.url} alt={`${l.title}, photo ${i + 1} of ${photos.length}${m.shot ? ` (${m.shot})` : ''}`} loading={i ? 'lazy' : 'eager'} />
-              </li>
-            ))}
-          </ul>
+          <Gallery photos={photos} title={l.title} />
         ) : (
           <div className="pv-gallery__empty" style={{ background: `var(--${placeholderFor(l.id)})` }} role="img" aria-label={l.example ? 'Example item: no photo' : 'No photo yet'} />
         )}
@@ -105,6 +115,10 @@ export default async function ItemPage({ params }: Props) {
         {l.example ? <Badge tone="neutral">Example listing</Badge> : null}
         <h1>{l.title}</h1>
         <p className="pv-item__price">{formatPence(l.pricePence)}</p>
+        <div className="pv-item__tier">
+          <TierBadge tier={l.tier} size="large" />
+          <span className="pv-note">{TIER_NOTE[l.tier]}</span>
+        </div>
         <p className="pv-note">
           {l.shippingPence ? `Postage ${formatPence(l.shippingPence)}` : 'Free postage'} · Buyer protection is added at checkout
         </p>
@@ -156,7 +170,7 @@ export default async function ItemPage({ params }: Props) {
       <section className="pv-item__journey" aria-labelledby="journey">
         <h2 id="journey">How this item reaches you</h2>
         <p className="pv-lead">Each step is recorded, so if anything goes wrong there is evidence to settle it.</p>
-        <CustodyTimeline steps={journey(l)} label="How this item reaches you" />
+        <CustodyTimeline steps={journey(l.tier)} label="How this item reaches you" />
       </section>
     </article>
   );

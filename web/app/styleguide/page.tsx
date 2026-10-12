@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import tokens from '@/design/tokens.json';
-import { Badge, BottomNav, Button, CustodyTimeline, ListingCard, SellIcon } from '@/components/ui';
+import { Badge, BottomNav, Button, CustodyTimeline, ListingCard, SellIcon, TierBadge } from '@/components/ui';
 import { exampleListings, exampleSteps } from '@/lib/examples';
 import './styleguide.css';
 
@@ -93,6 +93,14 @@ export default function StyleGuidePage() {
           <Badge tone="neutral">Draft</Badge>
           <Badge tone="danger">Chain broken</Badge>
         </div>
+        <h3 className="pv-h3">Protection levels</h3>
+        <div className="sg-row">
+          <TierBadge tier="enhanced" />
+          <TierBadge tier="verified" />
+          <TierBadge tier="luxury" />
+          <TierBadge tier="ultraLuxury" />
+        </div>
+        <p className="pv-note">Shown on every listing photo and item page: what protects the item on its way, by price band.</p>
       </section>
 
       <section className="pv-section" aria-labelledby="sg-cards">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { evidenceProblems, normaliseSeal, stepCopy, type CustodyView, type Evidence, type StepDef } from '@/lib/domain/custody';
@@ -11,7 +11,6 @@ const ATTEST: Record<string, string> = {
   witness_opening: 'I watched the buyer open the sealed parcel and take out the item.',
 };
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /** The form for the current step, shown only to the person whose turn it is. */
 export function StepForm({ view, step, onDone }: { view: CustodyView; step: StepDef; onDone: (v: CustodyView) => void }) {
@@ -89,11 +88,7 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
 
       {needs.includes('code') ? (
         challenge ? (
-          <div className="pv-code" role="status" aria-live="polite">
-            <span className="pv-note">Say this code clearly on camera</span>
-            <strong className="pv-code__value pv-mono" aria-label={`Code ${challenge.code.split('').join(' ')}`}>{challenge.code}</strong>
-            <span className="pv-note">Works until {time(challenge.expiresAt)}, once.</span>
-          </div>
+          <CodeCountdown code={challenge.code} expiresAt={challenge.expiresAt} onRenew={getCode} busy={busy === 'code'} />
         ) : (
           <Button variant="primary" onClick={getCode} disabled={busy !== null}>{busy === 'code' ? 'Getting your code…' : 'Start recording: get my code'}</Button>
         )
@@ -190,5 +185,41 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
         </div>
       )}
     </form>
+  );
+}
+
+/** The one-time code, large enough to read on camera, with the time it has left. */
+function CodeCountdown({ code, expiresAt, onRenew, busy }: { code: string; expiresAt: string; onRenew: () => void; busy: boolean }) {
+  const end = new Date(expiresAt).getTime();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const left = Math.max(0, Math.round((end - now) / 1000));
+  const total = 10 * 60;
+  const mm = Math.floor(left / 60);
+  const ss = String(left % 60).padStart(2, '0');
+  if (left === 0) {
+    return (
+      <div className="pv-code pv-code--expired" role="status">
+        <span>That code has expired. Get a new one, then record again.</span>
+        <Button variant="primary" onClick={onRenew} disabled={busy}>{busy ? 'Getting your code…' : 'Get a new code'}</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="pv-code" role="status">
+      <span className="pv-note">Say this code clearly on camera</span>
+      <span className="pv-code__row">
+        <strong className="pv-code__value pv-mono" aria-label={`Code ${code.split('').join(' ')}`}>
+          {code.slice(0, 3)}<span className="pv-code__gap" aria-hidden="true"> </span>{code.slice(3)}
+        </strong>
+        <span className="pv-code__timer" style={{ ['--left' as string]: `${Math.min(100, (left / total) * 100)}%` }} aria-label={`${mm} minutes ${ss} seconds left`}>
+          <span aria-hidden="true">{mm}:{ss}</span>
+        </span>
+      </span>
+      <span className="pv-note">Works once, for the next {mm > 0 ? `${mm} min` : `${left} s`}.</span>
+    </div>
   );
 }

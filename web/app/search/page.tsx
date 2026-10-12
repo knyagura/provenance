@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { EmptyState } from '@/components/EmptyState';
 import { CategoryBar } from '@/components/browse/CategoryBar';
 import { ExamplesNote } from '@/components/browse/ExamplesNote';
 import { ListingGrid } from '@/components/browse/ListingGrid';
@@ -133,11 +134,7 @@ export default async function SearchPage({ searchParams }: Props) {
               ) : null}
             </>
           ) : (
-            <div className="pv-empty">
-              <h2>Nothing matches yet</h2>
-              <p>Try fewer words, a wider price range, or another category.</p>
-              <p><Link href="/search">See everything for sale</Link></p>
-            </div>
+            <EmptyState heading title="Nothing matches yet" note="Try fewer words, a wider price range, or another category." action={{ href: '/search', label: 'See everything for sale' }} />
           )}
         </section>
       </div>
