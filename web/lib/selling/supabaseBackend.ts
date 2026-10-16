@@ -6,6 +6,8 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { versionFromSnapshot, type ListingVersion } from '@/lib/domain/versions';
 import { planFor, type Actor, type AgentTask, type CustodyEvent, type CustodyState, type CustodyView, type Evidence, type SealKind, type StepDef } from '@/lib/domain/custody';
 import type { Tier } from '@/lib/domain/types';
+import { supabaseBaskets } from './supabaseBaskets';
+import { supabaseMarket } from './supabaseMarket';
 import type { Draft, DraftFields, DraftMedia, Member, OrderSummary, Passkey, Result, SellingBackend } from './types';
 
 const ORDER_COLUMNS =
@@ -169,7 +171,7 @@ export function friendly(e: PostgrestError | AuthError | Error | { message: stri
   if (/rate limit/i.test(m)) return 'Too many attempts. Wait a minute and try again.';
   if (/exceeded the maximum allowed size|Payload too large/i.test(m)) return 'That file is too big. Photos and videos can be up to 50 MB.';
   if (/mime type|invalid_mime/i.test(m)) return 'That file type isn’t supported. Use a photo (JPEG, PNG) or a video (MP4, MOV).';
-  if (/Failed to fetch|NetworkError|timeout/i.test(m)) return 'We couldn’t reach Provenance. Check your connection and try again.';
+  if (/Failed to fetch|NetworkError|timeout/i.test(m)) return 'We couldn’t reach NuTuYu. Check your connection and try again.';
   return 'Something went wrong. Please try again.';
 }
 
@@ -193,6 +195,8 @@ async function uid(): Promise<string | null> {
 }
 
 export const supabaseBackend: SellingBackend = {
+  ...supabaseMarket,
+  ...supabaseBaskets,
   member: memberFromSession,
 
   onMemberChange(cb) {

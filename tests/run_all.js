@@ -3,7 +3,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 const suites = ['smoketest.js', 'attacktest.js', 'e2e_journey.js', 'check_real_camera.js', 'check_qr_scan.js',
-  'check_webauthn.js', 'check_m4.js', 'check_cam_layout.js', 'sql_rls_check.mjs', 'custody_attacks.mjs', 'two_user_journey.mjs',
+  'check_webauthn.js', 'check_m4.js', 'check_cam_layout.js', 'sql_rls_check.mjs', 'custody_attacks.mjs', 'marketplace_checks.mjs', 'basket_checks.mjs', 'two_user_journey.mjs',
   'real_browser_layout.js'];
 let failed = [];
 for (const s of suites) {

@@ -4,6 +4,8 @@ import { computeFees, DEFAULT_FEES } from '@/lib/domain/fees';
 import { exampleCatalogue } from '@/lib/domain/examples';
 import type { ListingVersion } from '@/lib/domain/versions';
 import type { Draft, DraftMedia, Member, Passkey, Profile, Result, SellingBackend } from './types';
+import { makeExampleBaskets } from './exampleBaskets';
+import { makeExampleMarket } from './exampleExtras';
 import { beginCustody, exampleCustody, exampleSellerId, loadMarket, memberId, saveMarket, toSummary, type StoredOrder } from './exampleMarket';
 
 // A pretend backend that lives in this browser tab, for tests and demos without a database
@@ -95,6 +97,8 @@ function update(id: string, fn: (d: Draft) => void): Result {
 }
 
 export const exampleBackend: SellingBackend = {
+  ...makeExampleMarket(() => load().member),
+  ...makeExampleBaskets(() => load().member, () => exampleBackend),
   async member() {
     return load().member;
   },
@@ -168,7 +172,7 @@ export const exampleBackend: SellingBackend = {
       const cred = (await navigator.credentials.create({
         publicKey: {
           challenge: challenge(),
-          rp: { name: 'Provenance (example)' },
+          rp: { name: 'NuTuYu (example)' },
           user: { id: new TextEncoder().encode(s.member.id), name: s.member.email, displayName: s.member.username },
           pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
           authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },

@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
+import { SealScanner } from './SealScanner';
 import { evidenceProblems, normaliseSeal, stepCopy, type CustodyView, type Evidence, type StepDef } from '@/lib/domain/custody';
 import { MediaProblem, preparePhoto, prepareVideo } from '@/lib/media';
 
@@ -118,6 +119,7 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
             <span className="pv-note">Your seal code</span>
             <strong className="pv-code__value pv-mono">{seal.code}</strong>
             <span className="pv-note">Fit the seal with this code. Only you see it until it’s checked.</span>
+            <a className="pv-note" href={`/orders/${view.orderId}/labels`}>Print QR labels for this seal</a>
           </div>
         ) : (
           <Button onClick={getSeal} disabled={busy !== null}>{busy === 'seal' ? 'Getting the code…' : 'Get the seal code'}</Button>
@@ -128,6 +130,7 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
           <label htmlFor={`${id}-seal`}>{step.sealMode === 'apply' ? 'Type the code on the seal you fitted' : 'Type the code printed on the seal'}</label>
           <input id={`${id}-seal`} className="pv-mono" autoCapitalize="characters" autoComplete="off" spellCheck={false} placeholder="PS-7K2M-9QXD"
             value={String(e.seal ?? '')} onChange={(ev) => set({ seal: ev.target.value })} />
+          <SealScanner onCode={(code) => set({ seal: code })} />
         </div>
       ) : null}
 

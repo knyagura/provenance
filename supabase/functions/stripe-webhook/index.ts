@@ -24,6 +24,11 @@ Deno.serve(async (req) => {
       if (error) throw error;
       return data as string;
     },
+    async confirmGroupPayment(groupId, ref, amount) {
+      const { data, error } = await admin.rpc('confirm_group_payment', { p_group: groupId, p_ref: ref, p_amount: amount });
+      if (error) throw error;
+      return data as string;
+    },
   });
   return new Response(JSON.stringify(reply.body), { status: reply.status, headers: { 'Content-Type': 'application/json' } });
 });

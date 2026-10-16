@@ -126,3 +126,12 @@
 .pv-card__photo .pv-tier { position: absolute; left: 8px; top: 8px; }
 .pv-card__boost { position: absolute; right: 8px; top: 8px; }
 .pv-card__photo { background-color: var(--surface-sand); }
+
+/* Inbox count */
+.pv-nav__icon { position: relative; display: inline-flex; }
+.pv-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: var(--radius-pill); background: var(--terracotta); color: var(--on-terracotta); font: 700 11px/1 var(--font-sans);
+}
+.pv-nav__icon .pv-count { position: absolute; top: -6px; right: -12px; box-shadow: 0 0 0 2px var(--olive); }
+.pv-top__link .pv-count { margin-left: 6px; }

@@ -11,8 +11,8 @@ function stripeFor(key: string) {
   return cache.get(key)!;
 }
 
-/** Stripe's card form. Card details go straight to Stripe; they never touch Provenance. */
-export function StripePay(props: { clientSecret: string; publishableKey: string; amountPence: number; orderId: string; onPaid: () => void }) {
+/** Stripe's card form. Card details go straight to Stripe; they never touch NuTuYu. */
+export function StripePay(props: { clientSecret: string; publishableKey: string; amountPence: number; orderId: string; onPaid: () => void; returnPath?: string }) {
   const stripe = useMemo(() => stripeFor(props.publishableKey), [props.publishableKey]);
   return (
     <Elements
@@ -30,7 +30,7 @@ export function StripePay(props: { clientSecret: string; publishableKey: string;
   );
 }
 
-function PayForm({ amountPence, orderId, onPaid }: { amountPence: number; orderId: string; onPaid: () => void }) {
+function PayForm({ amountPence, orderId, onPaid, returnPath }: { amountPence: number; orderId: string; onPaid: () => void; returnPath?: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
@@ -43,7 +43,7 @@ function PayForm({ amountPence, orderId, onPaid }: { amountPence: number; orderI
     setError(null);
     const { error: err } = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: `${window.location.origin}/orders/${orderId}?paid=1` },
+      confirmParams: { return_url: `${window.location.origin}${returnPath ?? `/orders/${orderId}?paid=1`}` },
       redirect: 'if_required',
     });
     setBusy(false);

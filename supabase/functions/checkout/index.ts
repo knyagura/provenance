@@ -1,11 +1,11 @@
-// Supabase Edge Function: checkout. Creates (or reuses) a Stripe PaymentIntent for the member's order.
+// Supabase Edge Function: checkout. Creates (or reuses) a Stripe PaymentIntent for the member's order, or for a basket checkout (one payment for several orders).
 // Needs function secrets STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY (test-mode keys while testing);
 // without them it answers "payments_not_configured". SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are
 // provided by Supabase itself.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 import Stripe from 'npm:stripe@22.6.2';
-import { CORS, handleCheckout, type Order } from '../_shared/payments.ts';
+import { CORS, handleCheckout, type Group, type Order } from '../_shared/payments.ts';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -35,11 +35,23 @@ Deno.serve(async (req) => {
       const { error } = await admin.from('orders').update({ payment_ref: ref }).eq('id', orderId);
       if (error) throw error;
     },
+    async getGroup(id) {
+      const { data } = await admin
+        .from('checkout_groups')
+        .select('id, buyer_id, payment_status, total_pence, payment_ref, hold_expires_at')
+        .eq('id', id)
+        .maybeSingle();
+      return (data as Group | null) ?? null;
+    },
+    async setGroupPaymentRef(groupId, ref) {
+      const { error } = await admin.from('checkout_groups').update({ payment_ref: ref }).eq('id', groupId);
+      if (error) throw error;
+    },
     stripe: stripe && {
-      create: ({ amount, currency, orderId, description }) =>
+      create: ({ amount, currency, orderId, groupId, description }) =>
         stripe.paymentIntents.create(
-          { amount, currency, description, metadata: { order_id: orderId }, automatic_payment_methods: { enabled: true } },
-          { idempotencyKey: `order-${orderId}-${amount}` },
+          { amount, currency, description, metadata: groupId ? { group_id: groupId } : { order_id: orderId! }, automatic_payment_methods: { enabled: true } },
+          { idempotencyKey: groupId ? `group-${groupId}-${amount}` : `order-${orderId}-${amount}` },
         ) as never,
       retrieve: (id) => stripe.paymentIntents.retrieve(id) as never,
     },

@@ -108,9 +108,11 @@ export default async function SearchPage({ searchParams }: Props) {
               </select>
             </div>
             {errors.length ? (
-              <ul className="pv-errors" role="alert">
-                {errors.map((e) => <li key={e.name}>{e.reason}</li>)}
-              </ul>
+              <div role="alert">
+                <ul className="pv-errors">
+                  {errors.map((e) => <li key={e.name}>{e.reason}</li>)}
+                </ul>
+              </div>
             ) : null}
             <div className="pv-filters__actions">
               <button type="submit" className="pv-btn pv-btn--primary">Show results</button>

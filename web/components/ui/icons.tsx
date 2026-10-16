@@ -56,3 +56,9 @@ export const DoubleSealIcon = (p: IconProps) => (
 export const PackageIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="M4 8l8-4 8 4v8l-8 4-8-4z" /><path d="M4 8l8 4 8-4M12 12v8" /></svg>
 );
+export const BagIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M5 8h14l-1 12H6z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></svg>
+);
+export const GiftIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M4 10h16v10H4z" /><path d="M3 7h18v3H3zM12 7v13" /><path d="M12 7c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1" /></svg>
+);

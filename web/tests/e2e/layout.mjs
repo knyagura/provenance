@@ -12,6 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
+  '/saved', '/passport/example-1', '/staff',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -89,13 +90,32 @@ try {
       await ctx.close();
     }
   }
-  // Favourite button toggles and announces its state.
+  // Accessibility: axe on every page at one width, both schemes. Serious and critical findings fail.
+  {
+    const axe = readFileSync(new URL('../../node_modules/axe-core/axe.min.js', import.meta.url), 'utf8');
+    for (const scheme of schemes) {
+      const actx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme });
+      const ap = await actx.newPage();
+      for (const path of pages) {
+        await ap.goto(BASE + path, { waitUntil: 'load' });
+        await ap.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+        await ap.addScriptTag({ content: axe });
+        const found = await ap.evaluate(async () => {
+          const r = await window.axe.run(document, { resultTypes: ['violations'], runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] } });
+          return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id} (${v.nodes.length}): ${v.nodes[0]?.target?.join(' ')}`);
+        });
+        if (found.length) fail(`axe ${path} ${scheme}: ${found.slice(0, 4).join(' | ')}`);
+      }
+      await actx.close();
+    }
+  }
+
+  // Saving an item: signed out, the heart asks you to sign in first.
   const ctx = await browser.newContext({ viewport: { width: 360, height: 800 } });
   const page = await ctx.newPage();
   await page.goto(BASE + '/');
-  const fav = page.getByRole('button', { name: 'Add Barbour Beaufort wax jacket to favourites' });
-  await fav.click();
-  if ((await page.getByRole('button', { name: 'Remove Barbour Beaufort wax jacket from favourites' }).getAttribute('aria-pressed')) !== 'true') fail('favourite button did not toggle');
+  await page.getByRole('button', { name: 'Save Barbour Beaufort wax jacket' }).click();
+  await page.waitForURL(/\/signin\?next=/).catch(() => fail('saving while signed out should go to sign-in'));
 
   // Browsing journey: search from the top bar, filter, open an item.
   await page.goto(BASE + '/');
@@ -441,8 +461,107 @@ try {
     if (evidence !== 5) fail(`custody: expected 5 evidence photos and videos, saw ${evidence}`);
     await seller.goto(BASE + '/inbox');
     await seller.getByText('Nothing needs you right now.').waitFor();
+
+    // Messages: the buyer writes; the seller's Inbox shows it unread, then the order shows it.
+    await buyer.goto(orderUrl);
+    await buyer.getByLabel('Message the seller').fill('Arrived safely, thank you!');
+    await buyer.getByRole('button', { name: 'Send', exact: true }).click();
+    await buyer.getByRole('list', { name: 'Messages with the seller' }).getByText('Arrived safely, thank you!').waitFor();
+    await seller.goto(BASE + '/inbox');
+    await seller.getByText('1 new message').waitFor({ timeout: 10000 }).catch(() => fail('messages: unread count missing in the Inbox'));
+    await seller.goto(orderUrl);
+    await seller.getByRole('list', { name: 'Messages with the buyer' }).getByText('Arrived safely, thank you!').waitFor();
+
+    // Reviews: only after confirmation; shown on the seller's page.
+    await buyer.goto(orderUrl);
+    await buyer.getByRole('button', { name: 'Post review' }).click();
+    await buyer.getByRole('alert').filter({ hasText: 'Choose 1 to 5 stars.' }).waitFor();
+    await buyer.getByRole('radio', { name: '5 stars' }).check({ force: true });
+    await buyer.getByLabel('A few words (optional)').fill('Packed beautifully and every bag was there.');
+    await buyer.getByRole('button', { name: 'Post review' }).click();
+    await buyer.getByText('Your review of the seller').waitFor();
+    await buyer.goto(BASE + '/member/brick_bench');
+    await buyer.getByText('Packed beautifully and every bag was there.').waitFor();
+
+    // The Item Passport: steps and verification shown, private details never.
+    await buyer.goto(BASE + '/passport/example-11');
+    await buyer.getByText('The record verifies').waitFor();
+    const pp = (await buyer.locator('main').textContent()) ?? '';
+    for (const secret of [seal, '15501234567890', 'buyer2', '820', 'DPD']) if (pp.includes(secret)) fail(`passport: shows private detail "${secret}"`);
+    if (!pp.includes('Seal matched')) fail('passport: seal match missing');
+
+    // Saving: heart on, then it is on the Saved page.
+    await buyer.goto(BASE + '/');
+    await buyer.getByRole('button', { name: 'Save Trail running shoes' }).click();
+    await buyer.getByRole('button', { name: 'Remove Trail running shoes from saved items' }).waitFor();
+    await buyer.goto(BASE + '/saved');
+    await buyer.getByRole('link', { name: /Trail running shoes/ }).first().waitFor();
+
+    // Staff console: members can't see it; staff see the queue and can add a courier.
+    await buyer.goto(BASE + '/staff');
+    await buyer.getByRole('heading', { name: 'Staff only' }).waitFor();
+    const staff = await tab('staff@example.test', '/staff');
+    await staff.getByRole('heading', { level: 1, name: 'Staff console' }).waitFor();
+    await staff.getByRole('tab', { name: 'Couriers and hubs' }).click();
+    await staff.getByLabel('Their account email').fill('newcourier@example.com');
+    await staff.getByLabel('Organisation').fill('Swift Couriers');
+    await staff.getByRole('button', { name: 'Add', exact: true }).click();
+    await staff.getByText('newcourier@example.com can now record courier steps.').waitFor();
+    await staff.getByRole('tab', { name: 'Settings' }).click();
+    await staff.getByRole('heading', { name: 'Fees' }).waitFor();
     if (cerr.length) fail(`custody: page errors: ${cerr.slice(0, 3).join(' | ')}`);
     await cctx.close();
+  }
+
+  // Offers: buyer offers, seller counters from the Inbox, buyer accepts, then pays the agreed price.
+  {
+    const octx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const oerr = [];
+    const tab = async (email, next) => {
+      const p = await octx.newPage();
+      p.on('pageerror', (e) => oerr.push(`${email}: ${e.message}`));
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await p.waitForURL((u) => u.pathname === next || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') {
+        await p.getByRole('button', { name: 'Not now' }).click();
+        await p.waitForURL((u) => u.pathname === next);
+      }
+      return p;
+    };
+    const buyer = await tab('offerbuyer@example.com', '/item/example-8');
+    await buyer.getByRole('button', { name: 'Make an offer' }).click();
+    await buyer.getByLabel('Your offer (£)').fill('10');
+    await buyer.getByRole('button', { name: 'Send offer' }).click();
+    await buyer.getByRole('alert').filter({ hasText: 'Offers start at' }).waitFor();
+    await buyer.getByLabel('Your offer (£)').fill('28');
+    await buyer.getByRole('button', { name: 'Send offer' }).click();
+    await buyer.getByText('You offered £28.00').waitFor();
+
+    const seller = await tab('mia.k@example.test', '/inbox');
+    await seller.getByRole('heading', { name: 'Offers' }).waitFor();
+    await seller.getByRole('button', { name: 'Counter' }).click();
+    await seller.getByLabel('Your amount (£)').fill('31');
+    await seller.getByRole('button', { name: 'Send', exact: true }).click();
+    await seller.getByText('You offered £31.00').waitFor();
+
+    await buyer.reload();
+    await buyer.getByText('mia.k offered £31.00').waitFor();
+    await buyer.getByRole('button', { name: 'Accept £31.00' }).click();
+    await buyer.getByRole('link', { name: 'Buy for £31.00' }).click();
+    await buyer.waitForURL(/\/checkout\/example-8\?offer=/);
+    await buyer.getByText('Agreed price £31.00').waitFor();
+    await buyer.getByRole('button', { name: /Continue at the agreed price/ }).click();
+    const pay = buyer.getByRole('button', { name: /^Pay £[\d.]+ \(test\)$/ });
+    await pay.waitFor();
+    const fees = (await buyer.locator('.pv-checkout').textContent()) ?? '';
+    if (!fees.includes('£31.00')) fail('offers: checkout is not at the agreed price');
+    await pay.click();
+    await buyer.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    if (oerr.length) fail(`offers: page errors: ${oerr.slice(0, 3).join(' | ')}`);
+    await octx.close();
   }
 
   // API v1

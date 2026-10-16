@@ -1,7 +1,8 @@
+import type { BasketCheckout, BasketPatch, Baskets, GiftView, MyGift, SharedBasket } from '@/lib/domain/baskets';
 import type { FeeBreakdown } from '@/lib/domain/fees';
 import type { ListingVersion } from '@/lib/domain/versions';
 import type { AgentTask, CustodyState, CustodyView, Evidence } from '@/lib/domain/custody';
-import type { Tier } from '@/lib/domain/types';
+import type { Listing, Tier } from '@/lib/domain/types';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -106,7 +107,191 @@ export type PaymentStart =
 
 export type Result<T = void> = { ok: true; value: T } | { ok: false; message: string };
 
-export interface SellingBackend {
+
+// ---------- Favourites, inbox, messages, offers, reviews, passport, staff ----------
+
+export interface InboxCounts {
+  /** Orders waiting for your custody step. */
+  turns: number;
+  unread: number;
+  /** Offers waiting for your answer, and accepted offers waiting for you to pay. */
+  offers: number;
+}
+
+export interface OrderMessage {
+  id: string;
+  mine: boolean;
+  role: 'buyer' | 'seller';
+  body: string;
+  at: string;
+}
+
+export type OfferStatus = 'pending' | 'accepted' | 'declined' | 'countered' | 'withdrawn' | 'used' | 'expired';
+export type OfferAction = 'accept' | 'decline' | 'counter' | 'withdraw';
+
+export interface Offer {
+  id: string;
+  listingId: string;
+  title: string;
+  /** The listed price, for comparison. */
+  pricePence: number;
+  amountPence: number;
+  madeBy: 'buyer' | 'seller';
+  status: OfferStatus;
+  /** The signed-in member's side of it. */
+  role: 'buyer' | 'seller';
+  buyer: string;
+  seller: string;
+  counterOf: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface Review {
+  rating: number;
+  body: string | null;
+  createdAt: string;
+  authorRole: 'buyer' | 'seller';
+  author?: string;
+}
+
+export interface ReviewSummary {
+  count: number;
+  average: number | null;
+  latest: Review[];
+}
+
+export interface PassportStep {
+  step: string;
+  actorRole: string;
+  date: string;
+  sealMatch?: boolean;
+  sealKind?: string;
+  result?: 'pass' | 'fail';
+  photo?: boolean;
+}
+
+export interface Passport {
+  listingId: string;
+  itemId: string | null;
+  title: string;
+  brand: string | null;
+  category: string | null;
+  condition: string | null;
+  tier: Tier;
+  status: 'active' | 'reserved' | 'sold';
+  listed: string;
+  photos: { url: string; shot: string | null }[];
+  sales: { sold: string; tier: Tier; state: 'in_progress' | 'confirmed' | 'on_hold' | 'refunded' | 'not_started'; chainOk: boolean; steps: PassportStep[] }[];
+}
+
+export interface StaffQueueItem {
+  orderId: string;
+  title: string;
+  kind: 'dispute' | 'payment' | 'weight';
+  reason: string;
+  buyer: string;
+  seller: string;
+  totalPence: number | null;
+  tier: Tier | null;
+  since: string;
+}
+
+export interface StaffOrder {
+  orderId: string;
+  listingId: string;
+  title: string;
+  buyer: string;
+  seller: string;
+  paymentStatus: PaymentStatus;
+  paymentRef: string | null;
+  totalPence: number | null;
+  tier: Tier | null;
+  state: string;
+  disputeReason: string | null;
+  disputeResolution: 'release' | 'refund' | null;
+  payoutStatus: string;
+  weightFlag: boolean;
+  events: { seq: number; step: string; actorRole: string; actor: string | null; at: string; evidence: Record<string, unknown>; hash: string }[];
+  messages: { from: string; role: string; body: string; at: string }[];
+  actions: { action: string; by: string; detail: Record<string, unknown>; at: string }[];
+}
+
+export interface StaffAgent {
+  userId: string;
+  username: string;
+  email: string | null;
+  role: 'courier' | 'hub';
+  organisation: string;
+  active: boolean;
+  since: string;
+}
+
+export interface StaffSettings {
+  custody: Record<string, number>;
+  offers: Record<string, number>;
+  fees: { version: number; effectiveFrom: string; note: string | null; settings: Record<string, unknown> }[];
+  currentFeeVersion: number;
+}
+
+export interface MarketBackend {
+  favourites(): Promise<string[]>;
+  setFavourite(listingId: string, on: boolean): Promise<Result>;
+  savedListings(): Promise<Listing[]>;
+
+  inboxCounts(): Promise<InboxCounts>;
+  unreadByOrder(): Promise<Record<string, number>>;
+  messages(orderId: string): Promise<OrderMessage[]>;
+  sendMessage(orderId: string, body: string): Promise<Result>;
+  markRead(orderId: string): Promise<void>;
+
+  makeOffer(listingId: string, amountPence: number): Promise<Result<Offer>>;
+  respondOffer(offerId: string, action: OfferAction, amountPence?: number): Promise<Result<Offer>>;
+  myOffers(): Promise<Offer[]>;
+  startOfferCheckout(offerId: string): Promise<Result<CheckoutStarted> & { code?: string }>;
+
+  leaveReview(orderId: string, rating: number, body: string): Promise<Result>;
+  orderReviews(orderId: string): Promise<{ mine: Review | null; theirs: Review | null }>;
+  memberReviews(username: string): Promise<ReviewSummary>;
+
+  passport(listingId: string): Promise<Passport | null>;
+
+  isStaff(): Promise<boolean>;
+  staffQueue(): Promise<StaffQueueItem[]>;
+  staffOrder(orderId: string): Promise<StaffOrder | null>;
+  staffResolveDispute(orderId: string, outcome: 'release' | 'refund', note: string): Promise<Result<StaffOrder>>;
+  staffResolvePayment(orderId: string, outcome: 'accept' | 'refund', note: string): Promise<Result<StaffOrder>>;
+  staffAgents(): Promise<StaffAgent[]>;
+  staffSetAgent(email: string, role: 'courier' | 'hub', organisation: string, active: boolean): Promise<Result<StaffAgent[]>>;
+  staffSettings(): Promise<StaffSettings | null>;
+  staffUpdateSettings(custody: Record<string, number> | null, offers: Record<string, number> | null): Promise<Result<StaffSettings>>;
+  staffAddFeeVersion(settings: Record<string, unknown>, note: string): Promise<Result<StaffSettings>>;
+}
+
+export interface BasketBackend {
+  myBaskets(): Promise<Baskets>;
+  setMultiBasket(on: boolean): Promise<Result<Baskets>>;
+  /** Create (id null) or change a personal basket. */
+  saveBasket(id: string | null, patch: BasketPatch): Promise<Result<Baskets>>;
+  deleteBasket(id: string): Promise<Result<Baskets>>;
+  /** Put an item in a basket (General when basketId is null), or move it there. */
+  basketPut(listingId: string, basketId: string | null): Promise<Result<Baskets>>;
+  basketSetWrap(listingId: string, wrap: boolean): Promise<Result<Baskets>>;
+  basketRemove(listingId: string): Promise<Result<Baskets>>;
+  shareBasket(id: string, on: boolean): Promise<Result<Baskets>>;
+  sharedBasket(token: string): Promise<SharedBasket | null>;
+  startBasketCheckout(shipping: 'combined' | 'separate'): Promise<Result<BasketCheckout>>;
+  basketCheckout(groupId: string): Promise<BasketCheckout | null>;
+  cancelBasketCheckout(groupId: string): Promise<void>;
+  startGroupPayment(groupId: string): Promise<Result<PaymentStart> & { code?: string }>;
+  /** Example mode only. */
+  simulateGroupPayment(groupId: string): Promise<Result>;
+  giftView(token: string): Promise<GiftView | null>;
+  claimGift(token: string): Promise<Result<GiftView>>;
+  myGifts(): Promise<MyGift[]>;
+}
+
+export interface SellingBackend extends MarketBackend, BasketBackend {
   /** Current member, or null when signed out. */
   member(): Promise<Member | null>;
   onMemberChange(cb: (m: Member | null) => void): () => void;

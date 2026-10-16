@@ -9,6 +9,8 @@ import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
 import { CustodyPanel } from '@/components/custody/CustodyPanel';
+import { OrderMessages } from '@/components/market/OrderMessages';
+import { OrderReview } from '@/components/market/Reviews';
 import { ACTOR_LABEL, type CustodyView } from '@/lib/domain/custody';
 
 const HEADINGS: Record<OrderSummary['paymentStatus'], string> = {
@@ -27,6 +29,7 @@ export function OrderView({ id }: { id: string }) {
   const [order, setOrder] = useState<OrderSummary | null | undefined>(undefined);
   // Couriers and hubs aren't the buyer or seller: they reach the order through its custody record.
   const [task, setTask] = useState<CustodyView | null | undefined>(undefined);
+  const [custodyState, setCustodyState] = useState<string | null>(null);
   useEffect(() => {
     if (member && order === null) backend.custody(id).then(setTask).catch(() => setTask(null));
   }, [member, order, backend, id]);
@@ -77,7 +80,12 @@ export function OrderView({ id }: { id: string }) {
       </header>
 
       {order.paymentStatus === 'paid' ? (
-        <CustodyPanel orderId={order.id} sellerPayoutPence={order.role === 'seller' ? order.quote?.sellerPayoutPence : undefined} />
+        <>
+          <CustodyPanel orderId={order.id} sellerPayoutPence={order.role === 'seller' ? order.quote?.sellerPayoutPence : undefined} onChange={(v) => setCustodyState(v.state)} />
+          {(custodyState ?? order.custody?.state) === 'confirmed' ? <OrderReview orderId={order.id} role={order.role} /> : null}
+          <OrderMessages orderId={order.id} otherName={order.role === 'buyer' ? 'the seller' : 'the buyer'} />
+          <p><Link href={`/passport/${order.listingId}`}>See this item’s passport</Link></p>
+        </>
       ) : order.paymentStatus === 'review' ? (
         <p className="pv-banner" role="status">Something didn’t match, so a person is checking this payment. If it can’t go ahead you’ll get a full refund.</p>
       ) : waitingForStripe ? (

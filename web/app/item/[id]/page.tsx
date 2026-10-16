@@ -4,6 +4,9 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { Badge, Button, CustodyTimeline, TierBadge, type CustodyStep } from '@/components/ui';
 import { Gallery } from '@/components/browse/Gallery';
+import { OfferBox } from '@/components/market/OfferBox';
+import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
+import { RatingLine } from '@/components/market/Reviews';
 import { getListing } from '@/lib/domain/catalogue';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
@@ -19,7 +22,7 @@ const load = cache(async (id: string) => getListing(id));
 
 function summary(l: Listing): string {
   const bits = [formatPence(l.pricePence), l.brand, l.size ? `Size ${l.size}` : null, l.condition].filter(Boolean).join(' · ');
-  return `${bits}. Sold with its custody record on Provenance.`;
+  return `${bits}. Sold with its custody record on NuTuYu.`;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -130,7 +133,12 @@ export default async function ItemPage({ params }: Props) {
           ) : (
             <Button variant="primary" block disabled aria-describedby="buy-note">Buy now</Button>
           )}
-          <Button variant="secondary" block disabled aria-describedby="buy-note">Make an offer</Button>
+          {buyable ? <ItemBasketButton listingId={l.id} title={l.title} size={l.size} category={l.category} /> : null}
+          {buyable ? (
+            <OfferBox listingId={l.id} pricePence={l.pricePence} available sellerName={l.seller.username} />
+          ) : (
+            <Button variant="secondary" block disabled aria-describedby="buy-note">Make an offer</Button>
+          )}
           <p id="buy-note" className="pv-note">
             {l.example && !exampleMode
               ? 'This is an example listing, so it can’t be bought.'
@@ -138,7 +146,7 @@ export default async function ItemPage({ params }: Props) {
                 ? 'This item is no longer available.'
                 : l.seller.away
                   ? 'Buying is paused while the seller is away.'
-                  : 'Offers arrive in a later build step.'}
+                  : 'Make an offer and the seller can accept, decline or reply with another amount.'}
           </p>
         </div>
 
@@ -149,6 +157,7 @@ export default async function ItemPage({ params }: Props) {
             <span className="pv-note">
               {[l.seller.verified ? 'Identity checked' : null, l.seller.business ? 'Business seller' : null].filter(Boolean).join(' · ') || 'Member'}
             </span>
+            <RatingLine username={l.seller.username} />
           </span>
         </section>
 
@@ -171,6 +180,7 @@ export default async function ItemPage({ params }: Props) {
         <h2 id="journey">How this item reaches you</h2>
         <p className="pv-lead">Each step is recorded, so if anything goes wrong there is evidence to settle it.</p>
         <CustodyTimeline steps={journey(l.tier)} label="How this item reaches you" />
+        <p><Link href={`/passport/${l.id}`}>See this item’s passport</Link>: its recorded history, without anyone’s personal details.</p>
       </section>
     </article>
   );

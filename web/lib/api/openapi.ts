@@ -12,10 +12,10 @@ export function openApi(siteUrl: string) {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'Provenance API',
+      title: 'NuTuYu API',
       version: '1.0.0',
       description:
-        `Read the Provenance catalogue from your own shop or tools. Every call needs an API key from a Premium or Premium+ account, ` +
+        `Read the NuTuYu catalogue from your own shop or tools. Every call needs an API key from a Premium or Premium+ account, ` +
         `sent as "Authorization: Bearer <key>". Each key can make ${RATE_LIMIT_PER_MINUTE} calls a minute. Errors use application/problem+json.`,
     },
     servers: [{ url: `${siteUrl}/api/v1` }],

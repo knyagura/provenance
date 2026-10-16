@@ -94,9 +94,16 @@ function Progress({ view }: { view: CustodyView }) {
 }
 
 /** An order's chain of custody: where it is, the evidence so far, and the form when it's your turn. */
-export function CustodyPanel({ orderId, sellerPayoutPence }: { orderId: string; sellerPayoutPence?: number }) {
+export function CustodyPanel({ orderId, sellerPayoutPence, onChange }: { orderId: string; sellerPayoutPence?: number; onChange?: (v: CustodyView) => void }) {
   const { backend } = useMember();
-  const [view, setView] = useState<CustodyView | null | undefined>(undefined);
+  const [view, setViewState] = useState<CustodyView | null | undefined>(undefined);
+  const setView = useCallback((v: CustodyView | null | undefined | ((cur: CustodyView | null | undefined) => CustodyView | null | undefined)) => {
+    setViewState((cur) => {
+      const next = typeof v === 'function' ? v(cur) : v;
+      if (next) queueMicrotask(() => onChange?.(next));
+      return next;
+    });
+  }, [onChange]);
   const load = useCallback(() => backend.custody(orderId).then(setView).catch(() => setView((v) => v ?? null)), [backend, orderId]);
 
   useEffect(() => {
@@ -121,11 +128,17 @@ export function CustodyPanel({ orderId, sellerPayoutPence }: { orderId: string; 
 
   const mine = isMyTurn(view);
   const dispute = view.events.find((e) => e.step === 'dispute');
+  const resolution = view.events.find((e) => e.step === 'staff_resolution');
   const seller = view.myRoles.includes('seller');
 
   return (
     <>
-      {view.state === 'disputed' ? (
+      {resolution ? (
+        <p className="pv-banner" role="status">
+          <strong>Decided by NuTuYu staff:</strong> {resolution.evidence.outcome === 'refund' ? 'the buyer is refunded.' : 'the payment is released to the seller.'}
+          {resolution.evidence.note ? ` “${resolution.evidence.note}”` : ''}
+        </p>
+      ) : view.state === 'disputed' ? (
         <p className="pv-banner pv-banner--warn" role="status">
           <strong>On hold.</strong> {DISPUTE_REASONS[view.disputeReason ?? 'other'] ?? DISPUTE_REASONS.other}
           {dispute?.evidence.note ? ` “${dispute.evidence.note}”` : ''} The payment stays held while a person looks into it.

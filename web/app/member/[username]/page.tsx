@@ -1,3 +1,4 @@
+import { MemberReviews } from '@/components/market/Reviews';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!page) return { title: 'Member not found' };
   return {
     title: page.member.username,
-    description: page.member.bio ?? `${page.member.username} sells on Provenance, where every item carries its chain of custody.`,
+    description: page.member.bio ?? `${page.member.username} sells on NuTuYu, where every item carries its chain of custody.`,
     robots: page.examples ? { index: false } : undefined,
   };
 }
@@ -49,6 +50,7 @@ export default async function MemberPage({ params }: Props) {
         {examples ? <ExamplesNote /> : null}
         {listings.items.length ? <ListingGrid listings={listings.items} label={`Listings by ${member.username}`} /> : <p>Nothing for sale right now.</p>}
       </section>
+      <MemberReviews username={member.username} />
     </>
   );
 }

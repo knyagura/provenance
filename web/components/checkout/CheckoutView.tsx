@@ -26,7 +26,7 @@ export interface CheckoutItem {
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-export function CheckoutView({ item }: { item: CheckoutItem }) {
+export function CheckoutView({ item, offerId = null }: { item: CheckoutItem; offerId?: string | null }) {
   const { member, loading, backend } = useMember();
   const router = useRouter();
   const [quote, setQuote] = useState<FeeBreakdown | null | undefined>(undefined);
@@ -37,9 +37,19 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
   const [version, setVersion] = useState<ListingVersion>(item.version);
   const [changes, setChanges] = useState<{ now: ListingVersion; lines: string[] } | null>(null);
 
+  const [offerPence, setOfferPence] = useState<number | null>(null);
+
   useEffect(() => {
     backend.quote(item.id).then(setQuote).catch(() => setQuote(null));
   }, [backend, item.id]);
+  useEffect(() => {
+    if (!offerId || !member) return;
+    backend.myOffers().then((all) => {
+      const o = all.find((x) => x.id === offerId && x.role === 'buyer' && x.status === 'accepted');
+      if (o) setOfferPence(o.amountPence);
+      else setError('This offer has ended or isn’t yours. You can still buy at the listed price, or make a new offer.');
+    }).catch(() => {});
+  }, [backend, offerId, member]);
 
   if (loading || quote === undefined) return <p role="status">Working out the price…</p>;
 
@@ -57,7 +67,7 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
   async function begin() {
     setBusy(true);
     setError(null);
-    const r = await backend.startCheckout(item.id, version.revision);
+    const r = offerPence !== null && offerId ? await backend.startOfferCheckout(offerId) : await backend.startCheckout(item.id, version.revision);
     if (!r.ok) {
       if (r.code === 'listing_changed') {
         // The seller edited the listing since this page loaded. Nothing is held; show what changed.
@@ -113,7 +123,12 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
 
       <section className="pv-panel" aria-labelledby="pay-h">
         <h2 id="pay-h">What you pay</h2>
-        <FeeLines quote={shown} />
+        {offerPence !== null && !started ? (
+          <p className="pv-banner" role="note">
+            <strong>Agreed price {formatPence(offerPence)}</strong> (listed at {formatPence(quote?.pricePence ?? 0)}). The same fees and hold apply, worked out on the agreed price; you’ll see the exact total before you pay.
+          </p>
+        ) : null}
+        {offerPence !== null && !started ? null : <FeeLines quote={shown} />}
         <p className="pv-note">Fees version {shown.feeVersion}. The seller receives the item price; the fees pay for protection and the custody steps.</p>
       </section>
 
@@ -143,7 +158,7 @@ export function CheckoutView({ item }: { item: CheckoutItem }) {
       ) : !started ? (
         <section className="pv-panel">
           <button type="button" className="pv-btn pv-btn--primary pv-btn--block" onClick={begin} disabled={busy}>
-            {busy ? 'One moment…' : `Continue to payment · ${formatPence(shown.buyerTotalPence)}`}
+            {busy ? 'One moment…' : offerPence !== null ? `Continue at the agreed price · ${formatPence(offerPence)} + fees` : `Continue to payment · ${formatPence(shown.buyerTotalPence)}`}
           </button>
           <p className="pv-note">We hold the item for you while you pay.</p>
         </section>

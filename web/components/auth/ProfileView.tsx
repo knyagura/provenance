@@ -1,5 +1,6 @@
 'use client';
 
+import { InstallApp } from '@/components/pwa/InstallApp';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -16,10 +17,12 @@ export function ProfileView() {
   const router = useRouter();
   const [mine, setMine] = useState<Draft[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [staff, setStaff] = useState(false);
 
   useEffect(() => {
     if (!member) return;
     backend.myListings().then(setMine).catch((e: Error) => setError(e.message));
+    backend.isStaff().then(setStaff).catch(() => setStaff(false));
   }, [member, backend]);
 
   if (loading) return <p role="status">Loading your account…</p>;
@@ -40,10 +43,14 @@ export function ProfileView() {
         <p className="pv-note">{member.email}</p>
         <div className="pv-actions">
           <Link className="pv-btn pv-btn--primary" href="/sell">Sell an item</Link>
+          <Link className="pv-btn pv-btn--secondary" href="/saved">Saved items</Link>
+          <Link className="pv-btn pv-btn--secondary" href={`/member/${encodeURIComponent(member.username)}`}>Your public page</Link>
+          {staff ? <Link className="pv-btn pv-btn--secondary" href="/staff">Staff console</Link> : null}
           <button type="button" className="pv-btn pv-btn--secondary" onClick={async () => { await backend.signOut(); router.push('/'); }}>
             Sign out
           </button>
         </div>
+        <InstallApp />
       </section>
       <MyOrders />
       {error ? <p className="pv-errors" role="alert">{error}</p> : null}

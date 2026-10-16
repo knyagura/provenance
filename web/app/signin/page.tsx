@@ -8,7 +8,7 @@ export default function SignInPage() {
   return (
     <section className="pv-section pv-narrow">
       <h1>Sign in</h1>
-      <p className="pv-lead">Use the same email and password as the current Provenance app.</p>
+      <p className="pv-lead">Use the same email and password as the current NuTuYu (formerly Provenance) app.</p>
       <Suspense fallback={null}>
         <SignInForm />
       </Suspense>

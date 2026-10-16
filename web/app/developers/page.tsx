@@ -6,7 +6,7 @@ import { config } from '@/lib/config';
 
 export const metadata: Metadata = {
   title: 'Developers',
-  description: 'The Provenance API: read the catalogue from your own shop or tools.',
+  description: 'The NuTuYu API: read the catalogue from your own shop or tools.',
 };
 
 type Param = { name: string; schema: { type?: string; enum?: readonly string[] }; description?: string };
@@ -35,7 +35,7 @@ export default function DevelopersPage() {
     <div className="pv-doc">
       <header className="pv-section">
         <p className="pv-eyebrow">Developers</p>
-        <h1>Provenance API</h1>
+        <h1>NuTuYu API</h1>
         <p className="pv-lead">
           Read the catalogue from your own shop, spreadsheet or tools. Our own website runs on the same code, so what
           you see here is what the site sees.

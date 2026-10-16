@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="pv-footer__brand">
         <LogoMark className="pv-footer__mark" />
         <span>
-          <strong>Provenance</strong>
+          <strong>NuTuYu</strong>
           <span className="pv-note">Pre-loved, with proof.</span>
         </span>
       </div>
@@ -20,7 +20,7 @@ export function SiteFooter() {
           <li><a href="https://knyagura.github.io/provenance/">The working prototype</a></li>
         </ul>
       </nav>
-      <p className="pv-note">Provenance is being built in stages. You can list, buy and hand items over with their custody record now.</p>
+      <p className="pv-note">NuTuYu is being built in stages. You can list, buy and hand items over with their custody record now.</p>
     </footer>
   );
 }

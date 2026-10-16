@@ -58,7 +58,7 @@ export async function authenticate(headers: Headers, scope: Scope, v: KeyVerifie
     return { ok: false, response: problem('unauthenticated', 'Send your API key as "Authorization: Bearer <key>".') };
   }
   const parsed = parseKey(key);
-  if (!parsed) return { ok: false, response: problem('unauthenticated', 'That is not a Provenance API key.') };
+  if (!parsed) return { ok: false, response: problem('unauthenticated', 'That is not a NuTuYu API key.') };
 
   let caller: Caller | null;
   try {

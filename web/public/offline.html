@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline · NuTuYu</title>
+<style>
+  :root { color-scheme: light dark; --bg: #F9F7F3; --ink: #3E3B33; --soft: #5E5A4F; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #23211D; --ink: #EFE9DF; --soft: #CFC6B8; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; padding: 16px; box-sizing: border-box; }
+  main { max-width: 28rem; text-align: center; }
+  img { width: 72px; height: 72px; }
+  p { color: var(--soft); }
+  button { min-height: 44px; padding: 0 20px; font: inherit; font-weight: 600; border-radius: 999px; border: 0; background: #5C6A4B; color: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <h1>You’re offline</h1>
+  <p>NuTuYu needs a connection to load items and record handover steps. Anything you’ve already recorded is safe.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</main>
+</body>
+</html>

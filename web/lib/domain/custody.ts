@@ -105,6 +105,11 @@ const COPY: Record<string, { title: string; note: string }> = {
   confirm: { title: 'Confirm it’s as described', note: 'This releases the payment to the seller. If you do nothing, it confirms itself after the protection window.' },
 };
 
+/** A step's title by key, for records such as the Item Passport. */
+export function stepTitle(key: string): string {
+  return COPY[key]?.title ?? key.replace(/_/g, ' ');
+}
+
 export function stepCopy(step: StepDef, tier: Tier): { title: string; note: string } {
   const c = COPY[step.key] ?? { title: step.key, note: '' };
   if (step.key === 'courier_pickup' && (tier === 'luxury' || tier === 'ultraLuxury')) {
@@ -203,7 +208,7 @@ export type CustodyState = 'not_started' | 'in_progress' | 'confirmed' | 'disput
 export interface CustodyEvent {
   seq: number;
   step: string;
-  actorRole: Actor | 'system';
+  actorRole: Actor | 'system' | 'staff';
   at: string;
   /** Recorded by the signed-in person. */
   mine: boolean;
