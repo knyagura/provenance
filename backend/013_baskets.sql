@@ -66,6 +66,7 @@ create table if not exists public.basket_items (
   primary key (owner_id, listing_id)
 );
 create index if not exists basket_items_basket_idx on public.basket_items (basket_id);
+create index if not exists basket_items_listing_idx on public.basket_items (listing_id);
 alter table public.basket_items enable row level security;
 do $$ begin
   create policy "members see their own basket items" on public.basket_items for select using ((select auth.uid()) = owner_id);

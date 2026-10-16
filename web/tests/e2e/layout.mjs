@@ -564,6 +564,78 @@ try {
     await octx.close();
   }
 
+  // Multi-basket shopping: opt in, a person with sizes, drag an item onto them, one-basket view, one payment, gift link.
+  {
+    const kctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const kerr = [];
+    const p = await kctx.newPage();
+    p.on('pageerror', (e) => kerr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/basket')}`);
+    await p.getByLabel('Email').fill('giver@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/basket');
+    await p.getByRole('switch', { name: 'Multi-basket shopping' }).check();
+    await p.getByRole('button', { name: 'By person' }).click();
+    await p.getByRole('button', { name: /Add a person/ }).click();
+    await p.getByLabel('Who it’s for').fill('Alex');
+    await p.getByLabel('Shoes').fill('UK 8');
+    await p.getByText('Brown kraft with twine').click();
+    await p.getByLabel('Wrap everything I add to this basket').check();
+    await p.getByLabel('Gift message').fill('Happy birthday!');
+    await p.getByRole('button', { name: 'Save', exact: true }).click();
+    await p.getByRole('heading', { level: 2, name: 'Alex' }).waitFor();
+
+    // Drag the trail shoes (UK 9) onto Alex in the rail: added, wrapped, and warned about the size.
+    await p.goto(BASE + '/search');
+    const rail = p.getByRole('complementary', { name: 'Your baskets' });
+    await rail.waitFor();
+    const card = p.locator('.pv-card', { hasText: 'Trail running shoes' }).first();
+    const target = rail.locator('[data-basket="Alex"]');
+    await card.dragTo(target);
+    await p.getByRole('status').filter({ hasText: 'Trail running shoes added to Alex, to be wrapped.' }).waitFor({ timeout: 5000 })
+      .catch(() => fail('baskets: drag and drop onto a person did not add the item'));
+    if (!(await p.getByRole('status').filter({ hasText: 'Alex’s shoes size is UK 8' }).count())) fail('baskets: size mismatch not announced');
+    // Tap to add (the bag button) to General.
+    await p.getByRole('button', { name: 'Add Ceramic table lamp to a basket' }).click();
+    await p.getByRole('list', { name: 'Add Ceramic table lamp to' }).getByRole('button', { name: /General/ }).click();
+    await p.getByRole('button', { name: 'Ceramic table lamp is in General’s basket. Move it' }).waitFor();
+
+    // One basket view: everything, tagged; filter to Alex.
+    await p.goto(BASE + '/basket');
+    await p.getByRole('button', { name: 'One basket' }).click();
+    const list = p.getByRole('list', { name: 'Everything in your baskets' });
+    if ((await list.getByRole('listitem').count()) !== 2) fail('baskets: the General view should show every item');
+    await p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Alex' }).click();
+    if ((await p.locator('.pv-bitem').count()) !== 1) fail('baskets: filtering to Alex should show one item');
+
+    // One payment, everything to me; then the gift link.
+    await p.getByRole('link', { name: 'Check out all baskets' }).click();
+    await p.getByText('Send everything to me').click();
+    await p.getByRole('button', { name: 'Continue to payment' }).click();
+    const pay = p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ });
+    await pay.waitFor();
+    await pay.click();
+    await p.getByRole('heading', { name: 'Paid. Thank you' }).waitFor();
+    const giftUrl = (await p.locator('.pv-list .pv-mono').first().textContent())?.trim();
+    if (!giftUrl?.includes('/gift/')) fail('baskets: no gift link after paying');
+    else {
+      const r = await kctx.newPage();
+      await r.goto(`${BASE}/signin?next=${encodeURIComponent(new URL(giftUrl).pathname)}`);
+      await r.getByLabel('Email').fill('alex@example.com');
+      await r.getByLabel('Password').fill('a-long-password');
+      await r.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await r.waitForURL((u) => u.pathname.startsWith('/gift/') || u.pathname === '/passkey');
+      if (new URL(r.url()).pathname === '/passkey') { await r.getByRole('button', { name: 'Not now' }).click(); await r.waitForURL((u) => u.pathname.startsWith('/gift/')); }
+      await r.getByText('“Happy birthday!”').waitFor();
+      if (/£\d/.test((await r.locator('main').textContent()) ?? '')) fail('baskets: the gift page must not show prices');
+      await r.getByRole('button', { name: 'Open my gift' }).click();
+      await r.getByText('Waiting for the seller').waitFor({ timeout: 10000 }).catch(() => fail('baskets: the recipient should see the custody record'));
+    }
+    if (kerr.length) fail(`baskets: page errors: ${kerr.slice(0, 3).join(' | ')}`);
+    await kctx.close();
+  }
+
   // API v1
   const KEY = 'pv_test_Example1_' + 'x'.repeat(43);
   const api = async (path, key) => {
