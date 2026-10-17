@@ -104,3 +104,8 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Gift cards** from £10 to £250 at `/gift-cards` (in the footer and your account). The code appears once paid, and is emailed to the recipient if you give their address. They add it to their **NuTuYu balance**, valid for 2 years.
 - **At checkout**, one box takes a voucher or gift card code, and a tick box uses your balance. You see the discount and what's left to pay by card. With nothing left to pay, the order is paid straight away. Codes and balance come back if you don't finish paying, and the balance part comes back if an order is refunded.
 - Migration 022, plus updated checkout, webhook and email functions. Documents: [ADR 0016](adr/0016-vouchers-gift-cards-balance.md).
+## 2026-10-17: Home page goes straight to the items; popups staff configure
+- The home page now starts with the items ("Newly listed", 20 of them) right under the category bar. The hero and the how-it-works strip are gone. "How protection works" opens the explanation as a popup, which new visitors also see once.
+- New *Popups* tab in the staff console: explanations, announcements and offers, with title, text, steps, a button, an optional offer code, who sees it, which pages, a delay, priority and dates. "Show again" shows a popup again to everyone who closed it.
+- Offer codes are shown, but checkout doesn't apply them yet.
+- Migration 021. Documents: [ADR 0015](adr/0015-home-page-and-popups.md).

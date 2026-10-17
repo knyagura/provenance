@@ -7,6 +7,7 @@ import { exampleMoney } from './exampleMoney';
 import { filterInMemory } from '@/lib/domain/search';
 import { exampleBundle, setExampleBundle } from './exampleBundles';
 import { exampleSource } from '@/lib/domain/catalogue';
+import { examplePopups } from './examplePopups';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -595,6 +596,16 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async myBalance() {
       const m = me();
       return m ? exampleMoney.balance(m) : { balancePence: 0, lots: [] };
+    },
+    async livePopups() {
+      return examplePopups.live();
+    },
+    async staffPopups() {
+      return isStaffMember(me()) ? examplePopups.all() : [];
+    },
+    async staffSavePopup(pid, patch, showAgain) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return examplePopups.save(pid, patch, showAgain);
     },
     async notifications() {
       const m = me();

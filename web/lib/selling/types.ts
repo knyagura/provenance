@@ -322,6 +322,28 @@ export interface GiftCard {
   code: string | null; redeemed: boolean;
 }
 export interface Balance { balancePence: number; lots: { source: 'gift_card' | 'refund'; amountPence: number; remainingPence: number; expiresAt: string }[] }
+/** A popup staff configure: an explanation, an announcement or an offer (migration 021). */
+export interface SitePopup {
+  id: string;
+  key: string;
+  kind: 'info' | 'offer' | 'announcement';
+  title: string;
+  body: string;
+  steps: { title: string; note: string }[];
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  offerCode: string | null;
+  audience: 'everyone' | 'visitors' | 'members';
+  /** Comma-separated path prefixes; "*" for every page. */
+  pages: string;
+  delaySeconds: number;
+  priority: number;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  version: number;
+}
+export type PopupPatch = Partial<Omit<SitePopup, 'id' | 'version'>>;
 
 export interface MarketBackend {
   favourites(): Promise<string[]>;
@@ -394,6 +416,10 @@ export interface MarketBackend {
   myGiftCards(): Promise<GiftCard[]>;
   redeemGiftCard(code: string): Promise<Result<Balance>>;
   myBalance(): Promise<Balance>;
+  /** Popups that are live now (anyone). */
+  livePopups(): Promise<SitePopup[]>;
+  staffPopups(): Promise<SitePopup[]>;
+  staffSavePopup(id: string | null, patch: PopupPatch, showAgain: boolean): Promise<Result<SitePopup[]>>;
 
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;

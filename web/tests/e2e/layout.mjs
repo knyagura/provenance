@@ -38,6 +38,16 @@ const fail = (msg) => { failures.push(msg); console.log('  FAIL ' + msg); };
 await waitForServer();
 mkdirSync('test-results', { recursive: true });
 const browser = await chromium.launch();
+// Popups (staff-configured) would cover the page in every journey: switch them off unless a context asks for them.
+{
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts = {}) => {
+    const { popups, ...rest } = opts;
+    const c = await newContext(rest);
+    if (!popups) await c.addInitScript(() => { try { localStorage.setItem('pv-popups-off', '1'); } catch { /* no storage */ } });
+    return c;
+  };
+}
 try {
   for (const scheme of schemes) {
     for (const width of widths) {
@@ -760,7 +770,7 @@ try {
   {
     const bctx = await browser.newContext({ viewport: { width: 1024, height: 900 } });
     const berr = [];
-    const p = await bctx.newPage();
+    let p = await bctx.newPage();
     p.on('pageerror', (e) => berr.push(e.message));
     const signIn = async (email, next) => {
       await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
@@ -782,9 +792,13 @@ try {
     await p.getByText('Bundle: 10% off (was £10.00)').waitFor({ timeout: 5000 }).catch(() => fail('bundles: checkout should show the discount on each item'));
     await p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ }).click();
     await p.getByRole('heading', { name: 'Paid. Thank you' }).waitFor();
-    await p.goto(BASE + '/profile');
-    await p.getByRole('button', { name: 'Sign out' }).click();
-    await p.waitForURL((u) => u.pathname === '/');
+    // The seller, on their own device (example accounts keep one profile per browser).
+    const market = await p.evaluate(() => localStorage.getItem('pv-example-market'));
+    await p.close();
+    p = await bctx.newPage();
+    await p.evaluate((m) => { localStorage.clear(); localStorage.setItem('pv-example-market', m); }, market).catch(() => {});
+    await p.goto(BASE + '/');
+    await p.evaluate((m) => { localStorage.clear(); localStorage.setItem('pv-example-market', m); }, market);
     await signIn('resole_archive@example.test', '/selling');
     await p.getByRole('heading', { name: 'Your sales' }).waitFor();
     const sold = p.locator('.pv-tile', { hasText: 'Sold' });
@@ -854,6 +868,49 @@ try {
     await p.getByText('SPRING5 is ready to use.').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: staff could not make a code'));
     if (gerr.length) fail(`vouchers: page errors: ${gerr.slice(0, 3).join(' | ')}`);
     await gctx.close();
+  // Popups: "how protection works" shows once on the home page, can be reopened, and staff can switch on an offer.
+  {
+    const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, popups: true });
+    const perr = [];
+    const p = await pctx.newPage();
+    p.on('pageerror', (e) => perr.push(e.message));
+    await p.goto(BASE + '/');
+    if (!(await p.getByRole('heading', { level: 1, name: 'Newly listed' }).isVisible())) fail('home: items should start at the top under “Newly listed”');
+    const dlg = p.getByRole('dialog', { name: 'Pre-loved, with proof' });
+    await dlg.waitFor({ timeout: 8000 }).catch(() => fail('popups: the how-it-works popup did not appear'));
+    await p.addScriptTag({ content: readFileSync(new URL('../../node_modules/axe-core/axe.min.js', import.meta.url), 'utf8') });
+    const found = await p.evaluate(async () => (await window.axe.run(document.querySelector('dialog'), { resultTypes: ['violations'] })).violations.filter((v) => ['serious', 'critical'].includes(v.impact)).map((v) => v.id));
+    if (found.length) fail(`popups: axe ${found.join(', ')}`);
+    await dlg.getByRole('button', { name: 'Not now' }).click();
+    await p.reload();
+    await p.waitForTimeout(3500);
+    if (await p.getByRole('dialog').isVisible()) fail('popups: a closed popup came back');
+    await p.getByRole('button', { name: 'How protection works' }).click();
+    await dlg.waitFor({ timeout: 3000 }).catch(() => fail('popups: “How protection works” did not open it'));
+    await p.keyboard.press('Escape');
+    // Staff switch on the welcome offer with a code, shown straight away on search to visitors.
+    const s = await pctx.newPage();
+    await s.goto(`${BASE}/signin?next=${encodeURIComponent('/staff')}`);
+    await s.getByLabel('Email').fill('staff.popups@example.com');
+    await s.getByLabel('Password').fill('a-long-password');
+    await s.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await s.waitForURL((u) => u.pathname === '/staff' || u.pathname === '/passkey');
+    if (new URL(s.url()).pathname === '/passkey') { await s.getByRole('button', { name: 'Not now' }).click(); await s.waitForURL((u) => u.pathname === '/staff'); }
+    await s.getByRole('tab', { name: 'Popups' }).click();
+    await s.getByRole('button', { name: 'Edit New to NuTuYu? Join today' }).click();
+    await s.getByLabel('Offer code (optional)').fill('WELCOME10');
+    await s.getByLabel('Show after (seconds)').fill('0');
+    await s.getByLabel('Who sees it').selectOption('everyone');
+    await s.getByLabel('Live', { exact: true }).check();
+    await s.getByRole('button', { name: 'Save popup' }).click();
+    await s.getByRole('status').filter({ hasText: 'Saved' }).waitFor();
+    await s.close();
+    await p.goto(BASE + '/search');
+    const offer = p.getByRole('dialog', { name: 'New to NuTuYu? Join today' });
+    await offer.waitFor({ timeout: 5000 }).catch(() => fail('popups: the offer staff switched on did not show'));
+    if (!(await offer.getByText('WELCOME10').isVisible())) fail('popups: the offer code is missing');
+    if (perr.length) fail(`popups: page errors: ${perr.slice(0, 3).join(' | ')}`);
+    await pctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

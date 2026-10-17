@@ -41,6 +41,7 @@ jobs:
       - run: node alert_checks.mjs
       - run: node seller_checks.mjs
       - run: node voucher_checks.mjs
+      - run: node popup_checks.mjs
 
   migrate:
     needs: database-tests

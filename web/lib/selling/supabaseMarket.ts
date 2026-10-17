@@ -4,7 +4,7 @@ import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
-  CheckoutStarted, MarketBackend, NotificationPrefs, SavedSearch, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
+  CheckoutStarted, MarketBackend, NotificationPrefs, PopupPatch, SavedSearch, SitePopup, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
 } from './types';
 
 // Favourites, messages, offers, reviews, the Item Passport and the staff console, through Supabase.
@@ -20,6 +20,17 @@ const toSearches = (data: any): SavedSearch[] => ((data as Record<string, unknow
   condition: (s.condition as string) ?? null, minPence: (s.min_pence as number) ?? null, maxPence: (s.max_pence as number) ?? null,
   alert: Boolean(s.alert), createdAt: s.created_at as string, liveCount: Number(s.live_count ?? 0),
 }));
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export const toPopup = (p: any): SitePopup => ({
+  id: p.id, key: p.key, kind: p.kind, title: p.title, body: p.body ?? '', steps: Array.isArray(p.steps) ? p.steps : [],
+  ctaLabel: p.cta_label ?? null, ctaHref: p.cta_href ?? null, offerCode: p.offer_code ?? null, audience: p.audience, pages: p.pages ?? '/',
+  delaySeconds: Number(p.delay_seconds ?? 0), priority: Number(p.priority ?? 0), active: Boolean(p.active),
+  startsAt: p.starts_at ?? null, endsAt: p.ends_at ?? null, version: Number(p.version ?? 1),
+});
+export const fromPopupPatch = (p: PopupPatch): Record<string, unknown> => {
+  const map: Record<string, string> = { ctaLabel: 'cta_label', ctaHref: 'cta_href', offerCode: 'offer_code', delaySeconds: 'delay_seconds', startsAt: 'starts_at', endsAt: 'ends_at' };
+  return Object.fromEntries(Object.entries(p).map(([k, v]) => [map[k] ?? k, v ?? '']));
+};
 
 /** Database errors are already written for people; strip the technical prefix some carry. */
 function tidy(m: string): string {
@@ -408,6 +419,18 @@ export const supabaseMarket: MarketBackend = {
   async myBalance() {
     const { data } = await supabase().rpc('my_balance');
     return toBalance(data);
+  },
+  async livePopups() {
+    const { data, error } = await supabase().from('site_popups').select('*').order('priority', { ascending: false });
+    return error || !data ? [] : data.map(toPopup);
+  },
+  async staffPopups() {
+    const { data, error } = await supabase().rpc('staff_popups');
+    return error || !data ? [] : (data as unknown[]).map(toPopup);
+  },
+  async staffSavePopup(id, patch, showAgain) {
+    const { data, error } = await supabase().rpc('staff_save_popup', { p_id: id, p: fromPopupPatch(patch), p_show_again: showAgain });
+    return error ? fail(error) : { ok: true, value: (data as unknown[]).map(toPopup) };
   },
 
   async notifications() {
