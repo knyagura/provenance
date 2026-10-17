@@ -3,6 +3,7 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { exampleMoney } from './exampleMoney';
 import { filterInMemory } from '@/lib/domain/search';
 import { exampleBundle, setExampleBundle } from './exampleBundles';
 import { exampleSource } from '@/lib/domain/catalogue';
@@ -531,6 +532,69 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       x.searches = { ...x.searches, [m.id]: (x.searches?.[m.id] ?? []).filter((s) => s.id !== sid) };
       save(x);
       return { ok: true, value: withCounts(x.searches[m.id]) };
+    },
+    async checkoutCodes(target) {
+      const m = me();
+      return m ? exampleMoney.codes(target, m) : null;
+    },
+    async applyCode(target, code) {
+      const m = me();
+      return m ? exampleMoney.applyCode(target, code, m) : fail('Sign in first.');
+    },
+    async removeVoucher(target) {
+      const m = me();
+      return m ? exampleMoney.removeVoucher(target, m) : fail('Sign in first.');
+    },
+    async useBalance(target, on) {
+      const m = me();
+      return m ? exampleMoney.useBalance(target, on, m) : fail('Sign in first.');
+    },
+    async staffVouchers() {
+      return isStaffMember(me()) ? exampleMoney.vouchers() : [];
+    },
+    async staffSaveVoucher(vid, patch) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      const r = exampleMoney.saveVoucher(vid, patch, null);
+      return r.ok ? { ok: true, value: exampleMoney.vouchers() } : r;
+    },
+    async myShopVouchers() {
+      const m = me();
+      return m ? exampleMoney.vouchers(m.id) : [];
+    },
+    async saveShopVoucher(vid, patch) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const r = exampleMoney.saveVoucher(vid, patch, { id: m.id, username: m.username });
+      return r.ok ? { ok: true, value: exampleMoney.vouchers(m.id) } : r;
+    },
+    async buyGiftCard(amount, name, email, message) {
+      const m = me();
+      return m ? exampleMoney.buyCard(m, amount, name, email, message) : fail('Sign in to buy a gift card.');
+    },
+    async payGiftCard(cid) {
+      const m = me();
+      const c = m ? exampleMoney.myCards(m).find((x) => x.id === cid && x.paymentStatus === 'awaiting_payment') : null;
+      return c ? { ok: true, value: { kind: 'simulated' as const, amountPence: c.amountPence } } : fail('Start again from Gift cards.');
+    },
+    async simulateGiftCardPayment(cid) {
+      const m = me();
+      return m ? exampleMoney.payCard(m, cid) : fail('Sign in first.');
+    },
+    async cancelGiftCard(cid) {
+      const m = me();
+      if (m) exampleMoney.cancelCard(m, cid);
+    },
+    async myGiftCards() {
+      const m = me();
+      return m ? exampleMoney.myCards(m) : [];
+    },
+    async redeemGiftCard(code) {
+      const m = me();
+      return m ? exampleMoney.redeem(m, code) : fail('Sign in to redeem a gift card.');
+    },
+    async myBalance() {
+      const m = me();
+      return m ? exampleMoney.balance(m) : { balancePence: 0, lots: [] };
     },
     async notifications() {
       const m = me();

@@ -7,12 +7,14 @@ import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
 import type { ContactMessage, StaffAgent, StaffQueueItem, StaffSettings } from '@/lib/selling';
 import { StaffGate } from './StaffGate';
+import { VoucherEditor } from '@/components/vouchers/VoucherEditor';
 
-type Tab = 'queue' | 'messages' | 'agents' | 'settings';
+type Tab = 'queue' | 'messages' | 'agents' | 'vouchers' | 'settings';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'queue', label: 'Queue' },
   { key: 'messages', label: 'Messages' },
   { key: 'agents', label: 'Couriers and hubs' },
+  { key: 'vouchers', label: 'Vouchers' },
   { key: 'settings', label: 'Settings' },
 ];
 const KIND: Record<StaffQueueItem['kind'], string> = { dispute: 'Dispute', payment: 'Payment check', weight: 'Weight mismatch' };
@@ -35,7 +37,7 @@ export function StaffConsole() {
           ))}
         </div>
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-          {tab === 'queue' ? <Queue /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : <Settings />}
+          {tab === 'queue' ? <Queue /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : tab === 'vouchers' ? <VoucherEditor mode="staff" /> : <Settings />}
         </div>
       </div>
     </StaffGate>

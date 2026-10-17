@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
+import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
   CheckoutStarted, MarketBackend, NotificationPrefs, SavedSearch, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
@@ -342,6 +343,71 @@ export const supabaseMarket: MarketBackend = {
   async deleteSavedSearch(id) {
     const { data, error } = await supabase().rpc('delete_saved_search', { p_id: id });
     return error ? fail(error) : { ok: true, value: toSearches(data) };
+  },
+
+  async checkoutCodes(target) {
+    const { data, error } = await supabase().rpc('checkout_codes', { p_target: target });
+    return error ? null : toCodes(data);
+  },
+  async applyCode(target, code) {
+    const { data, error } = await supabase().rpc('apply_code', { p_target: target, p_code: code });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async removeVoucher(target) {
+    const { data, error } = await supabase().rpc('remove_voucher', { p_target: target });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async useBalance(target, on) {
+    const { data, error } = await supabase().rpc('use_balance', { p_target: target, p_on: on });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async staffVouchers() {
+    const { data, error } = await supabase().rpc('staff_vouchers');
+    return error || !data ? [] : (data as unknown[]).map(toVoucher);
+  },
+  async staffSaveVoucher(id, patch) {
+    const { data, error } = await supabase().rpc('staff_save_voucher', { p_id: id, p: fromVoucherPatch(patch) });
+    return error ? fail(error) : { ok: true, value: (data as unknown[]).map(toVoucher) };
+  },
+  async myShopVouchers() {
+    const { data, error } = await supabase().rpc('my_shop_vouchers');
+    return error || !data ? [] : (data as unknown[]).map(toVoucher);
+  },
+  async saveShopVoucher(id, patch) {
+    const { data, error } = await supabase().rpc('save_shop_voucher', { p_id: id, p: fromVoucherPatch(patch) });
+    return error ? fail(error) : { ok: true, value: (data as unknown[]).map(toVoucher) };
+  },
+  async buyGiftCard(amount, name, email, message) {
+    const { data, error } = await supabase().rpc('buy_gift_card', { p_amount: amount, p_name: name, p_email: email, p_message: message });
+    return error ? fail(error) : { ok: true, value: toGiftCard(data) };
+  },
+  async payGiftCard(id) {
+    const { data, error } = await supabase().functions.invoke('checkout', { body: { gift_card_id: id } });
+    if (error) {
+      const ctx = (error as { context?: Response }).context;
+      const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+      if (body?.error === 'payments_not_configured') return { ok: false, code: 'not_configured', message: 'Payments aren’t switched on yet, so no money has been taken.' };
+      return { ok: false, code: body?.error, message: body?.message ?? tidy(error.message) };
+    }
+    return { ok: true, value: { kind: 'stripe', clientSecret: data.client_secret, publishableKey: data.publishable_key, amountPence: data.amount_pence } };
+  },
+  async simulateGiftCardPayment() {
+    return { ok: false, message: 'Test payments only work in example mode.' };
+  },
+  async cancelGiftCard(id) {
+    await supabase().rpc('cancel_gift_card', { p_id: id });
+  },
+  async myGiftCards() {
+    const { data, error } = await supabase().rpc('my_gift_cards');
+    return error || !data ? [] : (data as unknown[]).map(toGiftCard);
+  },
+  async redeemGiftCard(code) {
+    const { data, error } = await supabase().rpc('redeem_gift_card', { p_code: code });
+    return error ? fail(error) : { ok: true, value: toBalance(data) };
+  },
+  async myBalance() {
+    const { data } = await supabase().rpc('my_balance');
+    return toBalance(data);
   },
 
   async notifications() {

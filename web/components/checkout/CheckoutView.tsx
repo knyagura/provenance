@@ -13,6 +13,7 @@ import type { CheckoutStarted, PaymentStart } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
 
 // Stripe's script loads only when someone actually reaches the payment step.
+import { CodesBox } from './CodesBox';
 const StripePay = dynamic(() => import('./StripePay').then((m) => m.StripePay), { ssr: false, loading: () => <p role="status">Loading the payment form…</p> });
 
 export interface CheckoutItem {
@@ -166,6 +167,13 @@ export function CheckoutView({ item, offerId = null }: { item: CheckoutItem; off
         <section className="pv-panel" aria-labelledby="card-h">
           <h2 id="card-h">Payment</h2>
           <p className="pv-note" role="status">We’re holding this for you until {time(started.holdExpiresAt)}.</p>
+          <CodesBox target={started.orderId} onChange={async (c) => {
+            if (c.paid) return paid();
+            setPayment(null);
+            const p = await backend.startPayment(started.orderId);
+            if (p.ok) setPayment(p.value);
+            else setError(p.message);
+          }} />
           {payment?.kind === 'stripe' ? (
             <StripePay clientSecret={payment.clientSecret} publishableKey={payment.publishableKey} amountPence={payment.amountPence} orderId={started.orderId} onPaid={paid} />
           ) : payment?.kind === 'simulated' ? (

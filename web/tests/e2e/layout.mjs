@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -795,6 +795,65 @@ try {
     await p.getByRole('status').filter({ hasText: 'Saved: 15% off 2 or more' }).waitFor({ timeout: 5000 }).catch(() => fail('dashboard: changing the bundle discount failed'));
     if (berr.length) fail(`seller tools: page errors: ${berr.slice(0, 3).join(' | ')}`);
     await bctx.close();
+  }
+
+  // Vouchers and gift cards: buy a card, the recipient adds it to their balance, uses a sign-up code and the balance.
+  {
+    const gctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const gerr = [];
+    const p = await gctx.newPage();
+    p.on('pageerror', (e) => gerr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      const path = next.split('?')[0];
+      await p.waitForURL((u) => u.pathname === path || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === path); }
+    };
+    await signIn('giftgiver@example.com', '/gift-cards');
+    await p.getByRole('button', { name: '£25' }).click();
+    await p.getByLabel('Their name (optional)').fill('Ana');
+    await p.getByRole('button', { name: 'Continue to payment' }).click();
+    await p.getByRole('button', { name: 'Pay £25.00 (test)' }).click();
+    const codeEl = p.locator('.pv-giftcode').first();
+    await codeEl.waitFor({ timeout: 5000 }).catch(() => fail('gift cards: no code after paying'));
+    const code = (await codeEl.textContent())?.trim() ?? '';
+    if (!/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(code)) fail(`gift cards: odd code "${code}"`);
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+
+    await signIn('newbuyer@example.com', `/gift-cards?code=${code}`);
+    await p.getByRole('button', { name: 'Add to balance' }).click();
+    await p.getByRole('status').filter({ hasText: 'Your balance is now £25.00' }).waitFor({ timeout: 5000 }).catch(() => fail('gift cards: redeeming did not add £25'));
+    await p.goto(BASE + '/checkout/example-2');
+    await p.getByRole('button', { name: /^Continue to payment/ }).click();
+    await p.getByLabel('Voucher or gift card code').fill('welcome10');
+    await p.getByRole('button', { name: 'Apply' }).click();
+    await p.getByText('−£1.20').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: WELCOME10 should take 10% off the £12 dress'));
+    await p.getByLabel(/Use my NuTuYu balance/).check();
+    await p.locator('.pv-codes').getByText('£0.00').waitFor({ timeout: 5000 }).catch(() => fail('gift cards: the balance should cover the rest'));
+    await p.getByRole('button', { name: 'Pay £0.00 (test)' }).click();
+    await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    await p.goto(BASE + '/gift-cards');
+    const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
+    if (!/£1\d\.\d\d/.test(left)) fail(`gift cards: the balance after paying looks wrong (${left})`);
+    // Staff make a code.
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+    await signIn('staff.vouchers@example.com', '/staff');
+    await p.getByRole('tab', { name: 'Vouchers' }).click();
+    await p.getByRole('button', { name: 'New code' }).click();
+    await p.getByLabel('Code', { exact: true }).fill('SPRING5');
+    await p.getByLabel('Discount type').selectOption('amount');
+    await p.getByLabel('Amount off (£)').fill('5');
+    await p.getByRole('button', { name: 'Make code' }).click();
+    await p.getByText('SPRING5 is ready to use.').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: staff could not make a code'));
+    if (gerr.length) fail(`vouchers: page errors: ${gerr.slice(0, 3).join(' | ')}`);
+    await gctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

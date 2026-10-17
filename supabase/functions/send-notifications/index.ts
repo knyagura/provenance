@@ -78,5 +78,28 @@ Deno.serve(async (req) => {
       failed++;
     }
   }
+  // Emails to people without an account yet (gift cards sent to them).
+  const { data: plain } = await admin.rpc('email_outbox_claim', { p_limit: 25 });
+  for (const m of (plain ?? []) as { id: string; to_email: string; subject: string; body: string; link: string | null }[]) {
+    try {
+      const url = SITE + (m.link?.startsWith('/') ? m.link : '/');
+      const html = `<!doctype html><html><body style="margin:0;background:#f6f4ee;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1d2a20">
+<div style="max-width:520px;margin:0 auto;padding:24px"><p style="font-weight:700;font-size:18px;margin:0 0 16px">NuTuYu</p>
+<div style="background:#fff;border-radius:12px;padding:24px"><h1 style="font-size:20px;line-height:1.3;margin:0 0 12px">${esc(m.subject)}</h1>
+<p style="margin:0 0 20px;line-height:1.5;white-space:pre-line">${esc(m.body)}</p>
+<a href="${esc(url)}" style="display:inline-block;background:#3d5a40;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600">Open NuTuYu</a></div></div></body></html>`;
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Idempotency-Key': `outbox-${m.id}` },
+        body: JSON.stringify({ from: FROM, to: [m.to_email], subject: m.subject, html, text: `${m.body}\n\n${url}` }),
+      });
+      await admin.rpc('email_outbox_done', { p_id: m.id, p_ok: res.ok, p_error: res.ok ? null : `${res.status} ${(await res.text()).slice(0, 200)}` });
+      if (res.ok) sent++;
+      else failed++;
+    } catch (e) {
+      await admin.rpc('email_outbox_done', { p_id: m.id, p_ok: false, p_error: String(e).slice(0, 200) });
+      failed++;
+    }
+  }
   return Response.json({ sent, failed });
 });

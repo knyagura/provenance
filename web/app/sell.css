@@ -278,3 +278,11 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-bars td:first-of-type { width: 100%; }
 .pv-bars__bar { display: inline-block; height: 12px; margin-right: var(--space-2); border-radius: 6px; background: var(--sage); vertical-align: middle; max-width: calc(100% - 6rem); }
 .pv-bundle-note { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-sand); }
+
+/* Codes and balance at checkout */
+.pv-codes { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.pv-codes__form { display: flex; flex-direction: column; gap: var(--space-1); }
+.pv-codes__form label { font-weight: 600; }
+.pv-codes__row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.pv-codes__row input { flex: 1 1 12rem; min-height: var(--tap-min); padding: 0 var(--space-3); font: 500 16px/1 var(--font-mono, monospace); letter-spacing: .06em; color: var(--ink); background: var(--surface); border: 1px solid var(--ink-muted); border-radius: var(--radius-sm); }
+.pv-giftcode { font-size: 17px; letter-spacing: .06em; }

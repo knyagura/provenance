@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { CodesBox } from '@/components/checkout/CodesBox';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { BASKET_TONES, everything, wrapCharge, type BasketCheckout } from '@/lib/domain/baskets';
@@ -149,6 +150,15 @@ export function BasketCheckoutView({ groupId, paid }: { groupId: string | null; 
         <section className="pv-panel" aria-labelledby="ck-pay">
           <h2 id="ck-pay">Payment</h2>
           <p className="pv-note" role="status">We’re holding these for you until {time(group.holdExpiresAt)}.</p>
+          <CodesBox target={group.groupId} onChange={async (c) => {
+            if (c.paid) return done();
+            const g = await backend.basketCheckout(group.groupId);
+            if (g) setGroup(g);
+            setPayment(null);
+            const p = await backend.startGroupPayment(group.groupId);
+            if (p.ok) setPayment(p.value);
+            else setError(p.message);
+          }} />
           {payment?.kind === 'stripe' ? (
             <StripePay clientSecret={payment.clientSecret} publishableKey={payment.publishableKey} amountPence={payment.amountPence} orderId={group.orders[0].orderId}
               returnPath={`/basket/checkout?group=${group.groupId}&paid=1`} onPaid={done} />

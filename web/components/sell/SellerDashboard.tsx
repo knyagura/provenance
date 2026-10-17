@@ -6,6 +6,7 @@ import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
 import type { SellerDashboard } from '@/lib/selling';
+import { VoucherEditor } from '@/components/vouchers/VoucherEditor';
 
 const STATE: Record<string, string> = { in_progress: 'Handover under way', confirmed: 'Complete', disputed: 'Problem reported', not_started: 'Starting' };
 const PAYOUT: Record<string, string> = { held: 'Held', due: 'Released', paid: 'Paid out', refund: 'Refunded' };
@@ -81,6 +82,7 @@ export function SellerDashboardView() {
       ) : null}
 
       <BundleSettings initial={d.bundle} />
+      <VoucherEditor mode="shop" />
 
       <section aria-labelledby="dash-sold">
         <h2 id="dash-sold">Sold</h2>

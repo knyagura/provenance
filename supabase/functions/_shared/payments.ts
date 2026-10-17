@@ -23,6 +23,14 @@ export interface Group {
   hold_expires_at: string;
 }
 
+export interface GiftCard {
+  id: string;
+  purchaser_id: string;
+  payment_status: string;
+  amount_pence: number;
+  payment_ref: string | null;
+}
+
 export interface PaymentIntentLike {
   id: string;
   client_secret: string | null;
@@ -38,10 +46,12 @@ export interface CheckoutDeps {
   getOrder(id: string): Promise<Order | null>;
   setPaymentRef(orderId: string, ref: string): Promise<void>;
   getGroup?(id: string): Promise<Group | null>;
+  getGiftCard?(id: string): Promise<GiftCard | null>;
+  setGiftCardRef?(id: string, ref: string): Promise<void>;
   setGroupPaymentRef?(groupId: string, ref: string): Promise<void>;
   stripe: {
     /** metadata carries order_id, or group_id for a basket checkout. */
-    create(params: { amount: number; currency: 'gbp'; orderId?: string; groupId?: string; description: string }): Promise<PaymentIntentLike>;
+    create(params: { amount: number; currency: 'gbp'; orderId?: string; groupId?: string; giftCardId?: string; description: string }): Promise<PaymentIntentLike>;
     retrieve(id: string): Promise<PaymentIntentLike>;
   } | null;
   publishableKey: string | null;
@@ -58,6 +68,8 @@ export async function handleCheckout(token: string | null, body: unknown, deps: 
   if (!user) return { status: 401, body: { error: 'sign_in', message: 'Sign in to pay.' } };
   const groupId = (body as { group_id?: unknown } | null)?.group_id;
   if (groupId !== undefined) return groupCheckout(user.id, groupId, deps);
+  const cardId = (body as { gift_card_id?: unknown } | null)?.gift_card_id;
+  if (cardId !== undefined) return giftCardCheckout(user.id, cardId, deps);
   const orderId = (body as { order_id?: unknown } | null)?.order_id;
   if (typeof orderId !== 'string' || !UUID.test(orderId)) return { status: 400, body: { error: 'bad_request', message: 'No order to pay for.' } };
   const order = await deps.getOrder(orderId);
@@ -109,11 +121,36 @@ async function groupCheckout(userId: string, groupId: unknown, deps: CheckoutDep
   return { status: 200, body: { client_secret: pi.client_secret, publishable_key: deps.publishableKey, amount_pence: g.total_pence } };
 }
 
+/** A gift card being bought: its amount is all there is to pay. */
+async function giftCardCheckout(userId: string, cardId: unknown, deps: CheckoutDeps): Promise<Reply> {
+  if (typeof cardId !== 'string' || !UUID.test(cardId) || !deps.getGiftCard || !deps.setGiftCardRef) {
+    return { status: 400, body: { error: 'bad_request', message: 'No gift card to pay for.' } };
+  }
+  const c = await deps.getGiftCard(cardId);
+  if (!c || c.purchaser_id !== userId) return { status: 404, body: { error: 'not_found', message: 'That gift card isn’t yours or doesn’t exist.' } };
+  if (c.payment_status === 'paid') return { status: 409, body: { error: 'already_paid', message: 'This gift card is already paid for.' } };
+  if (c.payment_status !== 'awaiting_payment') return { status: 409, body: { error: 'expired', message: 'Start again from Gift cards.' } };
+  if (!deps.stripe || !deps.publishableKey) {
+    return { status: 503, body: { error: 'payments_not_configured', message: 'Payments aren’t switched on yet.' } };
+  }
+  let pi: PaymentIntentLike | null = null;
+  if (c.payment_ref) {
+    pi = await deps.stripe.retrieve(c.payment_ref);
+    if (pi.amount !== c.amount_pence || pi.status === 'canceled') pi = null;
+  }
+  if (!pi) {
+    pi = await deps.stripe.create({ amount: c.amount_pence, currency: 'gbp', giftCardId: c.id, description: `NuTuYu gift card ${c.id.slice(0, 8)}` });
+    await deps.setGiftCardRef(c.id, pi.id);
+  }
+  return { status: 200, body: { client_secret: pi.client_secret, publishable_key: deps.publishableKey, amount_pence: c.amount_pence } };
+}
+
 export interface WebhookDeps {
   /** Verifies Stripe's signature and returns the event; throws when the signature is wrong. */
   verify(payload: string, signature: string): Promise<{ type: string; data: { object: PaymentIntentLike } }>;
   confirmPayment(orderId: string, ref: string, amountPence: number): Promise<string>;
   confirmGroupPayment?(groupId: string, ref: string, amountPence: number): Promise<string>;
+  confirmGiftCard?(cardId: string, ref: string, amountPence: number): Promise<string>;
 }
 
 /** Stripe calls this when a payment succeeds. Only a correctly signed event can mark an order paid. */
@@ -130,6 +167,10 @@ export async function handleWebhook(payload: string, signature: string | null, d
   const groupId = pi.metadata?.group_id;
   if (groupId && UUID.test(groupId) && deps.confirmGroupPayment) {
     return { status: 200, body: { result: await deps.confirmGroupPayment(groupId, pi.id, pi.amount_received ?? pi.amount) } };
+  }
+  const cardId = pi.metadata?.gift_card_id;
+  if (cardId && UUID.test(cardId) && deps.confirmGiftCard) {
+    return { status: 200, body: { result: await deps.confirmGiftCard(cardId, pi.id, pi.amount_received ?? pi.amount) } };
   }
   const orderId = pi.metadata?.order_id;
   if (!orderId || !UUID.test(orderId)) return { status: 200, body: { ignored: 'no_order' } };

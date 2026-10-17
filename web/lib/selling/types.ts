@@ -300,6 +300,29 @@ export interface SellerDashboard {
   bundle: BundleOffer | null;
 }
 
+/** Codes and balance on a checkout (one order, or a basket checkout) — migration 022. */
+export interface CheckoutCodes {
+  voucher: { code: string; shop: string | null; discountPence: number } | null;
+  balancePence: number;
+  balanceAvailable: number;
+  /** What's left to pay by card. */
+  totalPence: number;
+  paid: boolean;
+}
+export interface Voucher {
+  id: string; code: string; shop: string | null; kind: 'percent' | 'amount'; value: number; minSpendPence: number; maxDiscountPence: number | null;
+  perMember: number; maxUses: number | null; firstOrderOnly: boolean; startsAt: string | null; endsAt: string | null; active: boolean; note: string | null;
+  uses: number; discountGivenPence: number;
+}
+export type VoucherPatch = Partial<Omit<Voucher, 'id' | 'shop' | 'uses' | 'discountGivenPence'>>;
+export interface GiftCard {
+  id: string; amountPence: number; recipientName: string | null; recipientEmail: string | null; message: string | null;
+  paymentStatus: 'awaiting_payment' | 'paid' | 'cancelled' | 'review'; paidAt: string | null; expiresAt: string | null; createdAt: string;
+  /** Shown once it's paid for. */
+  code: string | null; redeemed: boolean;
+}
+export interface Balance { balancePence: number; lots: { source: 'gift_card' | 'refund'; amountPence: number; remainingPence: number; expiresAt: string }[] }
+
 export interface MarketBackend {
   favourites(): Promise<string[]>;
   setFavourite(listingId: string, on: boolean): Promise<Result>;
@@ -353,6 +376,24 @@ export interface MarketBackend {
   saveSearch(name: string, search: SearchToSave): Promise<Result<SavedSearch>>;
   setSearchAlert(id: string, on: boolean): Promise<Result<SavedSearch[]>>;
   deleteSavedSearch(id: string): Promise<Result<SavedSearch[]>>;
+
+  checkoutCodes(target: string): Promise<CheckoutCodes | null>;
+  /** A voucher code, or a gift card code (added to the balance and used). */
+  applyCode(target: string, code: string): Promise<Result<CheckoutCodes>>;
+  removeVoucher(target: string): Promise<Result<CheckoutCodes>>;
+  useBalance(target: string, on: boolean): Promise<Result<CheckoutCodes>>;
+  staffVouchers(): Promise<Voucher[]>;
+  staffSaveVoucher(id: string | null, patch: VoucherPatch): Promise<Result<Voucher[]>>;
+  myShopVouchers(): Promise<Voucher[]>;
+  saveShopVoucher(id: string | null, patch: VoucherPatch): Promise<Result<Voucher[]>>;
+  buyGiftCard(amountPence: number, name: string, email: string, message: string): Promise<Result<GiftCard>>;
+  payGiftCard(id: string): Promise<Result<PaymentStart> & { code?: string }>;
+  /** Example mode only. */
+  simulateGiftCardPayment(id: string): Promise<Result>;
+  cancelGiftCard(id: string): Promise<void>;
+  myGiftCards(): Promise<GiftCard[]>;
+  redeemGiftCard(code: string): Promise<Result<Balance>>;
+  myBalance(): Promise<Balance>;
 
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;

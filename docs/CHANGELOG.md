@@ -98,3 +98,9 @@ Newest first. Each entry says what changed for people using the site, and which 
   - every sale, with its buyer, handover and payment status;
   - the bundle discount settings.
 - Migration 020. Example mode: `resole_archive` offers 10% off 2 or more.
+
+## 2026-10-17: Voucher codes, gift cards and a NuTuYu balance
+- **Voucher codes.** Staff make NuTuYu codes in the console (*Vouchers*). NuTuYu pays for them: the buyer pays less, and the seller still gets their full payout. Sellers make codes for their own shop on *Your sales*; the discount comes off their price. Options: percentage or amount off, a cap, minimum spend, uses per person, total uses, end date, and first order only (good for a sign-up offer in a popup).
+- **Gift cards** from £10 to £250 at `/gift-cards` (in the footer and your account). The code appears once paid, and is emailed to the recipient if you give their address. They add it to their **NuTuYu balance**, valid for 2 years.
+- **At checkout**, one box takes a voucher or gift card code, and a tick box uses your balance. You see the discount and what's left to pay by card. With nothing left to pay, the order is paid straight away. Codes and balance come back if you don't finish paying, and the balance part comes back if an order is refunded.
+- Migration 022, plus updated checkout, webhook and email functions. Documents: [ADR 0016](adr/0016-vouchers-gift-cards-balance.md).
