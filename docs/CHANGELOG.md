@@ -88,3 +88,13 @@ Newest first. Each entry says what changed for people using the site, and which 
 - New **Size** filter in search, and a `size` parameter in the API.
 - New email switch, *Alerts*, under Account → Emails.
 - Migration 019. Documents: [ADR 0014](adr/0014-saved-searches-and-alerts.md).
+
+## 2026-10-17: Seller tools: bundle discounts, sold history and a sales dashboard
+- **Bundle discounts:** sellers can offer, for example, 10% off when someone buys 2 or more of their items in one basket checkout. Their item pages show the offer. Checkout shows the discount against each item ("Bundle: 10% off (was £10.00)"), and the fees and the one payment are worked out on the discounted prices.
+- **Your sales** (`/selling`, linked from your account) shows:
+  - what you've sold, what you've taken, what's held and what's been released;
+  - average handover time and problems reported;
+  - sales by month for the last year;
+  - every sale, with its buyer, handover and payment status;
+  - the bundle discount settings.
+- Migration 020. Example mode: `resole_archive` offers 10% off 2 or more.

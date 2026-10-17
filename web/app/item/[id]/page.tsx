@@ -7,6 +7,7 @@ import { Gallery } from '@/components/browse/Gallery';
 import { OfferBox } from '@/components/market/OfferBox';
 import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
 import { RatingLine } from '@/components/market/Reviews';
+import { BundleNote } from '@/components/market/BundleNote';
 import { getListing, getVariants } from '@/lib/domain/catalogue';
 import { VariantPicker } from '@/components/browse/VariantPicker';
 import { fallbackCategories } from '@/lib/domain/examples';
@@ -188,6 +189,7 @@ export default async function ItemPage({ params }: Props) {
             <RatingLine username={l.seller.username} />
           </span>
         </section>
+        {buyable ? <BundleNote seller={l.seller.username} /> : null}
 
         <dl className="pv-details">
           {details.filter(([, v]) => v).map(([k, v]) => (

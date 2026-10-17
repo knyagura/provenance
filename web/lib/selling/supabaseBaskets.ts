@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { formatPence } from '@/lib/format';
 import { mediaUrl } from '@/lib/domain/catalogue';
 import type { Basket, BasketCheckout, BasketItem, BasketPatch, Baskets, GiftView, MyGift, SharedBasket } from '@/lib/domain/baskets';
 import type { BasketBackend, Result } from './types';
@@ -32,6 +33,7 @@ const group = (g: any): BasketCheckout => ({
   orders: (g.orders ?? []).map((o: any) => ({
     orderId: o.order_id, listingId: o.listing_id, title: o.title, basket: o.basket ?? null, totalPence: o.total_pence, wrap: !!o.wrap,
     gift: !!o.gift, giftToken: o.gift_token ?? null, shipTo: o.ship_to ?? null,
+    discountNote: o.quote?.bundle_pct ? `Bundle: ${o.quote.bundle_pct}% off (was ${formatPence(Number(o.quote.list_price_pence))})` : null,
   })),
 });
 const gift = (g: any): GiftView => ({

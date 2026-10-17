@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -754,6 +754,47 @@ try {
     await p.getByText('No saved searches yet.').waitFor({ timeout: 5000 }).catch(() => fail('saved searches: delete did not work'));
     if (serr.length) fail(`saved searches: page errors: ${serr.slice(0, 3).join(' | ')}`);
     await sctx.close();
+  }
+
+  // Seller tools: a bundle (resole_archive offers 10% off 2 or more), then the seller's sales dashboard.
+  {
+    const bctx = await browser.newContext({ viewport: { width: 1024, height: 900 } });
+    const berr = [];
+    const p = await bctx.newPage();
+    p.on('pageerror', (e) => berr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await p.waitForURL((u) => u.pathname === next.split('?')[0] || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === next.split('?')[0]); }
+    };
+    await signIn('bundlebuyer@example.com', '/item/example-5');
+    await p.getByText('Bundle: 10% off 2 or more').waitFor({ timeout: 5000 }).catch(() => fail('bundles: the item page should show the seller’s bundle offer'));
+    await p.getByRole('button', { name: 'Add to basket' }).click();
+    await p.goto(BASE + '/item/example-4');
+    await p.getByRole('button', { name: 'Add to basket' }).click();
+    await p.getByRole('link', { name: /In your basket/ }).waitFor();
+    await p.goto(BASE + '/basket');
+    await p.getByRole('link', { name: 'Check out' }).click();
+    await p.getByRole('button', { name: 'Continue to payment' }).click();
+    await p.getByText('Bundle: 10% off (was £10.00)').waitFor({ timeout: 5000 }).catch(() => fail('bundles: checkout should show the discount on each item'));
+    await p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ }).click();
+    await p.getByRole('heading', { name: 'Paid. Thank you' }).waitFor();
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+    await signIn('resole_archive@example.test', '/selling');
+    await p.getByRole('heading', { name: 'Your sales' }).waitFor();
+    const sold = p.locator('.pv-tile', { hasText: 'Sold' });
+    if (!(await sold.getByText('2 in bundles').isVisible())) fail('dashboard: the two bundled sales are missing');
+    if ((await p.locator('.pv-table tbody tr').count()) < 2) fail('dashboard: the sold history should list both orders');
+    await p.getByLabel('Discount').selectOption('15');
+    await p.getByRole('button', { name: 'Save', exact: true }).click();
+    await p.getByRole('status').filter({ hasText: 'Saved: 15% off 2 or more' }).waitFor({ timeout: 5000 }).catch(() => fail('dashboard: changing the bundle discount failed'));
+    if (berr.length) fail(`seller tools: page errors: ${berr.slice(0, 3).join(' | ')}`);
+    await bctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

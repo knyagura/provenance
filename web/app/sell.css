@@ -265,3 +265,16 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-save-search { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .pv-row--search { padding-inline: var(--space-2); }
 @media (max-width: 560px) { .pv-row--search { grid-template-columns: minmax(0, 1fr); } }
+
+/* Sales dashboard */
+.pv-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+@media (min-width: 768px) { .pv-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pv-tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); }
+.pv-tile__label { font: 500 13px/18px var(--font-sans); color: var(--ink-soft); }
+.pv-tile__value { font: 600 24px/30px var(--font-sans); }
+.pv-bars { width: 100%; border-collapse: collapse; }
+.pv-bars th { text-align: left; font-weight: 500; padding: var(--space-1) var(--space-3) var(--space-1) 0; white-space: nowrap; width: 1%; }
+.pv-bars td { padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.pv-bars td:first-of-type { width: 100%; }
+.pv-bars__bar { display: inline-block; height: 12px; margin-right: var(--space-2); border-radius: 6px; background: var(--sage); vertical-align: middle; max-width: calc(100% - 6rem); }
+.pv-bundle-note { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-sand); }

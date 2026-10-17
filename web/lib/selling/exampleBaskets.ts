@@ -1,4 +1,5 @@
 import { exampleCatalogue } from '@/lib/domain/examples';
+import { formatPence } from '@/lib/format';
 import { exampleUnitsLeft } from '@/lib/domain/exampleStock';
 import { MAX_PERSONAL, UK_POSTCODE, type Basket, type BasketCheckout, type BasketItem, type BasketPatch, type Baskets, type GiftView, type SizeKind } from '@/lib/domain/baskets';
 import { exampleSellerId, loadMarket, saveMarket, type StoredOrder } from './exampleMarket';
@@ -102,6 +103,7 @@ export function makeExampleBaskets(me: () => Member | null, backend: () => Selli
       orders: orders.map((o) => ({
         orderId: o.summary.id, listingId: o.summary.listingId, title: o.summary.title, basket: o.basketName ?? null, totalPence: o.summary.totalPence ?? 0,
         wrap: !!o.gift?.wrap, gift: !!o.gift, giftToken: o.giftToken ?? null, shipTo: (o.shipTo as BasketCheckout['orders'][number]['shipTo']) ?? null,
+        discountNote: o.summary.quote?.bundle ? `Bundle: ${o.summary.quote.bundle.pct}% off (was ${formatPence(o.summary.quote.bundle.listPricePence)})` : null,
       })),
     };
   };

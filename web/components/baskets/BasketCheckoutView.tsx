@@ -108,7 +108,7 @@ export function BasketCheckoutView({ groupId, paid }: { groupId: string | null; 
 
       <section className="pv-panel" aria-labelledby="ck-items">
         <h2 id="ck-items">What you’re buying</h2>
-        {(group ? group.orders.map((o) => ({ key: o.orderId, title: o.title, who: o.basket, amount: o.totalPence, wrap: o.wrap, note: o.shipTo ? `To ${o.shipTo.name}, ${o.shipTo.postcode}` : null }))
+        {(group ? group.orders.map((o) => ({ key: o.orderId, title: o.title, who: o.basket, amount: o.totalPence, wrap: o.wrap, note: [o.discountNote, o.shipTo ? `To ${o.shipTo.name}, ${o.shipTo.postcode}` : null].filter(Boolean).join(' · ') || null }))
           : lines.map((l) => ({ key: l.item.listingId, title: l.item.title, who: l.basket.general ? null : l.basket.name, amount: l.item.pricePence + l.item.postagePence, wrap: l.item.wrap && !l.basket.general, note: null }))
         ).map((x) => {
           const b = baskets.find((y) => y.name === x.who && !y.general);

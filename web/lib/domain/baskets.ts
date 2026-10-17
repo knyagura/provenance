@@ -71,7 +71,9 @@ export type BasketPatch = Partial<Pick<Basket, 'name' | 'ageGroup' | 'sizes' | '
 
 export interface SharedBasket { name: string; ageGroup: string | null; sizes: Partial<Record<SizeKind, string>>; styleNotes: string | null; items: BasketItem[] }
 
-export interface GroupOrder { orderId: string; listingId: string; title: string; basket: string | null; totalPence: number; wrap: boolean; gift: boolean; giftToken: string | null; shipTo: Address | null }
+export interface GroupOrder { orderId: string; listingId: string; title: string; basket: string | null; totalPence: number; wrap: boolean; gift: boolean; giftToken: string | null; shipTo: Address | null;
+  /** "Bundle: 10% off" and the like, when a discount applies. */
+  discountNote?: string | null }
 export interface BasketCheckout {
   groupId: string;
   shipping: 'combined' | 'separate';
