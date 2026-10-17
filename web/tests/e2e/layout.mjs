@@ -33,7 +33,10 @@ async function waitForServer() {
 }
 
 const failures = [];
-const fail = (msg) => { failures.push(msg); console.log('  FAIL ' + msg); };
+// On GitHub, problems also become annotations, readable on the run's summary without downloading logs.
+const annotate = (msg) => { if (process.env.GITHUB_ACTIONS) console.log(`::error title=Layout check::${String(msg).replace(/\r?\n/g, ' ').slice(0, 900)}`); };
+const fail = (msg) => { failures.push(msg); console.log('  FAIL ' + msg); annotate(msg); };
+process.on('uncaughtException', (e) => { annotate(`${e?.message ?? e} ${String(e?.stack ?? '').split('\n').find((l) => l.includes('layout.mjs')) ?? ''}`); console.error(e); process.exit(1); });
 
 await waitForServer();
 mkdirSync('test-results', { recursive: true });
