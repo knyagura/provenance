@@ -95,7 +95,7 @@ exampleCatalogue.push(...VARIANTS.map(([colour, size, stock], i): Listing => ({
   revision: 1,
   media: (['front', 'detail', 'label'] as const).map((shot) => ({ url: `/examples/example-8-${shot}.svg`, kind: 'photo' as const, shot })),
   seller: { username: 'knit_house', verified: true, business: true, away: false },
-  createdAt: new Date(Date.UTC(2026, 9, 10, 13) + i * 60_000).toISOString(),
+  createdAt: new Date(Date.UTC(2026, 9, 9, 12) + i * 60_000).toISOString(),
   example: true,
   stock,
   variantGroup: 'example-merino',
