@@ -73,3 +73,9 @@ Newest first. Each entry says what changed for people using the site, and which 
 - New Edge Function `send-notifications`. It sends nothing until the owner adds `RESEND_API_KEY` (and later `RESEND_FROM` with a verified domain) to the Supabase function secrets.
 - Migration 017: only the scheduled job can start the sender. It uses a random token kept in Supabase Vault, and nobody handles it.
 - Documents: [ADR 0012](adr/0012-notifications.md).
+
+## 2026-10-17: Home page goes straight to the items; popups staff configure
+- The home page now starts with the items ("Newly listed", 20 of them) right under the category bar. The hero and the how-it-works strip are gone. "How protection works" opens the explanation as a popup, which new visitors also see once.
+- New *Popups* tab in the staff console: explanations, announcements and offers, with title, text, steps, a button, an optional offer code, who sees it, which pages, a delay, priority and dates. "Show again" shows a popup again to everyone who closed it.
+- Offer codes are shown, but checkout doesn't apply them yet.
+- Migration 021. Documents: [ADR 0015](adr/0015-home-page-and-popups.md).

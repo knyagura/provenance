@@ -267,6 +267,29 @@ export interface AppNotification {
 /** Which groups the member gets emails for. The in-app list always shows everything. */
 export type NotificationPrefs = Record<NotificationGroup, boolean>;
 
+/** A popup staff configure: an explanation, an announcement or an offer (migration 021). */
+export interface SitePopup {
+  id: string;
+  key: string;
+  kind: 'info' | 'offer' | 'announcement';
+  title: string;
+  body: string;
+  steps: { title: string; note: string }[];
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  offerCode: string | null;
+  audience: 'everyone' | 'visitors' | 'members';
+  /** Comma-separated path prefixes; "*" for every page. */
+  pages: string;
+  delaySeconds: number;
+  priority: number;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  version: number;
+}
+export type PopupPatch = Partial<Omit<SitePopup, 'id' | 'version'>>;
+
 export interface MarketBackend {
   favourites(): Promise<string[]>;
   setFavourite(listingId: string, on: boolean): Promise<Result>;
@@ -303,6 +326,11 @@ export interface MarketBackend {
   submitContact(name: string, email: string, topic: ContactTopic, body: string): Promise<Result>;
   staffContactMessages(openOnly: boolean): Promise<ContactMessage[]>;
   staffContactHandled(id: string): Promise<Result>;
+
+  /** Popups that are live now (anyone). */
+  livePopups(): Promise<SitePopup[]>;
+  staffPopups(): Promise<SitePopup[]>;
+  staffSavePopup(id: string | null, patch: PopupPatch, showAgain: boolean): Promise<Result<SitePopup[]>>;
 
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;

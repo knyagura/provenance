@@ -179,3 +179,30 @@
 .pv-footer__brand strong { font: 500 18px/22px var(--font-display); }
 .pv-footer__mark { width: 48px; height: 48px; }
 @media (min-width: 768px) { .pv-footer { display: grid; grid-template-columns: auto 1fr; column-gap: var(--space-8); align-items: center; } .pv-footer > .pv-note { grid-column: 1 / -1; } .pv-footer ul { justify-content: flex-end; } }
+
+/* Home: straight to the items */
+.pv-home__title { font-size: 26px; line-height: 32px; }
+.pv-section__links { display: inline-flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+.pv-linkbtn { background: none; border: 0; padding: 0; min-height: var(--tap-min); font: inherit; color: var(--terracotta-text); text-decoration: underline; cursor: pointer; }
+.pv-linkbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Popups (staff configure them in the console) */
+.pv-popup {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 0; border-radius: var(--radius-lg, 16px);
+  background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, .25);
+}
+.pv-popup::backdrop { background: rgba(20, 24, 18, .45); }
+.pv-popup__inner { position: relative; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6) var(--space-5) var(--space-5); }
+.pv-popup h2 { font-size: 24px; line-height: 30px; padding-right: var(--space-8); }
+.pv-popup__close {
+  position: absolute; top: var(--space-2); right: var(--space-2); width: var(--tap-min); height: var(--tap-min); border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink); font-size: 26px; line-height: 1; cursor: pointer;
+}
+.pv-popup__close:hover { background: var(--surface-sand); }
+.pv-popup__close:focus-visible { outline: 2px solid var(--focus); }
+.pv-popup__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-popup__steps li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.pv-popup__steps li > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.pv-popup--offer { border-top: 6px solid var(--terracotta); }
+.pv-popup__code { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); border: 1px dashed var(--ink-muted); border-radius: var(--radius-sm); }
+.pv-popup__code strong { font-size: 18px; letter-spacing: .06em; }
