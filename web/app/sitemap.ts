@@ -11,7 +11,7 @@ const MAX = 5000;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = config.siteUrl;
-  const fixed: MetadataRoute.Sitemap = ['', '/search', '/developers', '/privacy', '/terms', '/contact', '/gift-cards'].map((p) => ({
+  const fixed: MetadataRoute.Sitemap = ['', '/search', '/developers', '/privacy', '/terms', '/contact', '/gift-cards', '/trust'].map((p) => ({
     url: `${base}${p}`, changeFrequency: p === '' || p === '/search' ? 'hourly' : 'monthly', priority: p === '' ? 1 : 0.5,
   }));
   let listings: Listing[] = [];

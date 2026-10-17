@@ -287,3 +287,18 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-codes__row input { flex: 1 1 12rem; min-height: var(--tap-min); padding: 0 var(--space-3); font: 500 16px/1 var(--font-mono, monospace); letter-spacing: .06em; color: var(--ink); background: var(--surface); border: 1px solid var(--ink-muted); border-radius: var(--radius-sm); }
 .pv-giftcode { font-size: 17px; letter-spacing: .06em; }
 .pv-bundle-note a { color: var(--ink); }
+
+/* Shipping labels and delivery address */
+.pv-shipping { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-shiplabel { display: flex; flex-direction: column; gap: var(--space-1); align-items: flex-start; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.pv-shiplabel p { margin: 0; overflow-wrap: anywhere; }
+.pv-shiplabel__test { color: var(--terracotta-text); font-weight: 600; }
+.pv-address { display: flex; flex-direction: column; font-style: normal; overflow-wrap: anywhere; }
+.pv-shipsheet { display: flex; flex-direction: column; gap: var(--space-3); width: min(100%, 400px); padding: var(--space-4); border: 2px solid #222; border-radius: var(--radius-sm); background: #fff; color: #222; }
+.pv-shipsheet .pv-note { color: #444; }
+.pv-shipsheet__test { margin: 0; padding: var(--space-1) var(--space-2); border: 2px dashed #222; font-weight: 700; text-align: center; letter-spacing: .04em; }
+.pv-shipsheet__head { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; border-bottom: 2px solid #222; padding-bottom: var(--space-2); }
+.pv-shipsheet__head strong { font-size: 22px; }
+.pv-shipsheet__to address { display: flex; flex-direction: column; font: 600 18px/1.35 var(--font-sans); font-style: normal; overflow-wrap: anywhere; }
+.pv-shipsheet__track { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.pv-shipsheet__track .pv-mono { font-size: 18px; letter-spacing: .06em; overflow-wrap: anywhere; }

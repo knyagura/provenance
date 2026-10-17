@@ -424,6 +424,16 @@ export interface MarketBackend {
   staffPopups(): Promise<SitePopup[]>;
   staffSavePopup(id: string | null, patch: PopupPatch, showAgain: boolean): Promise<Result<SitePopup[]>>;
 
+  /** Shipping for an order the seller posts: the buyer's delivery address and the label (test mode until Parcel2Go is set up). */
+  orderShipping(orderId: string): Promise<OrderShipping | null>;
+  setDeliveryAddress(orderId: string, address: Address): Promise<Result<OrderShipping>>;
+  createLabel(orderId: string, service: string, parcel: ParcelSize): Promise<Result<OrderShipping>>;
+  cancelLabel(orderId: string): Promise<Result<OrderShipping>>;
+
+  /** Public: a seller's protected-handover record, and the site-wide tracker. */
+  sellerTrust(username: string): Promise<SellerTrust | null>;
+  trustStats(): Promise<TrustStats | null>;
+
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;
   /** Marks these (or, with null, all) read. */
@@ -529,4 +539,49 @@ export interface SellingBackend extends MarketBackend, BasketBackend {
   openDispute(orderId: string, reason: string, note: string): Promise<Result<CustodyView>>;
   /** For couriers and hubs: orders waiting for them, and ones they've worked on. */
   agentTasks(): Promise<AgentTask[]>;
+}
+
+export interface Address { name: string; line1: string; line2: string | null; town: string; postcode: string }
+export type ParcelSize = 'small' | 'medium' | 'large';
+export interface ShippingQuote { service: string; carrier: string; name: string; dropOff: boolean; prices: Record<ParcelSize, number> }
+export interface ShippingLabel {
+  id: string; carrier: string; service: string; parcel: ParcelSize; pricePence: number; mode: 'test' | 'live';
+  tracking: string; labelUrl: string | null; deliverTo: Address; createdAt: string;
+}
+export interface OrderShipping {
+  /** A label can be made now (paid, posted by the seller, not yet recorded as sent). */
+  canLabel: boolean;
+  /** Shown to the buyer, staff, and the seller once there's a label. */
+  address: Address | null;
+  hasAddress: boolean;
+  addressFromBasket: boolean;
+  label: ShippingLabel | null;
+  /** For the seller while they can make a label. */
+  quotes: ShippingQuote[] | null;
+  sizes: { key: ParcelSize; name: string; limit: string }[];
+}
+
+export interface SellerTrust {
+  verified: boolean;
+  /** Confirmed without any dispute. */
+  completed: number;
+  /** Confirmed or disputed. */
+  finished: number;
+  disputes: number;
+  /** Percent; null until 5 finished. */
+  disputeRate: number | null;
+  /** null until 3 completed. */
+  avgHandoverHours: number | null;
+  /** Identity checked, 5+ completed and disputes at most 5%. */
+  trusted: boolean;
+}
+export interface TrustStats {
+  completed: number;
+  completed30d: number;
+  finished: number;
+  disputes: number;
+  refunds: number;
+  avgHandoverHours: number | null;
+  byTier: Partial<Record<'enhanced' | 'verified' | 'luxury' | 'ultraLuxury', number>>;
+  recent: { listingId: string; title: string; tier: 'enhanced' | 'verified' | 'luxury' | 'ultraLuxury'; confirmedOn: string }[];
 }

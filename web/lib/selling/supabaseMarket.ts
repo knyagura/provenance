@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
+import { toShipping } from './shipping';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
@@ -441,6 +442,44 @@ export const supabaseMarket: MarketBackend = {
       id: n.id, kind: n.kind, group: n.group, title: n.title, body: n.body, link: n.link, count: n.count,
       createdAt: n.created_at, read: Boolean(n.read), emailed: Boolean(n.emailed),
     }));
+  },
+  async sellerTrust(username) {
+    const { data, error } = await supabase().rpc('seller_trust', { p_username: username });
+    if (error || !data) return null;
+    const t = data as Record<string, unknown>;
+    return {
+      verified: Boolean(t.verified), completed: Number(t.completed ?? 0), finished: Number(t.finished ?? 0), disputes: Number(t.disputes ?? 0),
+      disputeRate: t.dispute_rate == null ? null : Number(t.dispute_rate), avgHandoverHours: t.avg_handover_hours == null ? null : Number(t.avg_handover_hours),
+      trusted: Boolean(t.trusted),
+    };
+  },
+  async trustStats() {
+    const { data, error } = await supabase().rpc('trust_stats');
+    if (error || !data) return null;
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const t = data as any;
+    return {
+      completed: t.completed, completed30d: t.completed_30d, finished: t.finished, disputes: t.disputes, refunds: t.refunds,
+      avgHandoverHours: t.avg_handover_hours ?? null, byTier: t.by_tier ?? {},
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      recent: (t.recent ?? []).map((r: any) => ({ listingId: r.listing_id, title: r.title, tier: r.tier, confirmedOn: r.confirmed_on })),
+    };
+  },
+  async orderShipping(orderId) {
+    const { data, error } = await supabase().rpc('order_shipping', { p_order: orderId });
+    return error || !data ? null : toShipping(data);
+  },
+  async setDeliveryAddress(orderId, address) {
+    const { data, error } = await supabase().rpc('set_delivery_address', { p_order: orderId, p_address: address });
+    return error ? fail(error) : { ok: true, value: toShipping(data) };
+  },
+  async createLabel(orderId, service, parcel) {
+    const { data, error } = await supabase().rpc('create_label', { p_order: orderId, p_service: service, p_parcel: parcel });
+    return error ? fail(error) : { ok: true, value: toShipping(data) };
+  },
+  async cancelLabel(orderId) {
+    const { data, error } = await supabase().rpc('cancel_label', { p_order: orderId });
+    return error ? fail(error) : { ok: true, value: toShipping(data) };
   },
   async unreadNotifications() {
     if (!(await uid())) return 0;

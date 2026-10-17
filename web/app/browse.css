@@ -231,3 +231,13 @@
 .pv-near__me { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .pv-basket-sizes { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-2); }
 .pv-basket-sizes .pv-chip[aria-current="true"] { background: var(--ink); color: var(--surface); }
+
+/* Trust badges and the public tracker */
+.pv-trust { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.pv-trustpage { display: flex; flex-direction: column; gap: var(--space-5); }
+.pv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: var(--space-3); margin: 0; }
+.pv-stats > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.pv-stats dt { font-size: 14px; color: var(--ink-soft); }
+.pv-stats dd { margin: 0; font: 600 28px/1.1 var(--font-sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pv-stats__tiers, .pv-stats__recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-stats__recent li { display: flex; flex-direction: column; padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }

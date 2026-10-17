@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { SealScanner } from './SealScanner';
+import { LabelMaker } from '@/components/shipping/Shipping';
 import { evidenceProblems, normaliseSeal, stepCopy, type CustodyView, type Evidence, type StepDef } from '@/lib/domain/custody';
 import { MediaProblem, preparePhoto, prepareVideo } from '@/lib/media';
 
@@ -23,6 +24,7 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
   const [challenge, setChallenge] = useState(view.challenge);
   const [seal, setSeal] = useState(view.seal);
   const set = (patch: Evidence) => setE((cur) => ({ ...cur, ...patch }));
+  const fillFromLabel = useCallback((l: { carrier: string; tracking: string }) => setE((cur) => ({ ...cur, carrier: l.carrier, tracking: l.tracking })), []);
   const copy = stepCopy(step, view.tier);
   const needs = step.needs;
 
@@ -141,6 +143,7 @@ export function StepForm({ view, step, onDone }: { view: CustodyView; step: Step
         </div>
       ) : null}
 
+      {needs.includes('tracking') ? <LabelMaker orderId={view.orderId} onLabel={fillFromLabel} /> : null}
       {needs.includes('tracking') ? (
         <div className="pv-grid2">
           <div className="pv-field">

@@ -43,6 +43,8 @@ jobs:
       - run: node voucher_checks.mjs
       - run: node popup_checks.mjs
       - run: node near_checks.mjs
+      - run: node label_checks.mjs
+      - run: node trust_checks.mjs
 
   migrate:
     needs: database-tests
