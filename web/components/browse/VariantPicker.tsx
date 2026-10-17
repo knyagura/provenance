@@ -56,21 +56,23 @@ export function VariantPicker({ initial, title, category }: { initial: Variant[]
             {list.map((v) => {
               const label = `${v.colour ?? ''}${v.colour && v.size ? ', ' : ''}${v.size ? `size ${v.size}` : ''}`;
               const gone = v.unitsLeft <= 0;
+              const shortLeft = gone ? 'Sold out' : v.unitsLeft <= 3 && v.stock > 1 ? `${v.unitsLeft} left` : '';
               return (
                 <li key={v.id}>
                   <Link
                     href={`/item/${v.id}`}
                     className={`pv-variant${v.current ? ' pv-variant--current' : ''}${gone ? ' pv-variant--gone' : ''}`}
                     aria-current={v.current ? 'page' : undefined}
-                    aria-label={`${label}: ${leftText(v)}${v.pricePence !== current?.pricePence ? `, ${formatPence(v.pricePence)}` : ''}`}
                     draggable={enabled && !gone ? true : undefined}
                     onDragStart={enabled && !gone ? (e) => {
                       e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ listingId: v.id, title: `${title} (${label})`, size: v.size, category }));
                       e.dataTransfer.effectAllowed = 'copyMove';
                     } : undefined}
                   >
-                    <span>{v.size ?? colour}</span>
-                    <span className="pv-variant__left">{gone ? 'Sold out' : v.unitsLeft <= 3 && v.stock > 1 ? `${v.unitsLeft} left` : ''}</span>
+                    {/* Read as "Oatmeal, size S: 3 left"; seen as "S" with "3 left" under it. */}
+                    <span><span className="pv-visually-hidden">{v.colour ? `${v.colour}, ` : ''}{v.size ? 'size ' : ''}</span>{v.size ?? colour}<span className="pv-visually-hidden">: </span></span>
+                    {shortLeft ? <span className="pv-variant__left">{shortLeft}</span> : <span className="pv-visually-hidden">{leftText(v)}</span>}
+                    {v.pricePence !== current?.pricePence ? <span className="pv-visually-hidden">, {formatPence(v.pricePence)}</span> : null}
                   </Link>
                 </li>
               );
