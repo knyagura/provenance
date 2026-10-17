@@ -484,9 +484,10 @@ begin
 end;
 $$;
 revoke execute on function public.protect_order_gift_fields() from public, anon, authenticated;
-drop trigger if exists orders_protect_gift_fields on public.orders;
-create trigger orders_protect_gift_fields before insert or update on public.orders
-  for each row execute function public.protect_order_gift_fields();
+do $$ begin
+  create trigger orders_protect_gift_fields before insert or update on public.orders
+    for each row execute function public.protect_order_gift_fields();
+exception when duplicate_object then null; end $$;
 
 create or replace function public.group_json(g public.checkout_groups)
 returns jsonb
@@ -675,9 +676,10 @@ begin
 end;
 $$;
 revoke execute on function public.basket_drop_paid() from public, anon, authenticated;
-drop trigger if exists orders_basket_drop_paid on public.orders;
-create trigger orders_basket_drop_paid after update of payment_status on public.orders
-  for each row execute function public.basket_drop_paid();
+do $$ begin
+  create trigger orders_basket_drop_paid after update of payment_status on public.orders
+    for each row execute function public.basket_drop_paid();
+exception when duplicate_object then null; end $$;
 
 -- ------------------------------------------------------------
 -- 4. Gift links: the person a basket is for unboxes it
