@@ -1,6 +1,6 @@
 // Supabase Edge Function: send-notifications. Sends waiting notification emails with Resend.
-// Called every minute by pg_cron (migration 016b). Deployed with verify_jwt off: it takes no input and
-// only sends what the database has queued, so calling it more often sends nothing extra.
+// Called every minute by pg_cron (migrations 016b, 017). Deployed with verify_jwt off because it checks its
+// own caller: the x-worker-token header must match the token kept in Supabase Vault (migration 017).
 //
 // Function secrets (set by the project owner in Supabase, never in code or chat):
 //   RESEND_API_KEY  required; without it nothing is sent and the emails wait (up to 2 days)
@@ -48,7 +48,10 @@ function email(r: Row) {
   return { from: FROM, to: [r.email!], subject: r.title, html, text, headers: { 'List-Unsubscribe': `<${SITE}/profile#notifications>` } };
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  const token = req.headers.get('x-worker-token');
+  const { data: allowed } = await admin.rpc('notification_worker_ok', { p_token: token });
+  if (allowed !== true) return Response.json({ error: 'forbidden' }, { status: 403 });
   if (!KEY) return Response.json({ sent: 0, waiting: 'RESEND_API_KEY is not set' });
   const { data, error } = await admin.rpc('notification_outbox_claim', { p_limit: 25 });
   if (error) return Response.json({ error: error.message }, { status: 500 });
