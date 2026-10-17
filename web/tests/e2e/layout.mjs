@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -541,13 +541,17 @@ try {
     await buyer.getByText('You offered £28.00').waitFor();
 
     const seller = await tab('mia.k@example.test', '/inbox');
+    await seller.getByRole('heading', { name: /^Updates/ }).waitFor();
+    await seller.getByText(/^New offer: £28\.00 for /).waitFor({ timeout: 5000 }).catch(() => fail('notifications: the seller’s Inbox does not show the new offer'));
     await seller.getByRole('heading', { name: 'Offers' }).waitFor();
     await seller.getByRole('button', { name: 'Counter' }).click();
     await seller.getByLabel('Your amount (£)').fill('31');
     await seller.getByRole('button', { name: 'Send', exact: true }).click();
     await seller.getByText('You offered £31.00').waitFor();
 
-    await buyer.reload();
+    await buyer.goto(BASE + '/notifications');
+    await buyer.getByText('mia.k offered £31.00 for', { exact: false }).first().click().catch(() => fail('notifications: the buyer’s Updates do not show the counter-offer'));
+    await buyer.waitForURL((u) => u.pathname === '/item/example-8');
     await buyer.getByText('mia.k offered £31.00').waitFor();
     await buyer.getByRole('button', { name: 'Accept £31.00' }).click();
     await buyer.getByRole('link', { name: 'Buy for £31.00' }).click();
@@ -560,6 +564,18 @@ try {
     if (!fees.includes('£31.00')) fail('offers: checkout is not at the agreed price');
     await pay.click();
     await buyer.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    // The seller hears about the sale; the counter-offer they made was accepted first.
+    await seller.goto(BASE + '/notifications');
+    await seller.getByText(/^Sold: /).first().waitFor({ timeout: 5000 }).catch(() => fail('notifications: the seller is not told about the sale'));
+    if (!(await seller.getByText(/^Offer accepted: /).count())) fail('notifications: the seller is not told the counter-offer was accepted');
+    await seller.getByRole('button', { name: 'Mark all as read' }).click();
+    await seller.getByText('You’re up to date.').waitFor({ timeout: 5000 }).catch(() => fail('notifications: mark all as read did not clear them'));
+    await seller.goto(BASE + '/profile#notifications');
+    const msgEmails = seller.getByRole('checkbox', { name: /^Messages/ });
+    await msgEmails.uncheck();
+    await seller.getByText('Saved', { exact: true }).waitFor();
+    await seller.reload();
+    if (await seller.getByRole('checkbox', { name: /^Messages/ }).isChecked()) fail('notifications: switching off message emails did not stick');
     if (oerr.length) fail(`offers: page errors: ${oerr.slice(0, 3).join(' | ')}`);
     await octx.close();
   }

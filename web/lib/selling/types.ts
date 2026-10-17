@@ -247,6 +247,26 @@ export interface ContactMessage {
   handledBy: string | null;
 }
 
+export type NotificationGroup = 'turn' | 'messages' | 'offers' | 'sales';
+export type NotificationKind =
+  | 'turn' | 'message' | 'offer_new' | 'offer_counter' | 'offer_accepted' | 'offer_expiring' | 'sold' | 'payout' | 'dispute' | 'decision';
+/** Something that happened on the member's orders or offers (migration 016). */
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  group: NotificationGroup;
+  title: string;
+  body: string;
+  link: string;
+  /** Messages on one order share a notification; this is how many it holds. */
+  count: number;
+  createdAt: string;
+  read: boolean;
+  emailed: boolean;
+}
+/** Which groups the member gets emails for. The in-app list always shows everything. */
+export type NotificationPrefs = Record<NotificationGroup, boolean>;
+
 export interface MarketBackend {
   favourites(): Promise<string[]>;
   setFavourite(listingId: string, on: boolean): Promise<Result>;
@@ -283,6 +303,13 @@ export interface MarketBackend {
   submitContact(name: string, email: string, topic: ContactTopic, body: string): Promise<Result>;
   staffContactMessages(openOnly: boolean): Promise<ContactMessage[]>;
   staffContactHandled(id: string): Promise<Result>;
+
+  notifications(): Promise<AppNotification[]>;
+  unreadNotifications(): Promise<number>;
+  /** Marks these (or, with null, all) read. */
+  markNotificationsRead(ids: string[] | null): Promise<void>;
+  notificationPrefs(): Promise<NotificationPrefs>;
+  setNotificationPrefs(prefs: NotificationPrefs): Promise<Result<NotificationPrefs>>;
 }
 
 export interface BasketBackend {

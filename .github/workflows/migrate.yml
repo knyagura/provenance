@@ -36,6 +36,7 @@ jobs:
       - run: node marketplace_checks.mjs
       - run: node basket_checks.mjs
       - run: node contact_checks.mjs
+      - run: node notification_checks.mjs
 
   migrate:
     needs: database-tests

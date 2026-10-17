@@ -10,6 +10,8 @@ interface MarketState {
   saved: Set<string>;
   toggleSaved: (listingId: string) => Promise<void>;
   counts: InboxCounts;
+  /** Unread notifications (Updates). */
+  updates: number;
   /** Everything waiting for the member: custody turns, unread messages and offers to answer. */
   attention: number;
   refreshCounts: () => void;
@@ -26,6 +28,7 @@ export function MarketStateProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [counts, setCounts] = useState<InboxCounts>(ZERO);
+  const [updates, setUpdates] = useState(0);
 
   useEffect(() => {
     if (!member) {
@@ -36,8 +39,12 @@ export function MarketStateProvider({ children }: { children: React.ReactNode })
   }, [member, backend]);
 
   const refreshCounts = useCallback(() => {
-    if (!member) return setCounts(ZERO);
+    if (!member) {
+      setUpdates(0);
+      return setCounts(ZERO);
+    }
     backend.inboxCounts().then(setCounts).catch(() => {});
+    backend.unreadNotifications().then(setUpdates).catch(() => {});
   }, [member, backend]);
 
   useEffect(() => {
@@ -79,13 +86,14 @@ export function MarketStateProvider({ children }: { children: React.ReactNode })
   );
 
   const value = useMemo(
-    () => ({ saved, toggleSaved, counts, attention: counts.turns + counts.unread + counts.offers, refreshCounts }),
-    [saved, toggleSaved, counts, refreshCounts],
+    // Unread updates mostly overlap the counts (a turn, a message, an offer), so take the larger.
+    () => ({ saved, toggleSaved, counts, updates, attention: Math.max(counts.turns + counts.unread + counts.offers, updates), refreshCounts }),
+    [saved, toggleSaved, counts, updates, refreshCounts],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-const FALLBACK: MarketState = { saved: new Set(), toggleSaved: async () => {}, counts: ZERO, attention: 0, refreshCounts: () => {} };
+const FALLBACK: MarketState = { saved: new Set(), toggleSaved: async () => {}, counts: ZERO, updates: 0, attention: 0, refreshCounts: () => {} };
 
 /** Works outside the provider too (the style guide), with nothing saved. */
 export function useMarketState(): MarketState {
