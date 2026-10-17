@@ -706,7 +706,7 @@ try {
     await p.waitForURL((u) => u.pathname === '/item/example-13');
     await p.getByRole('heading', { name: 'Colours and sizes' }).waitFor();
     if (await p.getByRole('button', { name: 'Make an offer' }).count()) fail('variants: business listings should not take offers');
-    await p.getByRole('link', { name: /^Charcoal, size S: 1 left/ }).click();
+    await p.getByRole('link', { name: /^Charcoal, size S: Available/ }).click();
     await p.waitForURL((u) => u.pathname === '/item/example-15');
     await p.getByRole('link', { name: 'Buy now' }).click();
     await p.waitForURL((u) => u.pathname === '/checkout/example-15');
