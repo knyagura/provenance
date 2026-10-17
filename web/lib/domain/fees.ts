@@ -1,3 +1,4 @@
+import { formatPence } from '@/lib/format';
 // The fee engine: what a buyer pays and a seller receives for one item, from the fee settings.
 // The database has the same engine (backend/008_checkout.sql) and that one decides real orders; this one
 // shows the breakdown on screens. Both are tested against the same agreed baskets
@@ -113,6 +114,8 @@ export interface FeeBreakdown {
   sellerFeesPence: number;
   sellerPayoutPence: number;
   payer: 'buyer' | 'seller';
+  /** A seller's bundle discount, applied at basket checkout (migration 020). */
+  bundle?: { pct: number; discountPence: number; listPricePence: number };
 }
 
 /** Rounds n ÷ d to the nearest whole number, halves up. Integers only, so no floating-point drift. */
@@ -220,13 +223,14 @@ export function breakdownFromJson(j: Record<string, unknown> | null): FeeBreakdo
     sellerFeesPence: n('seller_fees_pence'),
     sellerPayoutPence: n('seller_payout_pence'),
     payer: (j.payer as 'buyer' | 'seller') ?? 'buyer',
+    ...(j.bundle_pct ? { bundle: { pct: n('bundle_pct'), discountPence: n('bundle_discount_pence'), listPricePence: n('list_price_pence') } } : {}),
   };
 }
 
 /** The lines a buyer sees, in order, leaving out anything that is zero. */
 export function buyerLines(b: FeeBreakdown): { key: string; label: string; note: string; pence: number }[] {
   const lines = [
-    { key: 'price', label: 'Item', note: '', pence: b.pricePence },
+    { key: 'price', label: 'Item', note: b.bundle ? `Bundle discount: ${b.bundle.pct}% off (was ${formatPence(b.bundle.listPricePence)})` : '', pence: b.pricePence },
     { key: 'postage', label: 'Postage', note: 'Tracked delivery to your door.', pence: b.postagePence },
     ...(b.payer === 'buyer'
       ? [

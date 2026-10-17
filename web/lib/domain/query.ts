@@ -68,6 +68,9 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
     errors.push({ name: 'condition', reason: `Must be one of: ${CONDITIONS.join(', ')}.` });
   }
 
+  const size = get(params, 'size')?.trim() || undefined;
+  if (size && size.length > 40) errors.push({ name: 'size', reason: 'A size can be at most 40 characters.' });
+
   const sortRaw = get(params, 'sort') ?? 'newest';
   if (!SORTS.includes(sortRaw as Sort)) errors.push({ name: 'sort', reason: `Must be one of: ${SORTS.join(', ')}.` });
 
@@ -91,7 +94,7 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
     errors.push({ name: 'max', reason: 'The highest price must be more than the lowest.' });
   }
 
-  return { q, category, seller, condition, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
+  return { q, category, seller, condition, size, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
 }
 
 export function parseApiQuery(params: Params): Parsed {
@@ -116,6 +119,7 @@ export function parseSiteQuery(params: Params): { query: ListingQuery; errors: F
       category: bad.has('category') ? undefined : query.category,
       seller: bad.has('seller') ? undefined : query.seller,
       condition: bad.has('condition') ? undefined : query.condition,
+      size: bad.has('size') ? undefined : query.size,
       sort: bad.has('sort') ? 'newest' : query.sort,
       minPence: bad.has('min') || bad.has('max') ? undefined : query.minPence,
       maxPence: bad.has('min') || bad.has('max') ? undefined : query.maxPence,

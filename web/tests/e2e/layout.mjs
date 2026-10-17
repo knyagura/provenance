@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -701,6 +701,174 @@ try {
     }
     if (kerr.length) fail(`baskets: page errors: ${kerr.slice(0, 3).join(' | ')}`);
     await kctx.close();
+  }
+
+  // Variants (business seller): pick a colour and size, no offers, each unit is its own order, sold-out shows.
+  {
+    const vctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const verr = [];
+    const p = await vctx.newPage();
+    p.on('pageerror', (e) => verr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/item/example-13')}`);
+    await p.getByLabel('Email').fill('variantbuyer@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/item/example-13');
+    await p.getByRole('heading', { name: 'Colours and sizes' }).waitFor();
+    if (await p.getByRole('button', { name: 'Make an offer' }).count()) fail('variants: business listings should not take offers');
+    await p.getByRole('link', { name: /^Charcoal, size S:\s*Available/ }).click();
+    await p.waitForURL((u) => u.pathname === '/item/example-15');
+    await p.getByRole('link', { name: 'Buy now' }).click();
+    await p.waitForURL((u) => u.pathname === '/checkout/example-15');
+    await p.getByRole('button', { name: /^Continue to payment/ }).click();
+    const vpay = p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ });
+    await vpay.waitFor();
+    await vpay.click();
+    await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    await p.goto(BASE + '/item/example-13');
+    await p.getByRole('link', { name: /^Charcoal, size S:\s*Sold out/ }).waitFor({ timeout: 5000 }).catch(() => fail('variants: the bought size should show as sold out'));
+    // Shopping for several people: drag one size onto a basket.
+    await p.goto(BASE + '/basket');
+    await p.getByRole('switch', { name: 'Multi-basket shopping' }).check();
+    await p.goto(BASE + '/item/example-13');
+    const rail = p.getByRole('complementary', { name: 'Your baskets' });
+    await rail.waitFor();
+    await p.getByRole('link', { name: /^Oatmeal, size M/ }).dragTo(rail.locator('[data-basket="General"]'));
+    await p.getByRole('status').filter({ hasText: /Merino crew jumper \(Oatmeal, size M\) added to/ }).waitFor({ timeout: 5000 })
+      .catch(() => fail('variants: dragging a size onto a basket did not add it'));
+    if (verr.length) fail(`variants: page errors: ${verr.slice(0, 3).join(' | ')}`);
+    await vctx.close();
+  }
+
+  // Saved searches: save one from the results, see it on the Saved page, switch its alerts off, delete it.
+  {
+    const sctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const serr = [];
+    const p = await sctx.newPage();
+    p.on('pageerror', (e) => serr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/search?q=barbour&size=m&max=60')}`);
+    await p.getByLabel('Email').fill('searcher@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/search');
+    await p.getByRole('link', { name: /Barbour Beaufort wax jacket/ }).first().waitFor({ timeout: 5000 }).catch(() => fail('saved searches: the size filter lost the M jacket'));
+    await p.getByRole('button', { name: 'Save this search' }).click();
+    await p.getByRole('link', { name: 'Your searches' }).click();
+    await p.waitForURL((u) => u.pathname === '/saved');
+    const row = p.locator('#searches li', { hasText: 'barbour · size m · under £60.00' });
+    await row.getByText('1 item for sale now').waitFor({ timeout: 5000 }).catch(() => fail('saved searches: the saved search or its count is missing'));
+    await row.getByRole('checkbox', { name: 'Tell me about new matches' }).uncheck();
+    await p.reload();
+    if (await p.locator('#searches li').first().getByRole('checkbox').isChecked()) fail('saved searches: switching alerts off did not stick');
+    await p.getByRole('button', { name: /^Delete saved search/ }).click();
+    await p.getByText('No saved searches yet.').waitFor({ timeout: 5000 }).catch(() => fail('saved searches: delete did not work'));
+    if (serr.length) fail(`saved searches: page errors: ${serr.slice(0, 3).join(' | ')}`);
+    await sctx.close();
+  }
+
+  // Seller tools: a bundle (resole_archive offers 10% off 2 or more), then the seller's sales dashboard.
+  {
+    const bctx = await browser.newContext({ viewport: { width: 1024, height: 900 } });
+    const berr = [];
+    let p = await bctx.newPage();
+    p.on('pageerror', (e) => berr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await p.waitForURL((u) => u.pathname === next.split('?')[0] || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === next.split('?')[0]); }
+    };
+    await signIn('bundlebuyer@example.com', '/item/example-5');
+    await p.getByText('Bundle: 10% off 2 or more').waitFor({ timeout: 5000 }).catch(() => fail('bundles: the item page should show the seller’s bundle offer'));
+    await p.getByRole('button', { name: 'Add to basket' }).click();
+    await p.goto(BASE + '/item/example-4');
+    await p.getByRole('button', { name: 'Add to basket' }).click();
+    await p.getByRole('link', { name: /In your basket/ }).waitFor();
+    await p.goto(BASE + '/basket');
+    await p.getByRole('link', { name: 'Check out' }).click();
+    await p.getByRole('button', { name: 'Continue to payment' }).click();
+    await p.getByText('Bundle: 10% off (was £10.00)').waitFor({ timeout: 5000 }).catch(() => fail('bundles: checkout should show the discount on each item'));
+    await p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ }).click();
+    await p.getByRole('heading', { name: 'Paid. Thank you' }).waitFor();
+    // The seller, on their own device (example accounts keep one profile per browser).
+    const market = await p.evaluate(() => localStorage.getItem('pv-example-market'));
+    await p.close();
+    p = await bctx.newPage();
+    await p.evaluate((m) => { localStorage.clear(); localStorage.setItem('pv-example-market', m); }, market).catch(() => {});
+    await p.goto(BASE + '/');
+    await p.evaluate((m) => { localStorage.clear(); localStorage.setItem('pv-example-market', m); }, market);
+    await signIn('resole_archive@example.test', '/selling');
+    await p.getByRole('heading', { name: 'Your sales' }).waitFor();
+    const sold = p.locator('.pv-tile', { hasText: 'Sold' });
+    if (!(await sold.getByText('2 in bundles').isVisible())) fail('dashboard: the two bundled sales are missing');
+    if ((await p.locator('.pv-table tbody tr').count()) < 2) fail('dashboard: the sold history should list both orders');
+    await p.getByLabel('Discount', { exact: true }).selectOption('15');
+    await p.getByRole('button', { name: 'Save', exact: true }).click();
+    await p.getByRole('status').filter({ hasText: 'Saved: 15% off 2 or more' }).waitFor({ timeout: 5000 }).catch(() => fail('dashboard: changing the bundle discount failed'));
+    if (berr.length) fail(`seller tools: page errors: ${berr.slice(0, 3).join(' | ')}`);
+    await bctx.close();
+  }
+
+  // Vouchers and gift cards: buy a card, the recipient adds it to their balance, uses a sign-up code and the balance.
+  {
+    const gctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const gerr = [];
+    const p = await gctx.newPage();
+    p.on('pageerror', (e) => gerr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      const path = next.split('?')[0];
+      await p.waitForURL((u) => u.pathname === path || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === path); }
+    };
+    await signIn('giftgiver@example.com', '/gift-cards');
+    await p.getByRole('button', { name: '£25' }).click();
+    await p.getByLabel('Their name (optional)').fill('Ana');
+    await p.getByRole('button', { name: 'Continue to payment' }).click();
+    await p.getByRole('button', { name: 'Pay £25.00 (test)' }).click();
+    const codeEl = p.locator('.pv-giftcode').first();
+    await codeEl.waitFor({ timeout: 5000 }).catch(() => fail('gift cards: no code after paying'));
+    const code = (await codeEl.textContent())?.trim() ?? '';
+    if (!/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(code)) fail(`gift cards: odd code "${code}"`);
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+
+    await signIn('newbuyer@example.com', `/gift-cards?code=${code}`);
+    await p.getByRole('button', { name: 'Add to balance' }).click();
+    await p.getByRole('status').filter({ hasText: 'Your balance is now £25.00' }).waitFor({ timeout: 5000 }).catch(() => fail('gift cards: redeeming did not add £25'));
+    await p.goto(BASE + '/checkout/example-2');
+    await p.getByRole('button', { name: /^Continue to payment/ }).click();
+    await p.getByLabel('Voucher or gift card code').fill('welcome10');
+    await p.getByRole('button', { name: 'Apply' }).click();
+    await p.getByText('−£1.20').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: WELCOME10 should take 10% off the £12 dress'));
+    await p.getByLabel(/Use my NuTuYu balance/).check();
+    await p.locator('.pv-codes').getByText('£0.00').waitFor({ timeout: 5000 }).catch(() => fail('gift cards: the balance should cover the rest'));
+    await p.getByRole('button', { name: 'Pay £0.00 (test)' }).click();
+    await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    await p.goto(BASE + '/gift-cards');
+    const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
+    const leftPence = Math.round(Number((left.match(/£([\d.]+)/) ?? [])[1]) * 100);
+    if (!(leftPence > 0 && leftPence < 2500)) fail(`gift cards: the balance after paying looks wrong (${left})`);
+    // Staff make a code.
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+    await signIn('staff.vouchers@example.com', '/staff');
+    await p.getByRole('tab', { name: 'Vouchers' }).click();
+    await p.getByRole('button', { name: 'New code' }).click();
+    await p.getByLabel('Code', { exact: true }).fill('SPRING5');
+    await p.getByLabel('Discount type').selectOption('amount');
+    await p.getByLabel('Amount off (£)').fill('5');
+    await p.getByRole('button', { name: 'Make code' }).click();
+    await p.getByText('SPRING5 is ready to use.').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: staff could not make a code'));
+    if (gerr.length) fail(`vouchers: page errors: ${gerr.slice(0, 3).join(' | ')}`);
+    await gctx.close();
   }
 
   // Popups: "how protection works" shows once on the home page, can be reopened, and staff can switch on an offer.

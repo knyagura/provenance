@@ -37,6 +37,10 @@ jobs:
       - run: node basket_checks.mjs
       - run: node contact_checks.mjs
       - run: node notification_checks.mjs
+      - run: node variant_checks.mjs
+      - run: node alert_checks.mjs
+      - run: node seller_checks.mjs
+      - run: node voucher_checks.mjs
       - run: node popup_checks.mjs
 
   migrate:

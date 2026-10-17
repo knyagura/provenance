@@ -74,6 +74,36 @@ Newest first. Each entry says what changed for people using the site, and which 
 - Migration 017: only the scheduled job can start the sender. It uses a random token kept in Supabase Vault, and nobody handles it.
 - Documents: [ADR 0012](adr/0012-notifications.md).
 
+## 2026-10-17: Variants and stock for business sellers
+- Business sellers (marked by staff in the console) can sell more than one of an item, and add colours and sizes from the listing page (*Stock, colours and sizes*). Each one has its own stock and, if they like, its own price, and shares the original's photos.
+- Item pages show every colour and size with what's left ("2 left", "Sold out"). Search shows one card per item. With multi-basket shopping on, each size can be dragged straight onto someone's basket.
+- Every unit sold is its own order with its own protected handover. A listing stays on sale while units are left, shows "Reserved" while the rest are being paid for, and "Sold" when they've all gone. Overselling is refused. Business prices are fixed, so they don't take offers.
+- Migration 018. Example mode has a business seller, `knit_house`, selling a merino jumper in two colours and two sizes.
+- New checklist: [When the domain is bought](when-the-domain-is-bought.md), covering Netlify, Supabase, passkeys, Google sign-in, Resend and the uptime check.
+- Documents: [ADR 0013](adr/0013-variants-for-business-sellers.md).
+
+## 2026-10-17: Saved searches, price-drop alerts and a size filter
+- *Save this search* on the results page. The Saved page lists your searches with how many items match now, an alert switch and Delete.
+- When a new listing matches a saved search (or drops into its price range), you get an Update and, if you like, an email. Items you saved tell you when their price drops ("Now £49 (was £55)").
+- New **Size** filter in search, and a `size` parameter in the API.
+- New email switch, *Alerts*, under Account → Emails.
+- Migration 019. Documents: [ADR 0014](adr/0014-saved-searches-and-alerts.md).
+
+## 2026-10-17: Seller tools: bundle discounts, sold history and a sales dashboard
+- **Bundle discounts:** sellers can offer, for example, 10% off when someone buys 2 or more of their items in one basket checkout. Their item pages show the offer. Checkout shows the discount against each item ("Bundle: 10% off (was £10.00)"), and the fees and the one payment are worked out on the discounted prices.
+- **Your sales** (`/selling`, linked from your account) shows:
+  - what you've sold, what you've taken, what's held and what's been released;
+  - average handover time and problems reported;
+  - sales by month for the last year;
+  - every sale, with its buyer, handover and payment status;
+  - the bundle discount settings.
+- Migration 020. Example mode: `resole_archive` offers 10% off 2 or more.
+
+## 2026-10-17: Voucher codes, gift cards and a NuTuYu balance
+- **Voucher codes.** Staff make NuTuYu codes in the console (*Vouchers*). NuTuYu pays for them: the buyer pays less, and the seller still gets their full payout. Sellers make codes for their own shop on *Your sales*; the discount comes off their price. Options: percentage or amount off, a cap, minimum spend, uses per person, total uses, end date, and first order only (good for a sign-up offer in a popup).
+- **Gift cards** from £10 to £250 at `/gift-cards` (in the footer and your account). The code appears once paid, and is emailed to the recipient if you give their address. They add it to their **NuTuYu balance**, valid for 2 years.
+- **At checkout**, one box takes a voucher or gift card code, and a tick box uses your balance. You see the discount and what's left to pay by card. With nothing left to pay, the order is paid straight away. Codes and balance come back if you don't finish paying, and the balance part comes back if an order is refunded.
+- Migration 022, plus updated checkout, webhook and email functions. Documents: [ADR 0016](adr/0016-vouchers-gift-cards-balance.md).
 ## 2026-10-17: Home page goes straight to the items; popups staff configure
 - The home page now starts with the items ("Newly listed", 20 of them) right under the category bar. The hero and the how-it-works strip are gone. "How protection works" opens the explanation as a popup, which new visitors also see once.
 - New *Popups* tab in the staff console: explanations, announcements and offers, with title, text, steps, a button, an optional offer code, who sees it, which pages, a delay, priority and dates. "Show again" shows a popup again to everyone who closed it.

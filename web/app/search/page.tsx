@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { CategoryBar } from '@/components/browse/CategoryBar';
 import { ExamplesNote } from '@/components/browse/ExamplesNote';
 import { ListingGrid } from '@/components/browse/ListingGrid';
+import { SaveSearch } from '@/components/browse/SaveSearch';
 import { CatalogueUnavailable, siteCatalogue } from '@/lib/domain/catalogue';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, countText, resultsHeading } from '@/lib/domain/present';
@@ -37,7 +38,7 @@ function pageHref(params: Params, cursor: string | null): string {
 }
 
 function activeFilterCount(q: ListingQuery): number {
-  return [q.condition, q.minPence, q.maxPence].filter((v) => v !== undefined).length + (q.sort !== 'newest' ? 1 : 0);
+  return [q.condition, q.size, q.minPence, q.maxPence].filter((v) => v !== undefined).length + (q.sort !== 'newest' ? 1 : 0);
 }
 
 export default async function SearchPage({ searchParams }: Props) {
@@ -72,6 +73,11 @@ export default async function SearchPage({ searchParams }: Props) {
           ) : null}
         </div>
 
+        <SaveSearch
+          search={{ q: query.q, category: query.category, size: query.size, condition: query.condition, minPence: query.minPence, maxPence: query.maxPence }}
+          categoryName={catName ?? null}
+          here={pageHref(params, null)}
+        />
         <details className="pv-filters" open={filters > 0 || errors.length > 0}>
           <summary className="pv-btn pv-btn--secondary">Filter and sort{filters ? ` (${filters})` : ''}</summary>
           {/* Keyed so the fields reset when a category link changes the search without a full page load. */}
@@ -90,6 +96,10 @@ export default async function SearchPage({ searchParams }: Props) {
                 <option value="">Any condition</option>
                 {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
+            </div>
+            <div className="pv-field">
+              <label htmlFor="f-size">Size</label>
+              <input id="f-size" name="size" maxLength={40} placeholder="For example 10, M or UK 9" defaultValue={query.size ?? ''} />
             </div>
             <fieldset className="pv-field pv-field--range">
               <legend>Price (£)</legend>

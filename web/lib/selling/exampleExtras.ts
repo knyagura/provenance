@@ -3,11 +3,15 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { exampleMoney } from './exampleMoney';
+import { filterInMemory } from '@/lib/domain/search';
+import { exampleBundle, setExampleBundle } from './exampleBundles';
+import { exampleSource } from '@/lib/domain/catalogue';
 import { examplePopups } from './examplePopups';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
-  CheckoutStarted, ContactMessage, MarketBackend, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
+  CheckoutStarted, ContactMessage, MarketBackend, SavedSearch, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
 } from './types';
 
 // Example mode's favourites, messages, offers, reviews, passport and staff console, shared between tabs in
@@ -32,6 +36,7 @@ interface Extras {
   settings?: { custody: Record<string, number>; offers: Record<string, number>; fees: StaffSettings['fees'] };
   actions: { orderId: string; action: string; by: string; detail: Record<string, unknown>; at: string }[];
   contact?: ContactMessage[];
+  searches?: Record<string, SavedSearch[]>;
 }
 
 function load(): Extras {
@@ -76,6 +81,13 @@ function offerView(o: StoredOffer, me: Member): Offer {
     createdAt: o.createdAt, expiresAt: o.expiresAt,
   };
 }
+const withCounts = (list: SavedSearch[]): SavedSearch[] => list.map((s) => ({
+  ...s,
+  liveCount: filterInMemory(exampleCatalogue, {
+    q: s.q ?? undefined, category: s.category ?? undefined, size: s.size ?? undefined, condition: s.condition ?? undefined,
+    minPence: s.minPence ?? undefined, maxPence: s.maxPence ?? undefined, sort: 'newest', limit: 200, offset: 0,
+  }).length,
+}));
 const isStaffMember = (m: Member | null) => !!m && m.email.toLowerCase().startsWith('staff');
 const party = (o: StoredOrder, me: Member) => o.buyerId === me.id || o.sellerId === me.id;
 
@@ -184,6 +196,7 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       const sellerId = exampleSellerId(listingId);
       if (!l || sold(listingId)) return fail('This item isn’t taking offers.');
       if (sellerId === m.id) return fail('You can’t make an offer on your own listing.');
+      if ((l.stock ?? 1) > 1 || l.variantGroup) return fail('This seller’s prices are fixed, so it doesn’t take offers.');
       if (!Number.isInteger(amountPence) || amountPence >= l.pricePence) return fail('Offer less than the price, or just buy it.');
       if (amountPence < Math.ceil((l.pricePence * OFFER_MIN_PCT) / 100)) return fail(`Offers start at ${OFFER_MIN_PCT}% of the price.`);
       const x = load();
@@ -423,6 +436,166 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffContactMessages(openOnly) {
       if (!isStaffMember(me())) return [];
       return (load().contact ?? []).filter((m) => !openOnly || !m.handledAt);
+    },
+    async isBusiness() {
+      const m = me();
+      return !!m && (/^shop/i.test(m.email) || exampleCatalogue.some((l) => l.seller.business && memberId(`${l.seller.username}@example.test`) === m.id));
+    },
+    async listingVariants(listingId) {
+      return exampleSource.variants(listingId);
+    },
+    async setListingStock() {
+      return fail('Example listings can’t be restocked. Sign in to the live site with a business account to try it.');
+    },
+    async addVariant() {
+      return fail('Example listings can’t get new variants. Sign in to the live site with a business account to try it.');
+    },
+    async staffSetBusiness(username, on) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return { ok: true, value: { username, business: on } };
+    },
+    async sellerDashboard() {
+      const m = me();
+      if (!m) return null;
+      const sold = loadMarket().orders.filter((o) => o.sellerId === m.id && o.summary.paymentStatus === 'paid');
+      const payout = (o: StoredOrder) => o.summary.quote?.sellerPayoutPence ?? o.summary.quote?.pricePence ?? 0;
+      const months = new Map<string, { sold: number; grossPence: number }>();
+      for (const o of sold) {
+        const k = (o.summary.paidAt ?? o.summary.createdAt).slice(0, 7);
+        const cur = months.get(k) ?? { sold: 0, grossPence: 0 };
+        months.set(k, { sold: cur.sold + 1, grossPence: cur.grossPence + (o.summary.quote?.pricePence ?? 0) });
+      }
+      const confirmed = sold.filter((o) => o.custody?.state === 'confirmed' && o.custody.events.length && o.summary.paidAt);
+      const hours = confirmed.map((o) => (Date.parse(o.custody!.events.at(-1)!.at) - Date.parse(o.summary.paidAt!)) / 3_600_000);
+      return {
+        totals: {
+          sold: sold.length, grossPence: sold.reduce((t, o) => t + (o.summary.quote?.pricePence ?? 0), 0),
+          payoutPence: sold.filter((o) => o.custody?.payoutStatus !== 'refund').reduce((t, o) => t + payout(o), 0),
+          heldPence: sold.filter((o) => (o.custody?.payoutStatus ?? 'held') === 'held').reduce((t, o) => t + payout(o), 0),
+          releasedPence: sold.filter((o) => ['due', 'paid'].includes(o.custody?.payoutStatus ?? '')).reduce((t, o) => t + payout(o), 0),
+          refunded: sold.filter((o) => o.custody?.payoutStatus === 'refund').length,
+          disputed: sold.filter((o) => o.custody?.disputeReason).length,
+          avgHandoverHours: hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : null,
+          liveListings: 0, bundles: sold.filter((o) => o.summary.quote?.bundle).length,
+        },
+        months: [...months.entries()].sort().map(([month, v]) => ({ month, ...v })),
+        recent: sold.map((o) => ({
+          orderId: o.summary.id, listingId: o.summary.listingId, title: o.summary.title, pricePence: o.summary.quote?.pricePence ?? 0, payoutPence: payout(o),
+          paidAt: o.summary.paidAt, buyer: o.buyerId.replace(/^example:/, '').split('@')[0], state: o.custody?.state ?? 'not_started',
+          payoutStatus: o.custody?.payoutStatus ?? 'held', bundle: Boolean(o.summary.quote?.bundle),
+        })),
+        bundle: exampleBundle(m.username),
+      };
+    },
+    async setBundleDiscount(offer) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      if (offer && (offer.minItems < 2 || offer.minItems > 10 || offer.pct < 5 || offer.pct > 50)) return fail('Choose 2 to 10 items and 5% to 50% off.');
+      setExampleBundle(m.username, offer);
+      return { ok: true, value: offer };
+    },
+    async bundleOffer(username) {
+      return exampleBundle(username);
+    },
+    async mySavedSearches() {
+      const m = me();
+      return m ? withCounts(load().searches?.[m.id] ?? []) : [];
+    },
+    async saveSearch(name, q) {
+      const m = me();
+      if (!m) return fail('Sign in to save searches.');
+      if (!q.q?.trim() && !q.category && !q.size?.trim() && !q.condition && q.minPence === undefined && q.maxPence === undefined) {
+        return fail('Search for something, or choose a filter, before saving.');
+      }
+      const x = load();
+      const mine = x.searches?.[m.id] ?? [];
+      if (mine.length >= 20) return fail('You can keep up to 20 saved searches. Delete one to add another.');
+      const s: SavedSearch = {
+        id: id('search'), name: name.trim().slice(0, 80) || 'Saved search', q: q.q?.trim() || null, category: q.category ?? null, size: q.size?.trim() || null,
+        condition: q.condition ?? null, minPence: q.minPence ?? null, maxPence: q.maxPence ?? null, alert: true, createdAt: now(), liveCount: 0,
+      };
+      x.searches = { ...x.searches, [m.id]: [s, ...mine] };
+      save(x);
+      return { ok: true, value: withCounts([s])[0] };
+    },
+    async setSearchAlert(sid, on) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const x = load();
+      for (const s of x.searches?.[m.id] ?? []) if (s.id === sid) s.alert = on;
+      save(x);
+      return { ok: true, value: withCounts(x.searches?.[m.id] ?? []) };
+    },
+    async deleteSavedSearch(sid) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const x = load();
+      x.searches = { ...x.searches, [m.id]: (x.searches?.[m.id] ?? []).filter((s) => s.id !== sid) };
+      save(x);
+      return { ok: true, value: withCounts(x.searches[m.id]) };
+    },
+    async checkoutCodes(target) {
+      const m = me();
+      return m ? exampleMoney.codes(target, m) : null;
+    },
+    async applyCode(target, code) {
+      const m = me();
+      return m ? exampleMoney.applyCode(target, code, m) : fail('Sign in first.');
+    },
+    async removeVoucher(target) {
+      const m = me();
+      return m ? exampleMoney.removeVoucher(target, m) : fail('Sign in first.');
+    },
+    async useBalance(target, on) {
+      const m = me();
+      return m ? exampleMoney.useBalance(target, on, m) : fail('Sign in first.');
+    },
+    async staffVouchers() {
+      return isStaffMember(me()) ? exampleMoney.vouchers() : [];
+    },
+    async staffSaveVoucher(vid, patch) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      const r = exampleMoney.saveVoucher(vid, patch, null);
+      return r.ok ? { ok: true, value: exampleMoney.vouchers() } : r;
+    },
+    async myShopVouchers() {
+      const m = me();
+      return m ? exampleMoney.vouchers(m.id) : [];
+    },
+    async saveShopVoucher(vid, patch) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const r = exampleMoney.saveVoucher(vid, patch, { id: m.id, username: m.username });
+      return r.ok ? { ok: true, value: exampleMoney.vouchers(m.id) } : r;
+    },
+    async buyGiftCard(amount, name, email, message) {
+      const m = me();
+      return m ? exampleMoney.buyCard(m, amount, name, email, message) : fail('Sign in to buy a gift card.');
+    },
+    async payGiftCard(cid) {
+      const m = me();
+      const c = m ? exampleMoney.myCards(m).find((x) => x.id === cid && x.paymentStatus === 'awaiting_payment') : null;
+      return c ? { ok: true, value: { kind: 'simulated' as const, amountPence: c.amountPence } } : fail('Start again from Gift cards.');
+    },
+    async simulateGiftCardPayment(cid) {
+      const m = me();
+      return m ? exampleMoney.payCard(m, cid) : fail('Sign in first.');
+    },
+    async cancelGiftCard(cid) {
+      const m = me();
+      if (m) exampleMoney.cancelCard(m, cid);
+    },
+    async myGiftCards() {
+      const m = me();
+      return m ? exampleMoney.myCards(m) : [];
+    },
+    async redeemGiftCard(code) {
+      const m = me();
+      return m ? exampleMoney.redeem(m, code) : fail('Sign in to redeem a gift card.');
+    },
+    async myBalance() {
+      const m = me();
+      return m ? exampleMoney.balance(m) : { balancePence: 0, lots: [] };
     },
     async livePopups() {
       return examplePopups.live();

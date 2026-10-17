@@ -44,7 +44,9 @@ export function ProfileView() {
         <p className="pv-note">{member.email}</p>
         <div className="pv-actions">
           <Link className="pv-btn pv-btn--primary" href="/sell">Sell an item</Link>
+          <Link className="pv-btn pv-btn--secondary" href="/selling">Your sales</Link>
           <Link className="pv-btn pv-btn--secondary" href="/saved">Saved items</Link>
+          <Link className="pv-btn pv-btn--secondary" href="/gift-cards">Gift cards and balance</Link>
           <Link className="pv-btn pv-btn--secondary" href={`/member/${encodeURIComponent(member.username)}`}>Your public page</Link>
           {staff ? <Link className="pv-btn pv-btn--secondary" href="/staff">Staff console</Link> : null}
           <button type="button" className="pv-btn pv-btn--secondary" onClick={async () => { await backend.signOut(); router.push('/'); }}>

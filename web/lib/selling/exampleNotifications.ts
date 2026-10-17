@@ -12,7 +12,7 @@ const MAX_PER_PERSON = 100;
 interface Stored extends AppNotification { userId: string; orderId: string | null; dedupe: string | null }
 interface Store { items: Stored[]; prefs: Record<string, NotificationPrefs> }
 
-export const ALL_EMAILS: NotificationPrefs = { turn: true, messages: true, offers: true, sales: true };
+export const ALL_EMAILS: NotificationPrefs = { turn: true, messages: true, offers: true, sales: true, alerts: true };
 
 function load(): Store {
   try {
@@ -35,6 +35,7 @@ export function groupOf(kind: NotificationKind): NotificationGroup {
   if (kind === 'turn') return 'turn';
   if (kind === 'message') return 'messages';
   if (kind.startsWith('offer_')) return 'offers';
+  if (kind === 'search_match' || kind === 'price_drop') return 'alerts';
   return 'sales';
 }
 

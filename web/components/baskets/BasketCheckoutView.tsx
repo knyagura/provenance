@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { CodesBox } from '@/components/checkout/CodesBox';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { BASKET_TONES, everything, wrapCharge, type BasketCheckout } from '@/lib/domain/baskets';
@@ -108,7 +109,7 @@ export function BasketCheckoutView({ groupId, paid }: { groupId: string | null; 
 
       <section className="pv-panel" aria-labelledby="ck-items">
         <h2 id="ck-items">What you’re buying</h2>
-        {(group ? group.orders.map((o) => ({ key: o.orderId, title: o.title, who: o.basket, amount: o.totalPence, wrap: o.wrap, note: o.shipTo ? `To ${o.shipTo.name}, ${o.shipTo.postcode}` : null }))
+        {(group ? group.orders.map((o) => ({ key: o.orderId, title: o.title, who: o.basket, amount: o.totalPence, wrap: o.wrap, note: [o.discountNote, o.shipTo ? `To ${o.shipTo.name}, ${o.shipTo.postcode}` : null].filter(Boolean).join(' · ') || null }))
           : lines.map((l) => ({ key: l.item.listingId, title: l.item.title, who: l.basket.general ? null : l.basket.name, amount: l.item.pricePence + l.item.postagePence, wrap: l.item.wrap && !l.basket.general, note: null }))
         ).map((x) => {
           const b = baskets.find((y) => y.name === x.who && !y.general);
@@ -149,6 +150,15 @@ export function BasketCheckoutView({ groupId, paid }: { groupId: string | null; 
         <section className="pv-panel" aria-labelledby="ck-pay">
           <h2 id="ck-pay">Payment</h2>
           <p className="pv-note" role="status">We’re holding these for you until {time(group.holdExpiresAt)}.</p>
+          <CodesBox target={group.groupId} onChange={async (c) => {
+            if (c.paid) return done();
+            const g = await backend.basketCheckout(group.groupId);
+            if (g) setGroup(g);
+            setPayment(null);
+            const p = await backend.startGroupPayment(group.groupId);
+            if (p.ok) setPayment(p.value);
+            else setError(p.message);
+          }} />
           {payment?.kind === 'stripe' ? (
             <StripePay clientSecret={payment.clientSecret} publishableKey={payment.publishableKey} amountPence={payment.amountPence} orderId={group.orders[0].orderId}
               returnPath={`/basket/checkout?group=${group.groupId}&paid=1`} onPaid={done} />

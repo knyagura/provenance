@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleCheckout, handleWebhook, type CheckoutDeps, type Group, type Order } from '../../../supabase/functions/_shared/payments';
+import { handleCheckout, handleWebhook, type CheckoutDeps, type GiftCard, type Group, type Order } from '../../../supabase/functions/_shared/payments';
 
 const ORDER = '0b6c3c9e-8f1a-4c4e-9d2a-5f6e7a8b9c0d';
 const soon = () => new Date(Date.now() + 10 * 60_000).toISOString();
@@ -105,5 +105,33 @@ describe('basket checkout: one payment for several orders', () => {
     expect(r.body).toEqual({ result: 'paid' });
     expect(confirmGroup).toHaveBeenCalledWith(GROUP, 'pi_g', 12345);
     expect(confirm).not.toHaveBeenCalled();
+  });
+});
+
+describe('gift card payments', () => {
+  const CARD = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
+  const card = (c: Partial<GiftCard> = {}): GiftCard => ({ id: CARD, purchaser_id: 'buyer', payment_status: 'awaiting_payment', amount_pence: 2500, payment_ref: null, ...c });
+  const withCard = (c: GiftCard | null) => {
+    const setGiftCardRef = vi.fn(async () => {});
+    const x = deps(null, { getGiftCard: async () => c, setGiftCardRef });
+    return { ...x, setGiftCardRef };
+  };
+  it('charges the card amount and tags the payment with the gift card', async () => {
+    const { d, create, setGiftCardRef } = withCard(card());
+    const r = await handleCheckout('good', { gift_card_id: CARD }, d);
+    expect(r.body.amount_pence).toBe(2500);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ amount: 2500, giftCardId: CARD }));
+    expect(setGiftCardRef).toHaveBeenCalledWith(CARD, 'pi_new');
+  });
+  it('refuses other people’s and paid cards', async () => {
+    expect((await handleCheckout('other', { gift_card_id: CARD }, withCard(card()).d)).status).toBe(404);
+    expect((await handleCheckout('good', { gift_card_id: CARD }, withCard(card({ payment_status: 'paid' })).d)).body.error).toBe('already_paid');
+  });
+  it('the webhook confirms the gift card', async () => {
+    const confirmGiftCard = vi.fn(async () => 'paid');
+    const ev = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_c', client_secret: null, amount: 2500, amount_received: 2500, status: 'succeeded', metadata: { gift_card_id: CARD } } } };
+    const r = await handleWebhook('{}', 'sig', { verify: async () => ev, confirmPayment: vi.fn(), confirmGiftCard });
+    expect(r.body).toEqual({ result: 'paid' });
+    expect(confirmGiftCard).toHaveBeenCalledWith(CARD, 'pi_c', 2500);
   });
 });

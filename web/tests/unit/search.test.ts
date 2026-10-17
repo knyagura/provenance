@@ -27,7 +27,8 @@ describe('in-memory filtering (example catalogue)', () => {
   it('filters by category, condition and price', () => {
     const r = filterInMemory(exampleCatalogue, { ...base, category: 'sport', maxPence: 2000 });
     expect(r.map((l) => l.title)).toEqual(['Running shorts']);
-    expect(filterInMemory(exampleCatalogue, { ...base, condition: 'New with tags' })).toHaveLength(1);
+    // The wool rollneck, and one card for the merino jumper's four colours and sizes.
+    expect(filterInMemory(exampleCatalogue, { ...base, condition: 'New with tags' }).map((l) => l.id)).toEqual(['example-8', 'example-13']);
   });
   it('sorts by price both ways', () => {
     const asc = filterInMemory(exampleCatalogue, { ...base, sort: 'price_asc' }).map((l) => l.pricePence);

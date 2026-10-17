@@ -2,7 +2,7 @@ import type { BasketCheckout, BasketPatch, Baskets, GiftView, MyGift, SharedBask
 import type { FeeBreakdown } from '@/lib/domain/fees';
 import type { ListingVersion } from '@/lib/domain/versions';
 import type { AgentTask, CustodyState, CustodyView, Evidence } from '@/lib/domain/custody';
-import type { Listing, Tier } from '@/lib/domain/types';
+import type { Listing, Tier, Variant } from '@/lib/domain/types';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -247,9 +247,10 @@ export interface ContactMessage {
   handledBy: string | null;
 }
 
-export type NotificationGroup = 'turn' | 'messages' | 'offers' | 'sales';
+export type NotificationGroup = 'turn' | 'messages' | 'offers' | 'sales' | 'alerts';
 export type NotificationKind =
-  | 'turn' | 'message' | 'offer_new' | 'offer_counter' | 'offer_accepted' | 'offer_expiring' | 'sold' | 'payout' | 'dispute' | 'decision';
+  | 'turn' | 'message' | 'offer_new' | 'offer_counter' | 'offer_accepted' | 'offer_expiring' | 'sold' | 'payout' | 'dispute' | 'decision'
+  | 'search_match' | 'price_drop';
 /** Something that happened on the member's orders or offers (migration 016). */
 export interface AppNotification {
   id: string;
@@ -267,6 +268,60 @@ export interface AppNotification {
 /** Which groups the member gets emails for. The in-app list always shows everything. */
 export type NotificationPrefs = Record<NotificationGroup, boolean>;
 
+/** A search the member saved, to be told about new matches (migration 019). */
+export interface SavedSearch {
+  id: string;
+  name: string;
+  q: string | null;
+  category: string | null;
+  size: string | null;
+  condition: string | null;
+  minPence: number | null;
+  maxPence: number | null;
+  alert: boolean;
+  createdAt: string;
+  /** Listings matching it right now. */
+  liveCount: number;
+}
+export interface SearchToSave { q?: string; category?: string; size?: string; condition?: string; minPence?: number; maxPence?: number }
+
+export interface BundleOffer { minItems: number; pct: number }
+export interface SoldRow {
+  orderId: string; listingId: string; title: string; pricePence: number; payoutPence: number; paidAt: string | null;
+  buyer: string | null; state: string; payoutStatus: string; bundle: boolean;
+}
+export interface SellerDashboard {
+  totals: {
+    sold: number; grossPence: number; payoutPence: number; heldPence: number; releasedPence: number;
+    refunded: number; disputed: number; avgHandoverHours: number | null; liveListings: number; bundles: number;
+  };
+  months: { month: string; sold: number; grossPence: number }[];
+  recent: SoldRow[];
+  bundle: BundleOffer | null;
+}
+
+/** Codes and balance on a checkout (one order, or a basket checkout) — migration 022. */
+export interface CheckoutCodes {
+  voucher: { code: string; shop: string | null; discountPence: number } | null;
+  balancePence: number;
+  balanceAvailable: number;
+  /** What's left to pay by card. */
+  totalPence: number;
+  paid: boolean;
+}
+export interface Voucher {
+  id: string; code: string; shop: string | null; kind: 'percent' | 'amount'; value: number; minSpendPence: number; maxDiscountPence: number | null;
+  perMember: number; maxUses: number | null; firstOrderOnly: boolean; startsAt: string | null; endsAt: string | null; active: boolean; note: string | null;
+  uses: number; discountGivenPence: number;
+}
+export type VoucherPatch = Partial<Omit<Voucher, 'id' | 'shop' | 'uses' | 'discountGivenPence'>>;
+export interface GiftCard {
+  id: string; amountPence: number; recipientName: string | null; recipientEmail: string | null; message: string | null;
+  paymentStatus: 'awaiting_payment' | 'paid' | 'cancelled' | 'review'; paidAt: string | null; expiresAt: string | null; createdAt: string;
+  /** Shown once it's paid for. */
+  code: string | null; redeemed: boolean;
+}
+export interface Balance { balancePence: number; lots: { source: 'gift_card' | 'refund'; amountPence: number; remainingPence: number; expiresAt: string }[] }
 /** A popup staff configure: an explanation, an announcement or an offer (migration 021). */
 export interface SitePopup {
   id: string;
@@ -327,6 +382,40 @@ export interface MarketBackend {
   staffContactMessages(openOnly: boolean): Promise<ContactMessage[]>;
   staffContactHandled(id: string): Promise<Result>;
 
+  /** Business sellers (set by staff) can sell stock and colours/sizes. */
+  isBusiness(): Promise<boolean>;
+  listingVariants(listingId: string): Promise<Variant[]>;
+  setListingStock(listingId: string, stock: number): Promise<Result<Variant[]>>;
+  addVariant(listingId: string, colour: string, size: string, stock: number, pricePence: number | null): Promise<Result<Variant[]>>;
+  staffSetBusiness(username: string, on: boolean): Promise<Result<{ username: string; business: boolean }>>;
+
+  sellerDashboard(): Promise<SellerDashboard | null>;
+  /** null switches the bundle offer off. */
+  setBundleDiscount(offer: BundleOffer | null): Promise<Result<BundleOffer | null>>;
+  bundleOffer(username: string): Promise<BundleOffer | null>;
+
+  mySavedSearches(): Promise<SavedSearch[]>;
+  saveSearch(name: string, search: SearchToSave): Promise<Result<SavedSearch>>;
+  setSearchAlert(id: string, on: boolean): Promise<Result<SavedSearch[]>>;
+  deleteSavedSearch(id: string): Promise<Result<SavedSearch[]>>;
+
+  checkoutCodes(target: string): Promise<CheckoutCodes | null>;
+  /** A voucher code, or a gift card code (added to the balance and used). */
+  applyCode(target: string, code: string): Promise<Result<CheckoutCodes>>;
+  removeVoucher(target: string): Promise<Result<CheckoutCodes>>;
+  useBalance(target: string, on: boolean): Promise<Result<CheckoutCodes>>;
+  staffVouchers(): Promise<Voucher[]>;
+  staffSaveVoucher(id: string | null, patch: VoucherPatch): Promise<Result<Voucher[]>>;
+  myShopVouchers(): Promise<Voucher[]>;
+  saveShopVoucher(id: string | null, patch: VoucherPatch): Promise<Result<Voucher[]>>;
+  buyGiftCard(amountPence: number, name: string, email: string, message: string): Promise<Result<GiftCard>>;
+  payGiftCard(id: string): Promise<Result<PaymentStart> & { code?: string }>;
+  /** Example mode only. */
+  simulateGiftCardPayment(id: string): Promise<Result>;
+  cancelGiftCard(id: string): Promise<void>;
+  myGiftCards(): Promise<GiftCard[]>;
+  redeemGiftCard(code: string): Promise<Result<Balance>>;
+  myBalance(): Promise<Balance>;
   /** Popups that are live now (anyone). */
   livePopups(): Promise<SitePopup[]>;
   staffPopups(): Promise<SitePopup[]>;

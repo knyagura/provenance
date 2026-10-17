@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { formatPence } from '@/lib/format';
 import type { Draft } from '@/lib/selling';
+import { VariantManager } from './VariantManager';
 
 /** A published listing, seen by its seller: view it, or pause it to edit. Locked while being bought and once sold. */
 export function LiveListing({ draft, onPause }: { draft: Draft; onPause: () => Promise<string | null> }) {
@@ -26,6 +27,7 @@ export function LiveListing({ draft, onPause }: { draft: Draft; onPause: () => P
           {!example ? <Link className="pv-btn pv-btn--secondary" href={`/item/${draft.id}`}>View the listing</Link> : null}
           <Link className="pv-btn pv-btn--secondary" href="/profile">Your listings</Link>
         </div>
+        {sold && !example ? <VariantManager listingId={draft.id} /> : null}
       </section>
     );
   }
@@ -56,6 +58,7 @@ export function LiveListing({ draft, onPause }: { draft: Draft; onPause: () => P
         Editing takes the item off sale until you publish your changes. Anyone part-way through buying it is shown what changed and
         asked to confirm before they pay.
       </p>
+      {!example ? <VariantManager listingId={draft.id} /> : null}
     </section>
   );
 }

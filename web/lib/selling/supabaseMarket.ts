@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
-import { mediaUrl, toListing } from '@/lib/domain/catalogue';
+import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
+import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
-  CheckoutStarted, MarketBackend, NotificationPrefs, PopupPatch, SitePopup, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
+  CheckoutStarted, MarketBackend, NotificationPrefs, PopupPatch, SavedSearch, SitePopup, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
 } from './types';
 
 // Favourites, messages, offers, reviews, the Item Passport and the staff console, through Supabase.
@@ -13,6 +14,12 @@ type Err = { message: string; code?: string };
 const fail = (e: Err): { ok: false; message: string } => ({ ok: false, message: tidy(e.message) });
 const done = { ok: true as const, value: undefined };
 
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const toSearches = (data: any): SavedSearch[] => ((data as Record<string, unknown>[] | null) ?? []).map((s) => ({
+  id: s.id as string, name: s.name as string, q: (s.q as string) ?? null, category: (s.category as string) ?? null, size: (s.size as string) ?? null,
+  condition: (s.condition as string) ?? null, minPence: (s.min_pence as number) ?? null, maxPence: (s.max_pence as number) ?? null,
+  alert: Boolean(s.alert), createdAt: s.created_at as string, liveCount: Number(s.live_count ?? 0),
+}));
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 export const toPopup = (p: any): SitePopup => ({
   id: p.id, key: p.key, kind: p.kind, title: p.title, body: p.body ?? '', steps: Array.isArray(p.steps) ? p.steps : [],
@@ -271,6 +278,148 @@ export const supabaseMarket: MarketBackend = {
     return error ? fail(error) : done;
   },
 
+  async isBusiness() {
+    const id = await uid();
+    if (!id) return false;
+    const { data } = await supabase().from('profiles').select('is_pro').eq('id', id).maybeSingle();
+    return Boolean(data?.is_pro);
+  },
+  async listingVariants(listingId) {
+    const { data, error } = await supabase().rpc('listing_variants', { p_listing: listingId });
+    return error ? [] : toVariants(data);
+  },
+  async setListingStock(listingId, stock) {
+    const { data, error } = await supabase().rpc('set_listing_stock', { p_listing: listingId, p_stock: stock });
+    return error ? fail(error) : { ok: true, value: toVariants(data) };
+  },
+  async addVariant(listingId, colour, size, stock, pricePence) {
+    const { data, error } = await supabase().rpc('add_variant', { p_listing: listingId, p_colour: colour, p_size: size, p_stock: stock, p_price: pricePence });
+    return error ? fail(error) : { ok: true, value: toVariants(data) };
+  },
+  async staffSetBusiness(username, on) {
+    const { data, error } = await supabase().rpc('staff_set_business', { p_username: username, p_on: on });
+    return error ? fail(error) : { ok: true, value: data as { username: string; business: boolean } };
+  },
+
+  async sellerDashboard() {
+    const { data, error } = await supabase().rpc('seller_dashboard');
+    if (error || !data) return null;
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const d = data as any;
+    const t = d.totals ?? {};
+    return {
+      totals: {
+        sold: Number(t.sold ?? 0), grossPence: Number(t.gross_pence ?? 0), payoutPence: Number(t.payout_pence ?? 0), heldPence: Number(t.held_pence ?? 0),
+        releasedPence: Number(t.released_pence ?? 0), refunded: Number(t.refunded ?? 0), disputed: Number(t.disputed ?? 0),
+        avgHandoverHours: t.avg_handover_hours === null || t.avg_handover_hours === undefined ? null : Number(t.avg_handover_hours),
+        liveListings: Number(t.live_listings ?? 0), bundles: Number(t.bundles ?? 0),
+      },
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      months: (d.months ?? []).map((m: any) => ({ month: m.month, sold: Number(m.sold), grossPence: Number(m.gross_pence) })),
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      recent: (d.recent ?? []).map((r: any) => ({
+        orderId: r.order_id, listingId: r.listing_id, title: r.title, pricePence: r.price_pence, payoutPence: r.payout_pence, paidAt: r.paid_at,
+        buyer: r.buyer ?? null, state: r.state, payoutStatus: r.payout_status, bundle: Boolean(r.bundle),
+      })),
+      bundle: d.bundle ? { minItems: d.bundle.min_items, pct: d.bundle.pct } : null,
+    };
+  },
+  async setBundleDiscount(offer) {
+    const { data, error } = await supabase().rpc('set_bundle_discount', { p_min: offer?.minItems ?? null, p_pct: offer?.pct ?? null });
+    if (error) return fail(error);
+    const b = data as { min_items: number | null; pct: number | null };
+    return { ok: true, value: b?.pct ? { minItems: b.min_items!, pct: b.pct } : null };
+  },
+  async bundleOffer(username) {
+    const { data } = await supabase().rpc('bundle_offer', { p_username: username });
+    const b = data as { min_items: number; pct: number } | null;
+    return b ? { minItems: b.min_items, pct: b.pct } : null;
+  },
+
+  async mySavedSearches() {
+    const { data, error } = await supabase().rpc('my_saved_searches');
+    return error ? [] : toSearches(data);
+  },
+  async saveSearch(name, q) {
+    const { data, error } = await supabase().rpc('save_search', {
+      p_name: name, p_q: q.q ?? null, p_category: q.category ?? null, p_size: q.size ?? null, p_condition: q.condition ?? null,
+      p_min: q.minPence ?? null, p_max: q.maxPence ?? null,
+    });
+    return error ? fail(error) : { ok: true, value: toSearches([data])[0] };
+  },
+  async setSearchAlert(id, on) {
+    const { data, error } = await supabase().rpc('set_search_alert', { p_id: id, p_on: on });
+    return error ? fail(error) : { ok: true, value: toSearches(data) };
+  },
+  async deleteSavedSearch(id) {
+    const { data, error } = await supabase().rpc('delete_saved_search', { p_id: id });
+    return error ? fail(error) : { ok: true, value: toSearches(data) };
+  },
+
+  async checkoutCodes(target) {
+    const { data, error } = await supabase().rpc('checkout_codes', { p_target: target });
+    return error ? null : toCodes(data);
+  },
+  async applyCode(target, code) {
+    const { data, error } = await supabase().rpc('apply_code', { p_target: target, p_code: code });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async removeVoucher(target) {
+    const { data, error } = await supabase().rpc('remove_voucher', { p_target: target });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async useBalance(target, on) {
+    const { data, error } = await supabase().rpc('use_balance', { p_target: target, p_on: on });
+    return error ? fail(error) : { ok: true, value: toCodes(data) };
+  },
+  async staffVouchers() {
+    const { data, error } = await supabase().rpc('staff_vouchers');
+    return error || !data ? [] : (data as unknown[]).map(toVoucher);
+  },
+  async staffSaveVoucher(id, patch) {
+    const { data, error } = await supabase().rpc('staff_save_voucher', { p_id: id, p: fromVoucherPatch(patch) });
+    return error ? fail(error) : { ok: true, value: (data as unknown[]).map(toVoucher) };
+  },
+  async myShopVouchers() {
+    const { data, error } = await supabase().rpc('my_shop_vouchers');
+    return error || !data ? [] : (data as unknown[]).map(toVoucher);
+  },
+  async saveShopVoucher(id, patch) {
+    const { data, error } = await supabase().rpc('save_shop_voucher', { p_id: id, p: fromVoucherPatch(patch) });
+    return error ? fail(error) : { ok: true, value: (data as unknown[]).map(toVoucher) };
+  },
+  async buyGiftCard(amount, name, email, message) {
+    const { data, error } = await supabase().rpc('buy_gift_card', { p_amount: amount, p_name: name, p_email: email, p_message: message });
+    return error ? fail(error) : { ok: true, value: toGiftCard(data) };
+  },
+  async payGiftCard(id) {
+    const { data, error } = await supabase().functions.invoke('checkout', { body: { gift_card_id: id } });
+    if (error) {
+      const ctx = (error as { context?: Response }).context;
+      const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+      if (body?.error === 'payments_not_configured') return { ok: false, code: 'not_configured', message: 'Payments aren’t switched on yet, so no money has been taken.' };
+      return { ok: false, code: body?.error, message: body?.message ?? tidy(error.message) };
+    }
+    return { ok: true, value: { kind: 'stripe', clientSecret: data.client_secret, publishableKey: data.publishable_key, amountPence: data.amount_pence } };
+  },
+  async simulateGiftCardPayment() {
+    return { ok: false, message: 'Test payments only work in example mode.' };
+  },
+  async cancelGiftCard(id) {
+    await supabase().rpc('cancel_gift_card', { p_id: id });
+  },
+  async myGiftCards() {
+    const { data, error } = await supabase().rpc('my_gift_cards');
+    return error || !data ? [] : (data as unknown[]).map(toGiftCard);
+  },
+  async redeemGiftCard(code) {
+    const { data, error } = await supabase().rpc('redeem_gift_card', { p_code: code });
+    return error ? fail(error) : { ok: true, value: toBalance(data) };
+  },
+  async myBalance() {
+    const { data } = await supabase().rpc('my_balance');
+    return toBalance(data);
+  },
   async livePopups() {
     const { data, error } = await supabase().from('site_popups').select('*').order('priority', { ascending: false });
     return error || !data ? [] : data.map(toPopup);
@@ -303,10 +452,10 @@ export const supabaseMarket: MarketBackend = {
   },
   async notificationPrefs() {
     const { data } = await supabase().rpc('my_notification_prefs');
-    return { turn: true, messages: true, offers: true, sales: true, ...((data as object) ?? {}) };
+    return { turn: true, messages: true, offers: true, sales: true, alerts: true, ...((data as object) ?? {}) };
   },
   async setNotificationPrefs(p) {
-    const { data, error } = await supabase().rpc('set_notification_prefs', { p_turn: p.turn, p_messages: p.messages, p_offers: p.offers, p_sales: p.sales });
+    const { data, error } = await supabase().rpc('set_notification_prefs', { p_turn: p.turn, p_messages: p.messages, p_offers: p.offers, p_sales: p.sales, p_alerts: p.alerts });
     return error ? fail(error) : { ok: true, value: data as NotificationPrefs };
   },
 };

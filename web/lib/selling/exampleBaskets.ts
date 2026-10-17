@@ -1,6 +1,9 @@
 import { exampleCatalogue } from '@/lib/domain/examples';
+import { formatPence } from '@/lib/format';
+import { exampleUnitsLeft } from '@/lib/domain/exampleStock';
 import { MAX_PERSONAL, UK_POSTCODE, type Basket, type BasketCheckout, type BasketItem, type BasketPatch, type Baskets, type GiftView, type SizeKind } from '@/lib/domain/baskets';
 import { exampleSellerId, loadMarket, saveMarket, type StoredOrder } from './exampleMarket';
+import { bundledQuote, exampleBundle } from './exampleBundles';
 import type { BasketBackend, Member, Result, SellingBackend } from './types';
 
 // Example mode's baskets, one-payment checkout and gift links, in localStorage. Same rules as migration
@@ -46,8 +49,7 @@ const id = (p: string) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
 const token = () => Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 const fail = (message: string): { ok: false; message: string } => ({ ok: false, message });
 const listing = (lid: string) => exampleCatalogue.find((l) => l.id === lid);
-const available = (lid: string) =>
-  !loadMarket().orders.some((o) => o.summary.listingId === lid && (o.summary.paymentStatus === 'paid' || (o.summary.paymentStatus === 'awaiting_payment' && (o.summary.holdExpiresAt ?? '') > now())));
+const available = (lid: string) => exampleUnitsLeft(lid, listing(lid)?.stock ?? 1) > 0;
 
 const blank = (ownerId: string, position: number, name: string): StoredBasket => ({
   ownerId, id: id('basket'), position, name, general: position === 0, ageGroup: null, sizes: {}, budgetPence: null, styleNotes: null, wrapStyle: null,
@@ -101,6 +103,7 @@ export function makeExampleBaskets(me: () => Member | null, backend: () => Selli
       orders: orders.map((o) => ({
         orderId: o.summary.id, listingId: o.summary.listingId, title: o.summary.title, basket: o.basketName ?? null, totalPence: o.summary.totalPence ?? 0,
         wrap: !!o.gift?.wrap, gift: !!o.gift, giftToken: o.giftToken ?? null, shipTo: (o.shipTo as BasketCheckout['orders'][number]['shipTo']) ?? null,
+        discountNote: o.summary.quote?.bundle ? `Bundle: ${o.summary.quote.bundle.pct}% off (was ${formatPence(o.summary.quote.bundle.listPricePence)})` : null,
       })),
     };
   };
@@ -246,6 +249,23 @@ export function makeExampleBaskets(me: () => Member | null, backend: () => Selli
         });
         saveMarket(market);
         if (personal && i.wrap && wrappingLive) wrapped++;
+      }
+      // Bundle discounts: several items from one seller in this checkout (migration 020).
+      {
+        const mk = loadMarket();
+        const mine = started.map((oid) => mk.orders.find((o) => o.summary.id === oid)!);
+        const bySeller = new Map<string, StoredOrder[]>();
+        for (const o of mine) bySeller.set(o.sellerId, [...(bySeller.get(o.sellerId) ?? []), o]);
+        for (const [sellerId, list] of bySeller) {
+          const offer = exampleBundle(sellerId.replace(/^example:/, '').replace(/@example\.test$/, ''));
+          if (!offer || list.length < offer.minItems) continue;
+          for (const o of list) {
+            if (!o.summary.quote || o.summary.quote.bundle) continue;
+            o.summary.quote = bundledQuote(o.summary.quote, offer);
+            o.summary.totalPence = o.summary.quote.buyerTotalPence;
+          }
+        }
+        saveMarket(mk);
       }
       const market = loadMarket();
       const hold = started.map((oid) => market.orders.find((o) => o.summary.id === oid)!.summary.holdExpiresAt!).sort()[0];
