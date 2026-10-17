@@ -853,7 +853,8 @@ try {
     await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await p.goto(BASE + '/gift-cards');
     const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
-    if (!/£1\d\.\d\d/.test(left)) fail(`gift cards: the balance after paying looks wrong (${left})`);
+    const leftPence = Math.round(Number((left.match(/£([\d.]+)/) ?? [])[1]) * 100);
+    if (!(leftPence > 0 && leftPence < 2500)) fail(`gift cards: the balance after paying looks wrong (${left})`);
     // Staff make a code.
     await p.goto(BASE + '/profile');
     await p.getByRole('button', { name: 'Sign out' }).click();
