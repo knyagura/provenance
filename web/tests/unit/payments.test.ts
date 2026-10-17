@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleCheckout, handleWebhook, type CheckoutDeps, type Order } from '../../../supabase/functions/_shared/payments';
+import { handleCheckout, handleWebhook, type CheckoutDeps, type Group, type Order } from '../../../supabase/functions/_shared/payments';
 
 const ORDER = '0b6c3c9e-8f1a-4c4e-9d2a-5f6e7a8b9c0d';
 const soon = () => new Date(Date.now() + 10 * 60_000).toISOString();
@@ -72,6 +72,38 @@ describe('Stripe webhook', () => {
     const confirm = vi.fn();
     const r = await handleWebhook('{}', 'sig', { verify: async () => event('charge.refunded', { order_id: ORDER }), confirmPayment: confirm });
     expect(r.body).toEqual({ ignored: 'charge.refunded' });
+    expect(confirm).not.toHaveBeenCalled();
+  });
+});
+
+describe('basket checkout: one payment for several orders', () => {
+  const GROUP = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+  const group = (g: Partial<Group> = {}): Group => ({ id: GROUP, buyer_id: 'buyer', payment_status: 'awaiting_payment', total_pence: 12345, payment_ref: null, hold_expires_at: soon(), ...g });
+  const withGroup = (g: Group | null, over: Partial<CheckoutDeps> = {}) => {
+    const setGroupPaymentRef = vi.fn(async () => {});
+    const x = deps(null, { getGroup: async () => g, setGroupPaymentRef, ...over });
+    return { ...x, setGroupPaymentRef };
+  };
+  it('charges the group total once and tags the payment with the group', async () => {
+    const { d, create, setGroupPaymentRef } = withGroup(group());
+    const r = await handleCheckout('good', { group_id: GROUP }, d);
+    expect(r).toEqual({ status: 200, body: { client_secret: 'pi_new_secret', publishable_key: 'pk_test_x', amount_pence: 12345 } });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ amount: 12345, groupId: GROUP }));
+    expect(setGroupPaymentRef).toHaveBeenCalledWith(GROUP, 'pi_new');
+  });
+  it('refuses other people’s, paid and ended checkouts', async () => {
+    expect((await handleCheckout('other', { group_id: GROUP }, withGroup(group()).d)).status).toBe(404);
+    expect((await handleCheckout('good', { group_id: GROUP }, withGroup(group({ payment_status: 'paid' })).d)).body.error).toBe('already_paid');
+    expect((await handleCheckout('good', { group_id: GROUP }, withGroup(group({ hold_expires_at: new Date(Date.now() - 1).toISOString() })).d)).body.error).toBe('expired');
+    expect((await handleCheckout('good', { group_id: 'nope' }, withGroup(group()).d)).status).toBe(400);
+  });
+  it('the webhook confirms the whole group', async () => {
+    const confirmGroup = vi.fn(async () => 'paid');
+    const confirm = vi.fn();
+    const ev = { type: 'payment_intent.succeeded', data: { object: { id: 'pi_g', client_secret: null, amount: 12345, amount_received: 12345, status: 'succeeded', metadata: { group_id: GROUP } } } };
+    const r = await handleWebhook('{}', 'sig', { verify: async () => ev, confirmPayment: confirm, confirmGroupPayment: confirmGroup });
+    expect(r.body).toEqual({ result: 'paid' });
+    expect(confirmGroup).toHaveBeenCalledWith(GROUP, 'pi_g', 12345);
     expect(confirm).not.toHaveBeenCalled();
   });
 });

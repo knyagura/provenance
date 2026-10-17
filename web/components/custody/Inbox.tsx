@@ -8,6 +8,7 @@ import { PackageIcon } from '@/components/ui';
 import { EmptyState } from '@/components/EmptyState';
 import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
+import { InboxGifts, InboxOffers } from '@/components/market/InboxOffers';
 
 const REFRESH_MS = 15000;
 const PAYMENT: Record<OrderSummary['paymentStatus'], string> = {
@@ -24,6 +25,7 @@ interface Row {
   amount: string | null;
   chip: { tone: 'turn' | 'waiting' | 'done' | 'held'; label: string };
   progress: { done: number; total: number } | null;
+  unread?: number;
 }
 
 function chipFor(state: CustodyState | null, turn: boolean): Row['chip'] {
@@ -74,8 +76,8 @@ export function Inbox() {
 
   const load = useCallback(async () => {
     try {
-      const [orders, tasks] = await Promise.all([backend.myOrders(), backend.agentTasks()]);
-      setRows([...tasks.map(taskRow), ...orders.map(orderRow)]);
+      const [orders, tasks, unread] = await Promise.all([backend.myOrders(), backend.agentTasks(), backend.unreadByOrder().catch(() => ({}) as Record<string, number>)]);
+      setRows([...tasks.map(taskRow), ...orders.map((o) => ({ ...orderRow(o), unread: unread[o.id] ?? 0 }))]);
       setError(false);
     } catch {
       setError(true);
@@ -112,6 +114,8 @@ export function Inbox() {
         </p>
       </header>
       {error ? <p className="pv-banner pv-banner--warn" role="status">We couldn’t refresh just now. We’ll keep trying.</p> : null}
+      <InboxGifts />
+      <InboxOffers />
       {rows.length === 0 ? <EmptyState title="No orders yet" note="Anything you buy or sell appears here, with each step of its handover." action={{ href: '/search', label: 'Start browsing' }} /> : null}
       {turn.length ? <RowList title="Your turn" rows={turn} /> : null}
       {GROUPS.map((g) => {
@@ -135,6 +139,7 @@ function RowList({ title, rows }: { title: string; rows: Row[] }) {
               <span className="pv-row__top">
                 <strong>{r.title}</strong>
                 <span className={`pv-status pv-status--${r.chip.tone}`}>{r.chip.label}</span>
+                {r.unread ? <span className="pv-count pv-count--inline">{r.unread}<span className="pv-visually-hidden"> new {r.unread === 1 ? 'message' : 'messages'}</span></span> : null}
               </span>
               <span className="pv-note">{[r.group === 'buying' ? 'Buying' : r.group === 'selling' ? 'Selling' : null, r.amount].filter(Boolean).join(' · ')}</span>
               <span className={r.turn ? 'pv-turn-line' : 'pv-note'}>{r.line}</span>

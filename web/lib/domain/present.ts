@@ -20,6 +20,7 @@ export function toCard(l: Listing): ListingCardProps {
   const photo = l.media.find((m) => m.kind === 'photo');
   return {
     href: `/item/${l.id}`,
+    listingId: l.id,
     title: l.title,
     pricePence: l.pricePence,
     details: cardDetails(l),
@@ -27,6 +28,8 @@ export function toCard(l: Listing): ListingCardProps {
     photoUrl: photo?.url,
     placeholder: placeholderFor(l.id),
     tier: l.tier,
+    size: l.size,
+    category: l.category,
   };
 }
 

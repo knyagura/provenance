@@ -28,3 +28,20 @@ Newest first. Each entry says what changed for people using the site, and which 
 | 2026-10-10 | Decided to host the new Next.js site on Netlify's free plan | Plan (Decisions, Code structure, Build order), [ADR 0001](adr/0001-hosting-on-netlify.md) |
 | 2026-10-10 | Added the architecture and build order, and the rule that every change updates its document | Plan |
 | 2026-10-10 | New colour palette (cream, sand, sage, terracotta, charcoal-olive) on the live site; design system written up | Design system, Plan (Decisions) |
+
+## 2026-10-16: NuTuYu marketplace features and multi-basket shopping
+- Renamed to NuTuYu with the hand-over-circle logo; installable app (manifest, offline page, service worker).
+- Favourites and Saved page; Inbox badge; buyer–seller messages per order with unread counts.
+- Offers: make, accept, decline, counter; accepted offers check out at the agreed price with the same fees and hold.
+- Seal QR scanning (camera) and printable seal labels; Item Passport (public, no personal details); reviews after confirmation.
+- Staff console v1: queue, dispute and payment decisions, courier/hub accounts, custody/offer/wrapping settings, fee versions.
+- Accessibility: skip link, axe checks in e2e, contrast and list-semantics fixes.
+- Multi-basket shopping (opt-in, migration 013): General plus up to 4 people with sizes, budget, notes, wrapping and gift options;
+  drag and drop, tap to add, one-basket and by-person views; one payment for all baskets with combined or separate shipping;
+  gift links where the recipient does the unboxing steps without prices; shared baskets.
+- Migration 012 applied live. Migration 013 still to apply (basket features need it on the live site).
+- Next: variants for business sellers (colour/size, stock per variant, each unit its own protected order).
+
+## 2026-10-17: Sizes learned on drop; Google and Facebook sign-in
+- Dropping clothing into a person's basket checks its size. If the basket has no size yet for that kind of item, it takes the item's size ("Alex's tops size is now S"). If the sizes differ, it warns and offers "Make UK 9 Alex's size". Adult and child sizes never mix.
+- "Continue with Google" and "Continue with Facebook" on sign-in and registration (ADR 0011). They appear once each provider is enabled in Supabase.

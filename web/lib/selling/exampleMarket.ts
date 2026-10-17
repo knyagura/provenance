@@ -52,6 +52,13 @@ export interface StoredOrder {
   buyerId: string;
   sellerId: string;
   custody: StoredCustody | null;
+  /** A basket checkout's gift: who it's for, once they open the gift link. */
+  recipientId?: string | null;
+  groupId?: string | null;
+  basketName?: string | null;
+  gift?: { wrap: boolean; wrapRequested: boolean; wrapStyle: string | null; message: string | null; hidePrices: boolean; deliverBy: string | null; giftReceipt: boolean } | null;
+  giftToken?: string | null;
+  shipTo?: Record<string, unknown> | null;
 }
 
 interface Market {
@@ -69,8 +76,18 @@ export function exampleSellerId(listingId: string): string | null {
   return l ? memberId(`${l.seller.username}@example.test`) : null;
 }
 
+/** Couriers and hubs added in the example staff console, by email. */
+export const EXAMPLE_AGENTS_KEY = 'pv-example-agents';
+
 function agentRole(m: Member): 'courier' | 'hub' | null {
   const e = m.email.toLowerCase();
+  try {
+    const added = JSON.parse(localStorage.getItem(EXAMPLE_AGENTS_KEY) ?? '[]') as { email: string; role: 'courier' | 'hub'; active: boolean }[];
+    const a = added.find((x) => x.email.toLowerCase() === e);
+    if (a) return a.active ? a.role : null;
+  } catch {
+    /* none added */
+  }
   return e.startsWith('courier') ? 'courier' : e.startsWith('hub') ? 'hub' : null;
 }
 
@@ -111,15 +128,15 @@ export function beginCustody(o: StoredOrder): void {
 function rolesFor(o: StoredOrder, me: Member): Actor[] {
   const roles: Actor[] = [];
   if (me.id === o.sellerId) roles.push('seller');
-  if (me.id === o.buyerId) roles.push('buyer');
+  if (me.id === o.buyerId || (!!o.recipientId && me.id === o.recipientId)) roles.push('buyer');
   const agent = agentRole(me);
-  if (agent && me.id !== o.sellerId && me.id !== o.buyerId) roles.push(...(agent === 'courier' ? (['courier'] as Actor[]) : (['hub', 'hub2'] as Actor[])));
+  if (agent && me.id !== o.sellerId && me.id !== o.buyerId && me.id !== o.recipientId) roles.push(...(agent === 'courier' ? (['courier'] as Actor[]) : (['hub', 'hub2'] as Actor[])));
   return roles;
 }
 
 function canView(o: StoredOrder, me: Member): boolean {
   if (!o.custody || o.summary.paymentStatus !== 'paid') return false;
-  if (me.id === o.buyerId || me.id === o.sellerId) return true;
+  if (me.id === o.buyerId || me.id === o.sellerId || (!!o.recipientId && me.id === o.recipientId)) return true;
   const cur = stepAt(o.custody.tier, o.custody.step, o.custody.state);
   return (!!cur && rolesFor(o, me).includes(cur.actor)) || o.custody.events.some((e) => e.actorId === me.id);
 }
@@ -177,7 +194,7 @@ function find(market: Market, orderId: string, me: Member | null): StoredOrder |
   return o && me && canView(o, me) ? o : null;
 }
 
-async function append(o: StoredOrder, step: string, role: Actor | 'system', actorId: string | null, evidence: Evidence): Promise<void> {
+async function append(o: StoredOrder, step: string, role: Actor | 'system' | 'staff', actorId: string | null, evidence: Evidence): Promise<void> {
   const c = o.custody!;
   const seq = c.events.length + 1;
   const at = new Date().toISOString();
@@ -333,10 +350,33 @@ export const exampleCustody = {
   async agentTasks(me: Member | null): Promise<AgentTask[]> {
     if (!me || !agentRole(me)) return [];
     return loadMarket()
-      .orders.filter((o) => canView(o, me) && o.buyerId !== me.id && o.sellerId !== me.id)
+      .orders.filter((o) => canView(o, me) && o.buyerId !== me.id && o.sellerId !== me.id && o.recipientId !== me.id)
       .map((o) => ({
         orderId: o.summary.id, title: o.summary.title, tier: o.custody!.tier, state: o.custody!.state,
         step: stepAt(o.custody!.tier, o.custody!.step, o.custody!.state), updatedAt: o.custody!.events.at(-1)?.at ?? o.summary.paidAt,
       }));
   },
 };
+
+/** Example staff decision on a dispute: recorded in the order's chain, as the database does. */
+export async function exampleStaffResolve(orderId: string, outcome: 'release' | 'refund', note: string, staff: Member): Promise<Result> {
+  const market = loadMarket();
+  const o = market.orders.find((x) => x.summary.id === orderId);
+  if (!o?.custody || o.custody.state !== 'disputed' || (o.custody as StoredCustody & { resolution?: string }).resolution) {
+    return fail('This order isn’t waiting for a decision.');
+  }
+  if (note.trim().length < 3) return fail('Write a short note saying why.');
+  await append(o, 'staff_resolution', 'staff', staff.id, { outcome, note: note.trim() });
+  Object.assign(o.custody, { resolution: outcome, payoutStatus: outcome === 'release' ? 'due' : 'refund', state: outcome === 'release' ? 'confirmed' : 'disputed' });
+  saveMarket(market);
+  return { ok: true, value: undefined };
+}
+
+/** Every stored order, for the example staff console and passport. */
+export function exampleOrders(): StoredOrder[] {
+  return loadMarket().orders;
+}
+
+export async function exampleChainOk(o: StoredOrder): Promise<boolean> {
+  return o.custody ? verifyChain(o) : true;
+}

@@ -8,7 +8,8 @@ export const metadata: Metadata = { title: 'Checkout', robots: { index: false } 
 // Always the listing as it is now: checkout compares this revision with the one in the database.
 export const dynamic = 'force-dynamic';
 
-export default async function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CheckoutPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ offer?: string }> }) {
+  const { offer } = await searchParams;
   const l = await getListing((await params).id);
   if (!l) notFound();
   if (l.example && process.env.PV_DATA_SOURCE !== 'examples') {
@@ -26,5 +27,5 @@ export default async function CheckoutPage({ params }: { params: Promise<{ id: s
     pricePence: l.pricePence, shippingPence: l.shippingPence, serialHint: l.serialHint,
     media: l.media.map((m) => ({ path: m.url, kind: m.kind, shot: m.shot })),
   };
-  return <CheckoutView item={{ id: l.id, title: l.title, seller: l.seller.username, photoUrl: photo?.url ?? null, version }} />;
+  return <CheckoutView item={{ id: l.id, title: l.title, seller: l.seller.username, photoUrl: photo?.url ?? null, version }} offerId={offer ?? null} />;
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { InboxBadge } from '@/components/market/InboxBadge';
 import { HomeIcon, InboxIcon, ProfileIcon, SearchIcon, SellIcon } from './icons';
 
 const tabs = [
@@ -29,7 +30,7 @@ export function BottomNav({ current, inline }: { current?: string; /** Render in
           className={`pv-nav__item${sell ? ' pv-nav__sell' : ''}`}
           aria-current={isActive(here, href) ? 'page' : undefined}
         >
-          <Icon />
+          <span className="pv-nav__icon"><Icon />{href === '/inbox' && !inline ? <InboxBadge /> : null}</span>
           {label}
         </Link>
       ))}
