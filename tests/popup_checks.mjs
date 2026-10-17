@@ -14,13 +14,13 @@ for (const [id, email] of [[MEMBER, 'm@example.com'], [STAFF, 'staff@example.com
 await db.query('insert into public.staff_members (user_id) values ($1)', [STAFF]);
 
 const live = async (uid) => (await as(db, uid, 'select key from public.site_popups order by priority desc')).rows.map((r) => r.key);
-ok(JSON.stringify(await live(null)) === '["how-it-works"]', 'visitors see the live “how it works” popup; the welcome offer starts switched off');
+ok(JSON.stringify(await live(null)) === '[]', 'no popups to begin with: the site opens straight onto the items');
 await rejects(as(db, MEMBER, 'select public.staff_popups()'), 'members can’t see the popup settings', /Staff only/);
 await rejects(as(db, MEMBER, `update public.site_popups set active = true`), 'or change popups', /permission denied/);
 const all = (await as(db, STAFF, 'select public.staff_popups() as p')).rows[0].p;
 const offer = all.find((p) => p.key === 'welcome-offer');
 await as(db, STAFF, 'select public.staff_save_popup($1, $2::jsonb, false)', [offer.id, JSON.stringify({ active: true, title: 'Join today: 10% off your first order', offer_code: 'welcome10' })]);
-ok(JSON.stringify(await live(null)) === '["how-it-works","welcome-offer"]', 'staff switch the welcome offer on');
+ok(JSON.stringify(await live(null)) === '["welcome-offer"]', 'staff switch the welcome offer on');
 const after = (await as(db, STAFF, 'select public.staff_popups() as p')).rows[0].p.find((p) => p.key === 'welcome-offer');
 ok(after.offer_code === 'WELCOME10' && after.version === 1, 'codes are kept in capitals; the version only moves with “show again”');
 await as(db, STAFF, 'select public.staff_save_popup($1, $2::jsonb, true)', [offer.id, '{}']);

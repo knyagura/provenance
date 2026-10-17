@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { CategoryBar } from '@/components/browse/CategoryBar';
 import { ExamplesNote } from '@/components/browse/ExamplesNote';
 import { ListingGrid } from '@/components/browse/ListingGrid';
-import { PopupLink } from '@/components/popups/PopupHost';
 import { EmptyState } from '@/components/EmptyState';
 import { TierBadge } from '@/components/ui';
 import { TIER_FROM, TIER_NOTE } from '@/lib/domain/present';
@@ -35,14 +34,11 @@ export default async function HomePage() {
   return (
     <>
       <CategoryBar categories={categories} />
-      {/* Straight to the items. How protection works (and any offer) is a popup staff set up in the console. */}
+      {/* Straight to the items. Popups (offers, announcements) are set up by staff in the console and are off by default. */}
       <section className="pv-section pv-home" aria-labelledby="newest">
         <div className="pv-section__head">
           <h1 id="newest" className="pv-home__title">Newly listed</h1>
-          <span className="pv-section__links">
-            <PopupLink popupKey="how-it-works">How protection works</PopupLink>
-            <Link href="/search">See everything</Link>
-          </span>
+          <Link href="/search">See everything</Link>
         </div>
         {examples ? <ExamplesNote /> : null}
         {failed ? (
