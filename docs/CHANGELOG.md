@@ -109,3 +109,6 @@ Newest first. Each entry says what changed for people using the site, and which 
 - New *Popups* tab in the staff console: explanations, announcements and offers, with title, text, steps, a button, an optional offer code, who sees it, which pages, a delay, priority and dates. "Show again" shows a popup again to everyone who closed it.
 - Offer codes are shown, but checkout doesn't apply them yet.
 - Migration 021. Documents: [ADR 0015](adr/0015-home-page-and-popups.md).
+
+## 2026-10-17: No popup on the home page
+- The "how it works" popup and its link are off. The site opens straight onto the items. Popups stay available in the staff console (*Popups*) for offers and announcements, all switched off to begin with. Migration 024.

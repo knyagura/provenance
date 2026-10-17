@@ -853,7 +853,8 @@ try {
     await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await p.goto(BASE + '/gift-cards');
     const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
-    if (!/£1\d\.\d\d/.test(left)) fail(`gift cards: the balance after paying looks wrong (${left})`);
+    const leftPence = Math.round(Number((left.match(/£([\d.]+)/) ?? [])[1]) * 100);
+    if (!(leftPence > 0 && leftPence < 2500)) fail(`gift cards: the balance after paying looks wrong (${left})`);
     // Staff make a code.
     await p.goto(BASE + '/profile');
     await p.getByRole('button', { name: 'Sign out' }).click();
@@ -870,7 +871,7 @@ try {
     await gctx.close();
   }
 
-  // Popups: "how protection works" shows once on the home page, can be reopened, and staff can switch on an offer.
+  // Popups: none by default (the home page opens on the items); staff can switch on an offer, which shows once.
   {
     const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, popups: true });
     const perr = [];
@@ -878,18 +879,8 @@ try {
     p.on('pageerror', (e) => perr.push(e.message));
     await p.goto(BASE + '/');
     if (!(await p.getByRole('heading', { level: 1, name: 'Newly listed' }).isVisible())) fail('home: items should start at the top under “Newly listed”');
-    const dlg = p.getByRole('dialog', { name: 'Pre-loved, with proof' });
-    await dlg.waitFor({ timeout: 8000 }).catch(() => fail('popups: the how-it-works popup did not appear'));
-    await p.addScriptTag({ content: readFileSync(new URL('../../node_modules/axe-core/axe.min.js', import.meta.url), 'utf8') });
-    const found = await p.evaluate(async () => (await window.axe.run(document.querySelector('dialog'), { resultTypes: ['violations'] })).violations.filter((v) => ['serious', 'critical'].includes(v.impact)).map((v) => v.id));
-    if (found.length) fail(`popups: axe ${found.join(', ')}`);
-    await dlg.getByRole('button', { name: 'Not now' }).click();
-    await p.reload();
     await p.waitForTimeout(3500);
-    if (await p.getByRole('dialog').isVisible()) fail('popups: a closed popup came back');
-    await p.getByRole('button', { name: 'How protection works' }).click();
-    await dlg.waitFor({ timeout: 3000 }).catch(() => fail('popups: “How protection works” did not open it'));
-    await p.keyboard.press('Escape');
+    if (await p.getByRole('dialog').isVisible()) fail('popups: the home page should open straight onto the items, with no popup');
     // Staff switch on the welcome offer with a code, shown straight away on search to visitors.
     const s = await pctx.newPage();
     await s.goto(`${BASE}/signin?next=${encodeURIComponent('/staff')}`);

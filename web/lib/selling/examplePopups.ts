@@ -13,7 +13,7 @@ export const SEED_POPUPS: SitePopup[] = [
       { title: 'Opened on camera', note: 'You check the seal and open it on camera. The seller is paid when you confirm.' },
     ],
     ctaLabel: 'Start browsing', ctaHref: '/search', offerCode: null, audience: 'everyone', pages: '/', delaySeconds: 2, priority: 10,
-    active: true, startsAt: null, endsAt: null, version: 1,
+    active: false, startsAt: null, endsAt: null, version: 1,
   },
   {
     id: 'popup-welcome', key: 'welcome-offer', kind: 'offer', title: 'New to NuTuYu? Join today',
