@@ -430,6 +430,8 @@ export interface MarketBackend {
   createLabel(orderId: string, service: string, parcel: ParcelSize): Promise<Result<OrderShipping>>;
   cancelLabel(orderId: string): Promise<Result<OrderShipping>>;
 
+  /** Staff: sales, fees, disputes and handover times between two dates (inclusive, UK time). */
+  staffReport(from: string, to: string): Promise<Result<StaffReport>>;
   /** Public: a seller's protected-handover record, and the site-wide tracker. */
   sellerTrust(username: string): Promise<SellerTrust | null>;
   trustStats(): Promise<TrustStats | null>;
@@ -584,4 +586,18 @@ export interface TrustStats {
   avgHandoverHours: number | null;
   byTier: Partial<Record<'enhanced' | 'verified' | 'luxury' | 'ultraLuxury', number>>;
   recent: { listingId: string; title: string; tier: 'enhanced' | 'verified' | 'luxury' | 'ultraLuxury'; confirmedOn: string }[];
+}
+
+type TierKey4 = 'enhanced' | 'verified' | 'luxury' | 'ultraLuxury';
+export interface StaffReport {
+  from: string;
+  to: string;
+  sales: { orders: number; sellers: number; buyers: number; gmvPence: number; buyerPaidPence: number; postagePence: number; averageOrderPence: number | null; sellerPayoutsPence: number };
+  fees: { transactionPence: number; processingPence: number; commissionPence: number; courierPence: number; hubPence: number; promotionPence: number; nutuyuVouchersPence: number; netPence: number };
+  byTier: Partial<Record<TierKey4, { orders: number; gmvPence: number }>>;
+  byCategory: { category: string; orders: number; gmvPence: number }[];
+  disputes: { opened: number; ratePct: number | null; byReason: Record<string, number>; released: number; refunded: number; openNow: number; avgHoursToDecide: number | null };
+  handover: { completed: number; avgHours: number | null; medianHours: number | null; byTier: Partial<Record<TierKey4, { completed: number; avgHours: number | null }>> };
+  labels: Record<string, number>;
+  months: { month: string; orders: number; gmvPence: number; netFeesPence: number; disputes: number }[];
 }

@@ -302,3 +302,19 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-shipsheet__to address { display: flex; flex-direction: column; font: 600 18px/1.35 var(--font-sans); font-style: normal; overflow-wrap: anywhere; }
 .pv-shipsheet__track { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .pv-shipsheet__track .pv-mono { font-size: 18px; letter-spacing: .06em; overflow-wrap: anywhere; }
+
+/* Staff reports */
+.pv-report { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-4); }
+.pv-report__range .pv-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pv-report__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--space-4); }
+.pv-report__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pv-report__table th, .pv-report__table td { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.pv-report__table th { font-weight: 400; color: var(--ink-soft); padding-right: var(--space-3); }
+.pv-report__table td { text-align: right; font-weight: 600; }
+.pv-report__scroll { overflow-x: auto; }
+.pv-report__months { width: 100%; min-width: 480px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pv-report__months th, .pv-report__months td { padding: var(--space-2); border-bottom: 1px solid var(--line); text-align: right; }
+.pv-report__months th:first-child, .pv-report__months thead th:first-child { text-align: left; }
+.pv-report__months td:nth-child(3) { position: relative; }
+.pv-report__bar { position: absolute; right: 0; top: 15%; height: 70%; background: var(--surface-sand); border-radius: 3px; z-index: -1; }
+.pv-report__months td:nth-child(3) { isolation: isolate; }

@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import { toShipping } from './shipping';
+import { toReport } from './reports';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
@@ -442,6 +443,10 @@ export const supabaseMarket: MarketBackend = {
       id: n.id, kind: n.kind, group: n.group, title: n.title, body: n.body, link: n.link, count: n.count,
       createdAt: n.created_at, read: Boolean(n.read), emailed: Boolean(n.emailed),
     }));
+  },
+  async staffReport(from, to) {
+    const { data, error } = await supabase().rpc('staff_report', { p_from: from, p_to: to });
+    return error ? fail(error) : { ok: true, value: toReport(data) };
   },
   async sellerTrust(username) {
     const { data, error } = await supabase().rpc('seller_trust', { p_username: username });

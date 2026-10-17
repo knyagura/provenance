@@ -10,6 +10,7 @@ import { exampleSource } from '@/lib/domain/catalogue';
 import { examplePopups } from './examplePopups';
 import { exampleShipping } from './exampleShipping';
 import { exampleTrust } from './exampleTrust';
+import { exampleReport } from './exampleReports';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -608,6 +609,10 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffSavePopup(pid, patch, showAgain) {
       if (!isStaffMember(me())) return fail('Staff only.');
       return examplePopups.save(pid, patch, showAgain);
+    },
+    async staffReport(from, to) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return exampleReport(from, to);
     },
     async sellerTrust(username) {
       return exampleTrust.seller(username);

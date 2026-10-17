@@ -41,4 +41,4 @@ A resale marketplace prototype with a built-in physical chain-of-custody and evi
 3. Real payments (Stripe test mode is a safe first step).
 4. ~~Real browser/device test automation (Playwright)~~ — done (2026-10-10), see `tests/real_browser_layout.js`.
 5. Stable hosting on a fixed domain instead of CodeSandbox's random-subdomain-per-rehost pattern.
-6. Real KYC provider, real courier integration, push notifications, and the deferred marketplace features listed in the product update doc section 7.
+6. Real KYC provider, live Parcel2Go labels (test labels are built, ADR 0018), push notifications, and the deferred marketplace features listed in the product update doc section 7.

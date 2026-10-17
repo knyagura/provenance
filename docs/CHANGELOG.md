@@ -130,3 +130,13 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Trusted seller** badge: identity checked, 5 or more completed and no more than 1 in 20 disputed.
 - **Trust tracker** at `/trust` (in the footer): completed handovers, disputes and refunds, typical time, counts by protection level, and recently completed items linked to their passports. It never shows anyone's details.
 - Migration 026. Documents: [ADR 0019](adr/0019-trust-badges-and-tracker.md).
+
+## 2026-10-17: Staff reports
+- New *Reports* tab in the staff console, for any period:
+  - sales: orders, items sold, buyers paid, average item, by protection level and category;
+  - fees, and what NuTuYu keeps after promotions and its own voucher codes;
+  - disputes: rate, outcomes, reasons, time to decide;
+  - handover time from payment to confirmation;
+  - 12 months by month;
+  - a CSV download.
+- Migration 027. Documents: [ADR 0020](adr/0020-staff-reports.md).

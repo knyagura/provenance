@@ -45,6 +45,7 @@ jobs:
       - run: node near_checks.mjs
       - run: node label_checks.mjs
       - run: node trust_checks.mjs
+      - run: node report_checks.mjs
 
   migrate:
     needs: database-tests

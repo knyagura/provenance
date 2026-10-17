@@ -526,6 +526,17 @@ try {
     await staff.getByLabel('Organisation').fill('Swift Couriers');
     await staff.getByRole('button', { name: 'Add', exact: true }).click();
     await staff.getByText('newcourier@example.com can now record courier steps.').waitFor();
+    // Reports: the LEGO order above (paid, completed) is counted.
+    await staff.getByRole('tab', { name: 'Reports' }).click();
+    const headline = staff.getByLabel('Headline figures');
+    await headline.waitFor();
+    await staff.waitForFunction(() => !!document.querySelector('[aria-label="Headline figures"] dd'));
+    const orders = Number((await headline.getByRole('definition').first().textContent())?.trim());
+    if (!(orders >= 1)) fail(`reports: expected the paid orders to be counted, saw ${orders}`);
+    if (!(await staff.getByRole('table', { name: 'Fees' }).getByText('Net to NuTuYu').isVisible())) fail('reports: the fees table is missing');
+    const [csv] = await Promise.all([staff.waitForEvent('download'), staff.getByRole('button', { name: 'Download CSV' }).click()]);
+    if (!/^nutuyu-report-\d{4}-\d{2}-\d{2}-to-\d{4}-\d{2}-\d{2}\.csv$/.test(csv.suggestedFilename())) fail(`reports: CSV name ${csv.suggestedFilename()}`);
+    await staff.screenshot({ path: 'test-results/staff-reports-390.png', fullPage: true });
     await staff.getByRole('tab', { name: 'Settings' }).click();
     await staff.getByRole('heading', { name: 'Fees' }).waitFor();
     // Shipping label (test mode): a £14 belt the seller posts. The buyer gives an address; the seller gets a label.

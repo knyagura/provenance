@@ -8,7 +8,8 @@ import { TIER_LABEL } from '@/lib/domain/present';
 import type { SellerTrust, TrustStats } from '@/lib/selling/types';
 
 export function handoverTime(hours: number): string {
-  if (hours < 36) return `about ${Math.max(1, Math.round(hours))} ${Math.round(hours) === 1 ? 'hour' : 'hours'}`;
+  if (hours < 1.5) return 'under 2 hours';
+  if (hours < 36) return `about ${Math.round(hours)} hours`;
   const days = Math.round(hours / 24);
   return `about ${days} ${days === 1 ? 'day' : 'days'}`;
 }

@@ -74,6 +74,13 @@ Passkeys use Supabase Auth's built-in WebAuthn support. They only work once swit
   - Emails starting `courier` are couriers, and emails starting `hub` are hubs.
   - Any password of 8 or more characters works.
 
+## Shipping, trust and reports
+
+- **Shipping labels** (`components/shipping/Shipping.tsx`, migration 025): the buyer adds a delivery address on the order page. At *Post it with tracking*, the seller makes a label, which fills in the carrier and tracking number. It prints from `/orders/{id}/shipping-label`. Labels are test labels until NuTuYu's Parcel2Go key is added. See [ADR 0018](../docs/adr/0018-shipping-labels.md).
+- **Trust** (`components/market/Trust.tsx`, migration 026): each seller's record and badges show on item and member pages, and the public tracker is at `/trust`. See [ADR 0019](../docs/adr/0019-trust-badges-and-tracker.md).
+- **Staff reports** (`components/staff/Reports.tsx`, migration 027): the console's *Reports* tab, with a CSV download. See [ADR 0020](../docs/adr/0020-staff-reports.md).
+- Example mode counts all three from the example orders in the browser.
+
 ## Pictures
 
 The example catalogue's pictures are drawn by `scripts/example-art.mjs` (three views per item: front, close-up, label) into `public/examples/`. They are original drawings with no brand names or logos. Run `node scripts/example-art.mjs` after changing a drawing. The app icon is `app/icon.svg` (and `app/apple-icon.png` for home screens).
