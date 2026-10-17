@@ -54,3 +54,6 @@ Newest first. Each entry says what changed for people using the site, and which 
 - New `/privacy` page (needed for Google sign-in's public mode), `/terms`, and `/contact`, all linked from the footer and the social sign-in buttons.
 - Migration 014: the contact form stores messages that only staff can read, in the console's new Messages tab. No email address is published. Limits: 5 messages per address per day and 200 an hour overall, plus a hidden field to catch bots. It is applied automatically when merged.
 - The privacy notice is a plain-English first draft. Have it reviewed before launch, and add the legal entity name once there is one.
+## 2026-10-17: Breached passwords refused (free stand-in for Supabase's Pro-plan setting)
+- Creating an account or setting a new password checks the password against Have I Been Pwned. Only the first 5 characters of its SHA-1 hash are sent, using k-anonymity. A password found in a breach is refused with a plain message. If the service can't be reached, the check passes rather than blocking anyone.
+- This applies to the site's own forms. Once on Supabase Pro, switch on "Prevent use of leaked passwords" so passwords set any other way are covered too.
