@@ -573,7 +573,7 @@ try {
     await seller.goto(BASE + '/profile#notifications');
     const msgEmails = seller.getByRole('checkbox', { name: /^Messages/ });
     await msgEmails.uncheck();
-    await seller.getByText('Saved', { exact: true }).waitFor();
+    await seller.locator('#notifications').getByRole('status').filter({ hasText: 'Saved' }).waitFor();
     await seller.reload();
     if (await seller.getByRole('checkbox', { name: /^Messages/ }).isChecked()) fail('notifications: switching off message emails did not stick');
     if (oerr.length) fail(`offers: page errors: ${oerr.slice(0, 3).join(' | ')}`);
