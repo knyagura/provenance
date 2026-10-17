@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards', '/search?near=SW11&miles=10',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -904,6 +904,30 @@ try {
     if (!(await offer.getByText('WELCOME10').isVisible())) fail('popups: the offer code is missing');
     if (perr.length) fail(`popups: page errors: ${perr.slice(0, 3).join(' | ')}`);
     await pctx.close();
+  }
+
+  // Better search: collection near a postcode district, and similar items on the item page.
+  {
+    const sctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const serr = [];
+    const p = await sctx.newPage();
+    p.on('pageerror', (e) => serr.push(e.message));
+    await p.goto(BASE + '/search?near=sw11%201aa&miles=5');
+    const cards = p.locator('main li').filter({ hasText: /miles? away|under a mile away/ });
+    const n = await cards.count();
+    if (!n) fail('near me: nothing found near SW11');
+    for (const t of await p.locator('main ul li').filter({ has: p.locator('a[href^="/item/"]') }).allTextContents()) {
+      if (!t.includes('SW11')) fail(`near me: an item outside SW11 showed up (${t.slice(0, 80)})`);
+    }
+    if ((await p.getByLabel('Your postcode or its first half').inputValue()) !== 'SW11') fail('near me: the district should be shown back as SW11');
+    await p.goto(BASE + '/search?near=zz&miles=10');
+    if (!(await p.getByText(/couldn’t find that postcode/).first().isVisible())) fail('near me: a bad postcode should explain itself');
+    await p.goto(BASE + '/item/example-1');
+    const sim = p.getByRole('region', { name: 'Similar items' });
+    await sim.waitFor({ timeout: 5000 }).catch(() => fail('item page: no “Similar items”'));
+    if (await sim.locator('a[href="/item/example-1"]').count()) fail('similar items should not include the item itself');
+    if (serr.length) fail(`better search: page errors: ${serr.slice(0, 3).join(' | ')}`);
+    await sctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

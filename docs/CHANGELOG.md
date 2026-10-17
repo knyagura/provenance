@@ -112,3 +112,9 @@ Newest first. Each entry says what changed for people using the site, and which 
 
 ## 2026-10-17: No popup on the home page
 - The "how it works" popup and its link are off. The site opens straight onto the items. Popups stay available in the staff console (*Popups*) for offers and announcements, all switched off to begin with. Migration 024.
+
+## 2026-10-17: Better search: collect near me, sizes from your baskets, similar items
+- **Collect in person near you.** Sellers can add the first half of their postcode and offer collection (*Account → Collection in person*). Buyers search *Collect in person near* with a postcode or *Use my location*, and choose a distance. Results are nearest first, with "SW11, about 3 miles away". Only districts are stored, never addresses.
+- **Sizes from your baskets** appear as one-tap chips above the Size filter.
+- **Similar items** on every item page.
+- Migration 023. Documents: [ADR 0017](adr/0017-better-search.md).

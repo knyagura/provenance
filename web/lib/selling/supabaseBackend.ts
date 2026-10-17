@@ -284,7 +284,7 @@ export const supabaseBackend: SellingBackend = {
     if (!me) return null;
     const { data, error } = await supabase()
       .from('profiles')
-      .select('username, bio, holiday_mode, kyc_verified, is_pro, created_at')
+      .select('username, bio, holiday_mode, kyc_verified, is_pro, created_at, area, area_lat, area_lng, collection_ok')
       .eq('id', me)
       .maybeSingle();
     if (error) throw new Error(friendly(error));
@@ -292,6 +292,8 @@ export const supabaseBackend: SellingBackend = {
     return {
       username: data.username, bio: data.bio ?? '', holidayMode: data.holiday_mode,
       verified: data.kyc_verified, business: data.is_pro, joined: data.created_at,
+      area: data.area ? { district: data.area, lat: Number(data.area_lat), lng: Number(data.area_lng) } : null,
+      collectionOk: Boolean(data.collection_ok),
     };
   },
 
@@ -302,6 +304,9 @@ export const supabaseBackend: SellingBackend = {
     if (f.username !== undefined) row.username = f.username.trim();
     if (f.bio !== undefined) row.bio = f.bio.trim() || null;
     if (f.holidayMode !== undefined) row.holiday_mode = f.holidayMode;
+    if (f.area !== undefined) Object.assign(row, { area: f.area?.district ?? null, area_lat: f.area?.lat ?? null, area_lng: f.area?.lng ?? null });
+    if (f.collectionOk !== undefined) row.collection_ok = f.collectionOk;
+    if (f.area === null) row.collection_ok = false;
     const { error } = await supabase().from('profiles').update(row).eq('id', me);
     return error ? fail(error) : { ok: true, value: undefined };
   },

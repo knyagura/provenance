@@ -286,6 +286,28 @@ export async function getVariants(id: string): Promise<Variant[]> {
   return id.startsWith('example-') ? exampleSource.variants(id) : liveSource().variants(id);
 }
 
+/** Similar items for an item page: same category and a similar price, the same brand or size first. */
+export function rankSimilar(l: Listing, candidates: Listing[], max = 6): Listing[] {
+  const score = (x: Listing) =>
+    (l.brand && x.brand === l.brand ? 2 : 0) + (l.size && x.size?.toLowerCase() === l.size.toLowerCase() ? 1 : 0) - Math.abs(x.pricePence - l.pricePence) / Math.max(l.pricePence, 1);
+  return candidates
+    .filter((x) => x.id !== l.id && (!l.variantGroup || x.variantGroup !== l.variantGroup) && x.status === 'active')
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, max);
+}
+
+export async function getSimilar(l: Listing): Promise<Listing[]> {
+  const source = l.id.startsWith('example-') ? exampleSource : liveSource();
+  try {
+    const page = await source.search({
+      category: l.category ?? undefined, sort: 'newest', limit: 48, offset: 0,
+    });
+    return rankSimilar(l, page.items);
+  } catch {
+    return [];
+  }
+}
+
 export async function getListing(id: string): Promise<Listing | null> {
   return id.startsWith('example-') ? exampleSource.get(id) : liveSource().get(id);
 }

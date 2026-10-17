@@ -5,10 +5,12 @@ import { CategoryBar } from '@/components/browse/CategoryBar';
 import { ExamplesNote } from '@/components/browse/ExamplesNote';
 import { ListingGrid } from '@/components/browse/ListingGrid';
 import { SaveSearch } from '@/components/browse/SaveSearch';
+import { BasketSizes, NearMeButton } from '@/components/browse/SearchHelpers';
+import { locateDistrict, milesBetween, toDistrict, type Point } from '@/lib/domain/places';
 import { CatalogueUnavailable, siteCatalogue } from '@/lib/domain/catalogue';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, countText, resultsHeading } from '@/lib/domain/present';
-import { parseSiteQuery, type Params } from '@/lib/domain/query';
+import { get as getParam, parseSiteQuery, type Params } from '@/lib/domain/query';
 import { CONDITIONS, type Listing, type ListingQuery, type Page } from '@/lib/domain/types';
 
 type Props = { searchParams: Promise<Params> };
@@ -37,13 +39,30 @@ function pageHref(params: Params, cursor: string | null): string {
   return qs ? `/search?${qs}` : '/search';
 }
 
+const sortByDistance = (items: Listing[], p: Point) =>
+  [...items].sort((a, b) => (a.seller.area ? milesBetween(p, a.seller.area) : 999) - (b.seller.area ? milesBetween(p, b.seller.area) : 999));
+
 function activeFilterCount(q: ListingQuery): number {
-  return [q.condition, q.size, q.minPence, q.maxPence].filter((v) => v !== undefined).length + (q.sort !== 'newest' ? 1 : 0);
+  return [q.condition, q.size, q.near, q.minPence, q.maxPence].filter((v) => v !== undefined).length + (q.sort !== 'newest' ? 1 : 0);
 }
 
 export default async function SearchPage({ searchParams }: Props) {
   const params = await searchParams;
-  const { query, errors } = parseSiteQuery(params);
+  const parsed = parseSiteQuery(params);
+  const { errors } = parsed;
+  let query = parsed.query;
+  // "Collect near SW11": the district's centre becomes the point to search around.
+  const nearText = (getParam(params, 'near') ?? '').trim();
+  let nearLabel: string | null = query.near ? 'your location' : null;
+  if (nearText && !query.near) {
+    const d = toDistrict(nearText);
+    const p = d ? await locateDistrict(d) : null;
+    const miles = Number(getParam(params, 'miles') ?? 10);
+    if (p && d) {
+      query = { ...query, near: { ...p, miles: [1, 2, 5, 10, 25, 50].includes(miles) ? miles : 10 } };
+      nearLabel = d;
+    } else errors.push({ name: 'near', reason: 'We couldn’t find that postcode. Try the first half, like SW11.' });
+  }
 
   let categories = fallbackCategories;
   let result: Page<Listing> | null = null;
@@ -98,9 +117,22 @@ export default async function SearchPage({ searchParams }: Props) {
               </select>
             </div>
             <div className="pv-field">
+              <BasketSizes current={query.size ?? null} />
               <label htmlFor="f-size">Size</label>
               <input id="f-size" name="size" maxLength={40} placeholder="For example 10, M or UK 9" defaultValue={query.size ?? ''} />
             </div>
+            <fieldset className="pv-field pv-near">
+              <legend>Collect in person near</legend>
+              <div>
+                <label htmlFor="f-near" className="pv-visually-hidden">Your postcode or its first half</label>
+                <input id="f-near" name="near" placeholder="Postcode, like SW11" maxLength={8} defaultValue={nearLabel && nearLabel !== 'your location' ? nearLabel : nearText} autoComplete="postal-code" />
+                <label htmlFor="f-miles" className="pv-visually-hidden">Distance</label>
+                <select id="f-miles" name="miles" defaultValue={String(query.near?.miles ?? 10)}>
+                  {[1, 2, 5, 10, 25, 50].map((m) => <option key={m} value={m}>within {m} {m === 1 ? 'mile' : 'miles'}</option>)}
+                </select>
+              </div>
+              <NearMeButton miles={query.near?.miles ?? 10} />
+            </fieldset>
             <fieldset className="pv-field pv-field--range">
               <legend>Price (£)</legend>
               <div>
@@ -137,7 +169,8 @@ export default async function SearchPage({ searchParams }: Props) {
             <p className="pv-banner pv-banner--warn" role="status">We couldn’t load listings just now. Try again in a minute.</p>
           ) : result.items.length ? (
             <>
-              <ListingGrid listings={result.items} label={heading} />
+              {nearLabel && query.near ? <p className="pv-note" role="status">Sellers who offer collection within {query.near.miles} {query.near.miles === 1 ? 'mile' : 'miles'} of {nearLabel}, nearest first.</p> : null}
+              <ListingGrid listings={query.near ? sortByDistance(result.items, query.near) : result.items} label={heading} near={query.near} />
               {result.nextCursor || query.offset > 0 ? (
                 <nav className="pv-pager" aria-label="More results">
                   {query.offset > 0 ? <Link href={pageHref(params, null)} prefetch={false} className="pv-btn pv-btn--quiet">Back to the start</Link> : <span />}

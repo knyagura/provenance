@@ -18,7 +18,7 @@ export interface FieldError {
 
 export type Parsed = { ok: true; query: ListingQuery } | { ok: false; errors: FieldError[] };
 
-function get(params: Params, name: string): string | undefined {
+export function get(params: Params, name: string): string | undefined {
   const v = params instanceof URLSearchParams ? params.get(name) ?? undefined : params[name];
   const s = Array.isArray(v) ? v[0] : v;
   const t = s?.trim();

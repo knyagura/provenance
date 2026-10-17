@@ -86,6 +86,7 @@
 .pv-item__actions { display: flex; flex-direction: column; gap: var(--space-2); }
 .pv-item__desc { white-space: pre-line; max-width: 65ch; overflow-wrap: anywhere; }
 .pv-item__journey { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.pv-item__similar { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 
 .pv-seller { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-block: 1px solid var(--line); }
 .pv-seller > span:last-child { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
@@ -223,3 +224,10 @@
 .pv-popup--offer { border-top: 6px solid var(--terracotta); }
 .pv-popup__code { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); border: 1px dashed var(--ink-muted); border-radius: var(--radius-sm); }
 .pv-popup__code strong { font-size: 18px; letter-spacing: .06em; }
+
+/* Collection near me, and sizes from baskets */
+.pv-near > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pv-near input { flex: 1 1 8rem; }
+.pv-near__me { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.pv-basket-sizes { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-2); }
+.pv-basket-sizes .pv-chip[aria-current="true"] { background: var(--ink); color: var(--surface); }
