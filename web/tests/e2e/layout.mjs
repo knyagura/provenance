@@ -868,6 +868,8 @@ try {
     await p.getByText('SPRING5 is ready to use.').waitFor({ timeout: 5000 }).catch(() => fail('vouchers: staff could not make a code'));
     if (gerr.length) fail(`vouchers: page errors: ${gerr.slice(0, 3).join(' | ')}`);
     await gctx.close();
+  }
+
   // Popups: "how protection works" shows once on the home page, can be reopened, and staff can switch on an offer.
   {
     const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, popups: true });
