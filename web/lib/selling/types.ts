@@ -234,6 +234,19 @@ export interface StaffSettings {
   currentFeeVersion: number;
 }
 
+export type ContactTopic = 'privacy' | 'account' | 'order' | 'other';
+export interface ContactMessage {
+  id: string;
+  createdAt: string;
+  name: string;
+  email: string;
+  topic: ContactTopic;
+  body: string;
+  member: string | null;
+  handledAt: string | null;
+  handledBy: string | null;
+}
+
 export interface MarketBackend {
   favourites(): Promise<string[]>;
   setFavourite(listingId: string, on: boolean): Promise<Result>;
@@ -266,6 +279,10 @@ export interface MarketBackend {
   staffSettings(): Promise<StaffSettings | null>;
   staffUpdateSettings(custody: Record<string, number> | null, offers: Record<string, number> | null): Promise<Result<StaffSettings>>;
   staffAddFeeVersion(settings: Record<string, unknown>, note: string): Promise<Result<StaffSettings>>;
+  /** The contact form. Anyone can send; only staff read. */
+  submitContact(name: string, email: string, topic: ContactTopic, body: string): Promise<Result>;
+  staffContactMessages(openOnly: boolean): Promise<ContactMessage[]>;
+  staffContactHandled(id: string): Promise<Result>;
 }
 
 export interface BasketBackend {

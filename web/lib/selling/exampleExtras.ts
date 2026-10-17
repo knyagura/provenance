@@ -4,7 +4,7 @@ import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
-  CheckoutStarted, MarketBackend, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
+  CheckoutStarted, ContactMessage, MarketBackend, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
 } from './types';
 
 // Example mode's favourites, messages, offers, reviews, passport and staff console, shared between tabs in
@@ -28,6 +28,7 @@ interface Extras {
   reviews: StoredReview[];
   settings?: { custody: Record<string, number>; offers: Record<string, number>; fees: StaffSettings['fees'] };
   actions: { orderId: string; action: string; by: string; detail: Record<string, unknown>; at: string }[];
+  contact?: ContactMessage[];
 }
 
 function load(): Extras {
@@ -393,6 +394,31 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       x.settings = { ...s, fees: [{ version, effectiveFrom: now(), note: note.trim(), settings }, ...s.fees] };
       save(x);
       return { ok: true, value: { ...x.settings, currentFeeVersion: version } };
+    },
+    async submitContact(name, email, topic, body) {
+      if (!name.trim()) return fail('Enter your name.');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return fail('Enter an email address we can reply to.');
+      if (body.trim().length < 10 || body.trim().length > 4000) return fail('Write a message of 10 to 4,000 characters.');
+      const x = load();
+      const e = email.trim().toLowerCase();
+      const day = Date.now() - 86_400_000;
+      if ((x.contact ?? []).filter((m) => m.email === e && Date.parse(m.createdAt) > day).length >= 5) return fail('You’ve sent several messages today. We’ll reply to those first.');
+      x.contact = [{ id: id('contact'), createdAt: now(), name: name.trim(), email: e, topic, body: body.trim(), member: me()?.username ?? null, handledAt: null, handledBy: null }, ...(x.contact ?? [])];
+      save(x);
+      return done;
+    },
+    async staffContactMessages(openOnly) {
+      if (!isStaffMember(me())) return [];
+      return (load().contact ?? []).filter((m) => !openOnly || !m.handledAt);
+    },
+    async staffContactHandled(cid) {
+      const m = me();
+      if (!isStaffMember(m)) return fail('Staff only.');
+      const x = load();
+      const c = (x.contact ?? []).find((y) => y.id === cid);
+      if (c && !c.handledAt) Object.assign(c, { handledAt: now(), handledBy: m!.username });
+      save(x);
+      return done;
     },
   };
 }

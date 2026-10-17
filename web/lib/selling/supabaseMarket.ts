@@ -240,4 +240,22 @@ export const supabaseMarket: MarketBackend = {
     const { data, error } = await supabase().rpc('staff_add_fee_version', { p_settings: settings, p_note: note, p_effective: null });
     return error ? fail(error) : { ok: true, value: toSettings(data as Record<string, unknown>)! };
   },
+
+  async submitContact(name, email, topic, body) {
+    const { error } = await supabase().rpc('submit_contact', { p_name: name, p_email: email, p_topic: topic, p_body: body });
+    return error ? fail(error) : done;
+  },
+  async staffContactMessages(openOnly) {
+    const { data, error } = await supabase().rpc('staff_contact_messages', { p_open_only: openOnly });
+    if (error || !data) return [];
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return (data as any[]).map((m) => ({
+      id: m.id, createdAt: m.created_at, name: m.name, email: m.email, topic: m.topic, body: m.body,
+      member: m.member ?? null, handledAt: m.handled_at ?? null, handledBy: m.handled_by ?? null,
+    }));
+  },
+  async staffContactHandled(id) {
+    const { error } = await supabase().rpc('staff_contact_handled', { p_id: id });
+    return error ? fail(error) : done;
+  },
 };

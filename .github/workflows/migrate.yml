@@ -35,6 +35,7 @@ jobs:
       - run: node custody_attacks.mjs
       - run: node marketplace_checks.mjs
       - run: node basket_checks.mjs
+      - run: node contact_checks.mjs
 
   migrate:
     needs: database-tests
