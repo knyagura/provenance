@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { formatPence } from '@/lib/format';
 import type { OrderSummary } from '@/lib/selling';
 import { InboxGifts, InboxOffers } from '@/components/market/InboxOffers';
+import { InboxUpdates } from '@/components/market/Notifications';
 
 const REFRESH_MS = 15000;
 const PAYMENT: Record<OrderSummary['paymentStatus'], string> = {
@@ -115,6 +116,7 @@ export function Inbox() {
         </p>
       </header>
       {error ? <p className="pv-banner pv-banner--warn" role="status">We couldn’t refresh just now. We’ll keep trying.</p> : null}
+      <InboxUpdates />
       <InboxGifts />
       <InboxOffers />
       {rows.length === 0 ? <EmptyState title="No orders yet" note="Anything you buy or sell appears here, with each step of its handover." action={{ href: '/search', label: 'Start browsing' }} /> : null}

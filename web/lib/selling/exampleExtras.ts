@@ -2,6 +2,8 @@ import { computeFees, DEFAULT_FEES, feeSettingsFromJson } from '@/lib/domain/fee
 import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
+import { formatPence } from '@/lib/format';
+import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
   CheckoutStarted, ContactMessage, MarketBackend, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
@@ -162,6 +164,7 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       const x = load();
       x.messages.push({ id: id('msg'), orderId, senderId: m.id, body: body.trim(), at: now() });
       save(x);
+      exampleNotifyMessage(m.id === o.buyerId ? o.sellerId : o.buyerId, orderId, o.summary.title, username(m), body.trim());
       return done;
     },
     async markRead(orderId) {
@@ -170,6 +173,7 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       const x = load();
       x.reads[`${orderId}|${m.id}`] = now();
       save(x);
+      exampleReadOrderMessages(m.id, orderId);
     },
 
     async makeOffer(listingId, amountPence) {
@@ -189,6 +193,7 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       };
       x.offers.push(o);
       save(x);
+      exampleNotify(o.sellerId, 'offer_new', ...offerWords.newOffer(l.title, o.buyer, amountPence), '/inbox');
       return { ok: true, value: offerView(o, m) };
     },
     async respondOffer(offerId, action, amountPence) {
@@ -207,7 +212,11 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       if (o.status !== 'pending' || o.expiresAt < now()) return fail('This offer has ended.');
       if (action === 'decline') o.status = 'declined';
       else if (sold(o.listingId)) return fail('This item is no longer for sale.');
-      else if (action === 'accept') Object.assign(o, { status: 'accepted', expiresAt: later(CHECKOUT_HOURS) });
+      else if (action === 'accept') {
+        Object.assign(o, { status: 'accepted', expiresAt: later(CHECKOUT_HOURS) });
+        if (o.madeBy === 'buyer') exampleNotify(o.buyerId, 'offer_accepted', ...offerWords.accepted(listing(o.listingId)?.title ?? 'your offer', `${o.seller} accepted ${formatPence(o.amountPence)}. Buy it at that price soon.`), `/item/${o.listingId}`);
+        else exampleNotify(o.sellerId, 'offer_accepted', ...offerWords.accepted(listing(o.listingId)?.title ?? 'your offer', `${o.buyer} accepted your ${formatPence(o.amountPence)}.`), '/inbox');
+      }
       else if (action === 'counter') {
         const a = amountPence ?? 0;
         if (!Number.isInteger(a) || a >= o.pricePence || a < Math.ceil((o.pricePence * OFFER_MIN_PCT) / 100)) {
@@ -218,6 +227,9 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
         const n: StoredOffer = { ...o, id: id('offer'), amountPence: a, madeBy: m.id === o.sellerId ? 'seller' : 'buyer', status: 'pending', counterOf: o.id, createdAt: now(), expiresAt: later(REPLY_HOURS) };
         x.offers.push(n);
         save(x);
+        const title = listing(o.listingId)?.title ?? 'an item';
+        if (n.madeBy === 'seller') exampleNotify(n.buyerId, 'offer_counter', ...offerWords.counter(title, n.seller, a), `/item/${n.listingId}`);
+        else exampleNotify(n.sellerId, 'offer_counter', ...offerWords.counter(title, n.buyer, a), '/inbox');
         return { ok: true, value: offerView(n, m) };
       } else return fail('Choose accept, decline or counter.');
       save(x);
@@ -410,6 +422,27 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffContactMessages(openOnly) {
       if (!isStaffMember(me())) return [];
       return (load().contact ?? []).filter((m) => !openOnly || !m.handledAt);
+    },
+    async notifications() {
+      const m = me();
+      return m ? exampleNotifications.list(m.id) : [];
+    },
+    async unreadNotifications() {
+      const m = me();
+      return m ? exampleNotifications.unread(m.id) : 0;
+    },
+    async markNotificationsRead(ids) {
+      const m = me();
+      if (m) exampleNotifications.markRead(m.id, ids);
+    },
+    async notificationPrefs() {
+      const m = me();
+      return m ? exampleNotifications.prefs(m.id) : { ...ALL_EMAILS };
+    },
+    async setNotificationPrefs(p) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      return { ok: true, value: exampleNotifications.setPrefs(m.id, p) };
     },
     async staffContactHandled(cid) {
       const m = me();

@@ -14,6 +14,7 @@ import {
   type SealKind,
 } from '@/lib/domain/custody';
 import type { Tier } from '@/lib/domain/types';
+import { exampleNotifyOrderChange } from './exampleNotifications';
 import type { Member, OrderSummary, PreparedMedia, Result } from './types';
 
 // Example mode's shared marketplace: orders and their custody, kept in localStorage so that two tabs
@@ -102,6 +103,14 @@ export function loadMarket(): Market {
 }
 
 export function saveMarket(m: Market): void {
+  // Tell people what changed, as the database's notification triggers do.
+  const before = new Map(loadMarket().orders.map((o) => [o.summary.id, o]));
+  for (const o of m.orders) {
+    const b = before.get(o.summary.id);
+    if (!b || JSON.stringify(b.summary.paymentStatus) !== JSON.stringify(o.summary.paymentStatus) || JSON.stringify(b.custody) !== JSON.stringify(o.custody)) {
+      exampleNotifyOrderChange(b, o);
+    }
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(m));
   } catch {

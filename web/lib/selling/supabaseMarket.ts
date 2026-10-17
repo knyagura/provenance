@@ -3,7 +3,7 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing } from '@/lib/domain/catalogue';
 import type { Tier } from '@/lib/domain/types';
 import type {
-  CheckoutStarted, MarketBackend, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
+  CheckoutStarted, MarketBackend, NotificationPrefs, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
 } from './types';
 
 // Favourites, messages, offers, reviews, the Item Passport and the staff console, through Supabase.
@@ -257,5 +257,31 @@ export const supabaseMarket: MarketBackend = {
   async staffContactHandled(id) {
     const { error } = await supabase().rpc('staff_contact_handled', { p_id: id });
     return error ? fail(error) : done;
+  },
+
+  async notifications() {
+    const { data, error } = await supabase().rpc('my_notifications', { p_limit: 50 });
+    if (error || !data) return [];
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return (data as any[]).map((n) => ({
+      id: n.id, kind: n.kind, group: n.group, title: n.title, body: n.body, link: n.link, count: n.count,
+      createdAt: n.created_at, read: Boolean(n.read), emailed: Boolean(n.emailed),
+    }));
+  },
+  async unreadNotifications() {
+    if (!(await uid())) return 0;
+    const { data, error } = await supabase().rpc('unread_notifications');
+    return error ? 0 : Number(data ?? 0);
+  },
+  async markNotificationsRead(ids) {
+    await supabase().rpc('mark_notifications_read', { p_ids: ids });
+  },
+  async notificationPrefs() {
+    const { data } = await supabase().rpc('my_notification_prefs');
+    return { turn: true, messages: true, offers: true, sales: true, ...((data as object) ?? {}) };
+  },
+  async setNotificationPrefs(p) {
+    const { data, error } = await supabase().rpc('set_notification_prefs', { p_turn: p.turn, p_messages: p.messages, p_offers: p.offers, p_sales: p.sales });
+    return error ? fail(error) : { ok: true, value: data as NotificationPrefs };
   },
 };

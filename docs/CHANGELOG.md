@@ -65,3 +65,10 @@ Newest first. Each entry says what changed for people using the site, and which 
 - Friendly error, not-found and last-resort pages.
 - New workflow `uptime.yml` checks the live pages and the database every 30 minutes, so a failure emails the owner.
 - Download size: the largest shared piece is the Supabase client, which every page needs. Stripe, QR and camera code already load only where they're used.
+
+## 2026-10-17: Notifications (in-app Updates and email)
+- New **Updates** list (`/notifications`, and the unread ones at the top of the Inbox). It covers: your turn in a handover; new messages (grouped per order); new offers, counter-offers, accepted offers and offers about to end; sold, payment released, problem reported, and staff decisions. Opening one marks it read. Reading an order's messages also reads its message update. The Inbox badge counts unread updates too.
+- **Email** for the same events, sent with Resend. Members choose which groups they get under *Account → Emails*. Message emails are held for 2 minutes, so nobody is emailed about a message they're already reading, and go out at most once every 15 minutes per order. Emails that wait more than 2 days are dropped.
+- Migration 016: notifications and email settings tables, triggers on orders, messages and offers, member functions, and a service-only email outbox. Migration 016b schedules the sender every minute and the "offer ending soon" check every hour.
+- New Edge Function `send-notifications`. It sends nothing until the owner adds `RESEND_API_KEY` (and later `RESEND_FROM` with a verified domain) to the Supabase function secrets.
+- Documents: [ADR 0012](adr/0012-notifications.md).
