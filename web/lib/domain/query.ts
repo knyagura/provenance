@@ -71,6 +71,19 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
   const size = get(params, 'size')?.trim() || undefined;
   if (size && size.length > 40) errors.push({ name: 'size', reason: 'A size can be at most 40 characters.' });
 
+  // Near a point (collection in person): lat and lng to 2 places, and a radius in miles.
+  let near: ListingQuery['near'];
+  const lat = get(params, 'lat');
+  const lng = get(params, 'lng');
+  if (lat !== undefined || lng !== undefined) {
+    const la = Number(lat);
+    const ln = Number(lng);
+    const mi = Number(get(params, 'miles') ?? 10);
+    if (!(la >= 49.5 && la <= 61) || !(ln >= -8.7 && ln <= 2)) errors.push({ name: 'lat', reason: 'Only places in the UK.' });
+    else if (![1, 2, 5, 10, 25, 50].includes(mi)) errors.push({ name: 'miles', reason: 'Choose 1, 2, 5, 10, 25 or 50 miles.' });
+    else near = { lat: Math.round(la * 100) / 100, lng: Math.round(ln * 100) / 100, miles: mi };
+  }
+
   const sortRaw = get(params, 'sort') ?? 'newest';
   if (!SORTS.includes(sortRaw as Sort)) errors.push({ name: 'sort', reason: `Must be one of: ${SORTS.join(', ')}.` });
 
@@ -94,7 +107,7 @@ function common(params: Params, errors: FieldError[], minPence?: number, maxPenc
     errors.push({ name: 'max', reason: 'The highest price must be more than the lowest.' });
   }
 
-  return { q, category, seller, condition, size, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
+  return { q, category, seller, condition, size, near, minPence, maxPence, sort: sortRaw as Sort, limit, offset };
 }
 
 export function parseApiQuery(params: Params): Parsed {

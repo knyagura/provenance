@@ -1,3 +1,4 @@
+import { milesBetween } from './places';
 import type { Listing, ListingQuery } from './types';
 
 /** Words people search with: letters and digits only, lower case, at most 8. */
@@ -24,6 +25,7 @@ export function filterInMemory(all: Listing[], query: ListingQuery): Listing[] {
     if (query.category && l.category !== query.category) return false;
     if (query.condition && l.condition !== query.condition) return false;
     if (query.size && (l.size ?? '').trim().toLowerCase() !== query.size.trim().toLowerCase()) return false;
+    if (query.near && (!l.seller.area || milesBetween(query.near, l.seller.area) > query.near.miles)) return false;
     if (query.minPence !== undefined && l.pricePence < query.minPence) return false;
     if (query.maxPence !== undefined && l.pricePence > query.maxPence) return false;
     if (words.length) {

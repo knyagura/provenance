@@ -26,6 +26,8 @@ export interface Seller {
   business: boolean;
   /** On holiday: listings are hidden from browsing and buying is paused. */
   away: boolean;
+  /** Postcode district (such as SW11) and its centre, when the seller offers collection in person. */
+  area?: { district: string; lat: number; lng: number } | null;
 }
 
 /** A member's public page. */
@@ -94,6 +96,8 @@ export interface ListingQuery {
   condition?: string;
   /** Exact size label, ignoring case. */
   size?: string;
+  /** Collection in person within `miles` of this point. */
+  near?: { lat: number; lng: number; miles: number };
   sort: Sort;
   limit: number;
   /** Opaque position from the previous page's nextCursor. */

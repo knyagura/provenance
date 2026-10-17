@@ -59,6 +59,7 @@ export async function freshDb() {
   await db.exec(read('020_seller_tools.sql'));
   await db.exec(read('021_popups.sql'));
   await db.exec(read('022_vouchers_gift_cards.sql'));
+  await db.exec(read('023_near_me.sql'));
   return db;
 }
 
@@ -101,7 +102,8 @@ if (isMain) {
   await db.exec(read('020_seller_tools.sql'));
   await db.exec(read('021_popups.sql'));
   await db.exec(read('022_vouchers_gift_cards.sql'));
-  ok(true, 'schema + migrations 002-016 and 018-022 apply cleanly, and re-run idempotently');
+  await db.exec(read('023_near_me.sql'));
+  ok(true, 'schema + migrations 002-016 and 018-023 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
