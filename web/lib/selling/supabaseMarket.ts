@@ -289,6 +289,41 @@ export const supabaseMarket: MarketBackend = {
     return error ? fail(error) : { ok: true, value: data as { username: string; business: boolean } };
   },
 
+  async sellerDashboard() {
+    const { data, error } = await supabase().rpc('seller_dashboard');
+    if (error || !data) return null;
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const d = data as any;
+    const t = d.totals ?? {};
+    return {
+      totals: {
+        sold: Number(t.sold ?? 0), grossPence: Number(t.gross_pence ?? 0), payoutPence: Number(t.payout_pence ?? 0), heldPence: Number(t.held_pence ?? 0),
+        releasedPence: Number(t.released_pence ?? 0), refunded: Number(t.refunded ?? 0), disputed: Number(t.disputed ?? 0),
+        avgHandoverHours: t.avg_handover_hours === null || t.avg_handover_hours === undefined ? null : Number(t.avg_handover_hours),
+        liveListings: Number(t.live_listings ?? 0), bundles: Number(t.bundles ?? 0),
+      },
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      months: (d.months ?? []).map((m: any) => ({ month: m.month, sold: Number(m.sold), grossPence: Number(m.gross_pence) })),
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+      recent: (d.recent ?? []).map((r: any) => ({
+        orderId: r.order_id, listingId: r.listing_id, title: r.title, pricePence: r.price_pence, payoutPence: r.payout_pence, paidAt: r.paid_at,
+        buyer: r.buyer ?? null, state: r.state, payoutStatus: r.payout_status, bundle: Boolean(r.bundle),
+      })),
+      bundle: d.bundle ? { minItems: d.bundle.min_items, pct: d.bundle.pct } : null,
+    };
+  },
+  async setBundleDiscount(offer) {
+    const { data, error } = await supabase().rpc('set_bundle_discount', { p_min: offer?.minItems ?? null, p_pct: offer?.pct ?? null });
+    if (error) return fail(error);
+    const b = data as { min_items: number | null; pct: number | null };
+    return { ok: true, value: b?.pct ? { minItems: b.min_items!, pct: b.pct } : null };
+  },
+  async bundleOffer(username) {
+    const { data } = await supabase().rpc('bundle_offer', { p_username: username });
+    const b = data as { min_items: number; pct: number } | null;
+    return b ? { minItems: b.min_items, pct: b.pct } : null;
+  },
+
   async mySavedSearches() {
     const { data, error } = await supabase().rpc('my_saved_searches');
     return error ? [] : toSearches(data);

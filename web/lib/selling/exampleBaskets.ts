@@ -2,6 +2,7 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import { exampleUnitsLeft } from '@/lib/domain/exampleStock';
 import { MAX_PERSONAL, UK_POSTCODE, type Basket, type BasketCheckout, type BasketItem, type BasketPatch, type Baskets, type GiftView, type SizeKind } from '@/lib/domain/baskets';
 import { exampleSellerId, loadMarket, saveMarket, type StoredOrder } from './exampleMarket';
+import { bundledQuote, exampleBundle } from './exampleBundles';
 import type { BasketBackend, Member, Result, SellingBackend } from './types';
 
 // Example mode's baskets, one-payment checkout and gift links, in localStorage. Same rules as migration
@@ -246,6 +247,23 @@ export function makeExampleBaskets(me: () => Member | null, backend: () => Selli
         });
         saveMarket(market);
         if (personal && i.wrap && wrappingLive) wrapped++;
+      }
+      // Bundle discounts: several items from one seller in this checkout (migration 020).
+      {
+        const mk = loadMarket();
+        const mine = started.map((oid) => mk.orders.find((o) => o.summary.id === oid)!);
+        const bySeller = new Map<string, StoredOrder[]>();
+        for (const o of mine) bySeller.set(o.sellerId, [...(bySeller.get(o.sellerId) ?? []), o]);
+        for (const [sellerId, list] of bySeller) {
+          const offer = exampleBundle(sellerId.replace(/^example:/, '').replace(/@example\.test$/, ''));
+          if (!offer || list.length < offer.minItems) continue;
+          for (const o of list) {
+            if (!o.summary.quote || o.summary.quote.bundle) continue;
+            o.summary.quote = bundledQuote(o.summary.quote, offer);
+            o.summary.totalPence = o.summary.quote.buyerTotalPence;
+          }
+        }
+        saveMarket(mk);
       }
       const market = loadMarket();
       const hold = started.map((oid) => market.orders.find((o) => o.summary.id === oid)!.summary.holdExpiresAt!).sort()[0];

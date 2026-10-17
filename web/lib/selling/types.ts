@@ -285,6 +285,21 @@ export interface SavedSearch {
 }
 export interface SearchToSave { q?: string; category?: string; size?: string; condition?: string; minPence?: number; maxPence?: number }
 
+export interface BundleOffer { minItems: number; pct: number }
+export interface SoldRow {
+  orderId: string; listingId: string; title: string; pricePence: number; payoutPence: number; paidAt: string | null;
+  buyer: string | null; state: string; payoutStatus: string; bundle: boolean;
+}
+export interface SellerDashboard {
+  totals: {
+    sold: number; grossPence: number; payoutPence: number; heldPence: number; releasedPence: number;
+    refunded: number; disputed: number; avgHandoverHours: number | null; liveListings: number; bundles: number;
+  };
+  months: { month: string; sold: number; grossPence: number }[];
+  recent: SoldRow[];
+  bundle: BundleOffer | null;
+}
+
 export interface MarketBackend {
   favourites(): Promise<string[]>;
   setFavourite(listingId: string, on: boolean): Promise<Result>;
@@ -328,6 +343,11 @@ export interface MarketBackend {
   setListingStock(listingId: string, stock: number): Promise<Result<Variant[]>>;
   addVariant(listingId: string, colour: string, size: string, stock: number, pricePence: number | null): Promise<Result<Variant[]>>;
   staffSetBusiness(username: string, on: boolean): Promise<Result<{ username: string; business: boolean }>>;
+
+  sellerDashboard(): Promise<SellerDashboard | null>;
+  /** null switches the bundle offer off. */
+  setBundleDiscount(offer: BundleOffer | null): Promise<Result<BundleOffer | null>>;
+  bundleOffer(username: string): Promise<BundleOffer | null>;
 
   mySavedSearches(): Promise<SavedSearch[]>;
   saveSearch(name: string, search: SearchToSave): Promise<Result<SavedSearch>>;

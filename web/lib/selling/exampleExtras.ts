@@ -4,6 +4,7 @@ import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
 import { filterInMemory } from '@/lib/domain/search';
+import { exampleBundle, setExampleBundle } from './exampleBundles';
 import { exampleSource } from '@/lib/domain/catalogue';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
@@ -450,6 +451,49 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffSetBusiness(username, on) {
       if (!isStaffMember(me())) return fail('Staff only.');
       return { ok: true, value: { username, business: on } };
+    },
+    async sellerDashboard() {
+      const m = me();
+      if (!m) return null;
+      const sold = loadMarket().orders.filter((o) => o.sellerId === m.id && o.summary.paymentStatus === 'paid');
+      const payout = (o: StoredOrder) => o.summary.quote?.sellerPayoutPence ?? o.summary.quote?.pricePence ?? 0;
+      const months = new Map<string, { sold: number; grossPence: number }>();
+      for (const o of sold) {
+        const k = (o.summary.paidAt ?? o.summary.createdAt).slice(0, 7);
+        const cur = months.get(k) ?? { sold: 0, grossPence: 0 };
+        months.set(k, { sold: cur.sold + 1, grossPence: cur.grossPence + (o.summary.quote?.pricePence ?? 0) });
+      }
+      const confirmed = sold.filter((o) => o.custody?.state === 'confirmed' && o.custody.events.length && o.summary.paidAt);
+      const hours = confirmed.map((o) => (Date.parse(o.custody!.events.at(-1)!.at) - Date.parse(o.summary.paidAt!)) / 3_600_000);
+      return {
+        totals: {
+          sold: sold.length, grossPence: sold.reduce((t, o) => t + (o.summary.quote?.pricePence ?? 0), 0),
+          payoutPence: sold.filter((o) => o.custody?.payoutStatus !== 'refund').reduce((t, o) => t + payout(o), 0),
+          heldPence: sold.filter((o) => (o.custody?.payoutStatus ?? 'held') === 'held').reduce((t, o) => t + payout(o), 0),
+          releasedPence: sold.filter((o) => ['due', 'paid'].includes(o.custody?.payoutStatus ?? '')).reduce((t, o) => t + payout(o), 0),
+          refunded: sold.filter((o) => o.custody?.payoutStatus === 'refund').length,
+          disputed: sold.filter((o) => o.custody?.disputeReason).length,
+          avgHandoverHours: hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : null,
+          liveListings: 0, bundles: sold.filter((o) => o.summary.quote?.bundle).length,
+        },
+        months: [...months.entries()].sort().map(([month, v]) => ({ month, ...v })),
+        recent: sold.map((o) => ({
+          orderId: o.summary.id, listingId: o.summary.listingId, title: o.summary.title, pricePence: o.summary.quote?.pricePence ?? 0, payoutPence: payout(o),
+          paidAt: o.summary.paidAt, buyer: o.buyerId.replace(/^example:/, '').split('@')[0], state: o.custody?.state ?? 'not_started',
+          payoutStatus: o.custody?.payoutStatus ?? 'held', bundle: Boolean(o.summary.quote?.bundle),
+        })),
+        bundle: exampleBundle(m.username),
+      };
+    },
+    async setBundleDiscount(offer) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      if (offer && (offer.minItems < 2 || offer.minItems > 10 || offer.pct < 5 || offer.pct > 50)) return fail('Choose 2 to 10 items and 5% to 50% off.');
+      setExampleBundle(m.username, offer);
+      return { ok: true, value: offer };
+    },
+    async bundleOffer(username) {
+      return exampleBundle(username);
     },
     async mySavedSearches() {
       const m = me();
