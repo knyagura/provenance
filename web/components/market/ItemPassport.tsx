@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -70,7 +71,7 @@ export function ItemPassport({ listingId }: { listingId: string }) {
         <section className="pv-section" aria-labelledby="pp-photos">
           <h2 id="pp-photos">Listing photos</h2>
           <ul className="pv-passport__photos">
-            {p.photos.map((ph, i) => <li key={ph.url}><img src={ph.url} alt={`${p.title}, photo ${i + 1}`} loading="lazy" /></li>)}
+            {p.photos.map((ph, i) => <li key={ph.url}><img {...photo(ph.url, SIZES.card)} decoding="async" alt={`${p.title}, photo ${i + 1}`} loading="lazy" /></li>)}
           </ul>
         </section>
       ) : null}

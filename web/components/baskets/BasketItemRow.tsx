@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { useId } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -21,7 +22,7 @@ export function BasketItemRow({ item, basket, showTag }: { item: BasketItem; bas
       draggable={enabled || undefined}
       onDragStart={enabled ? (e) => e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ listingId: item.listingId, title: item.title, size: item.size, category: item.category })) : undefined}
     >
-      <span className="pv-bitem__thumb" aria-hidden="true">{item.photoUrl ? <img src={item.photoUrl} alt="" /> : null}</span>
+      <span className="pv-bitem__thumb" aria-hidden="true">{item.photoUrl ? <img {...photo(item.photoUrl, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" /> : null}</span>
       <div className="pv-bitem__body">
         <div className="pv-bitem__top">
           <Link href={`/item/${item.listingId}`}><strong>{item.title}</strong></Link>

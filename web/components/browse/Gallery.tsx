@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import { useEffect, useRef, useState } from 'react';
 import { shotLabel } from '@/lib/domain/present';
 import type { Media } from '@/lib/domain/types';
@@ -39,7 +40,7 @@ export function Gallery({ photos, title }: { photos: Media[]; title: string }) {
       <ul ref={track} className="pv-gal__track" aria-label="Photos" tabIndex={0}>
         {photos.map((m, i) => (
           <li key={m.url} data-index={i}>
-            <img src={m.url} alt={label(m, i)} loading={i ? 'lazy' : 'eager'} />
+            <img {...photo(m.url, SIZES.gallery, [480, 720, 960, 1280, 1600])} alt={label(m, i)} loading={i ? 'lazy' : 'eager'} decoding="async" fetchPriority={i ? undefined : 'high'} />
             {m.shot ? <span className="pv-gal__shot" aria-hidden="true">{shotLabel(m.shot)}</span> : null}
           </li>
         ))}
@@ -55,7 +56,7 @@ export function Gallery({ photos, title }: { photos: Media[]; title: string }) {
               aria-label={`Show photo ${i + 1}${m.shot ? `: ${shotLabel(m.shot)}` : ''}`}
               onClick={() => go(i)}
             >
-              <img src={m.url} alt="" loading="lazy" />
+              <img {...photo(m.url, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" />
             </button>
           ))}
           <span className="pv-gal__count pv-note" aria-live="polite">{current + 1} / {photos.length}</span>
