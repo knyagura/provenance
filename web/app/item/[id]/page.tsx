@@ -8,7 +8,8 @@ import { OfferBox } from '@/components/market/OfferBox';
 import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
 import { RatingLine } from '@/components/market/Reviews';
 import { BundleNote } from '@/components/market/BundleNote';
-import { getListing, getVariants } from '@/lib/domain/catalogue';
+import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
+import { ListingGrid } from '@/components/browse/ListingGrid';
 import { VariantPicker } from '@/components/browse/VariantPicker';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
@@ -84,7 +85,7 @@ export default async function ItemPage({ params }: Props) {
   const exampleMode = process.env.PV_DATA_SOURCE === 'examples';
   // Business sellers: colours, sizes and stock. Fixed prices, so no offers.
   const fixed = (l.stock ?? 1) > 1 || !!l.variantGroup;
-  const variants = fixed ? await getVariants(l.id).catch(() => []) : [];
+  const [variants, similar] = await Promise.all([fixed ? getVariants(l.id).catch(() => []) : Promise.resolve([]), getSimilar(l)]);
   const buyable = l.status === 'active' && !l.seller.away && (!l.example || exampleMode);
   const videos = l.media.filter((m) => m.kind === 'video');
   const details: [string, string | null][] = [
@@ -212,6 +213,13 @@ export default async function ItemPage({ params }: Props) {
         <CustodyTimeline steps={journey(l.tier)} label="How this item reaches you" />
         <p><Link href={`/passport/${l.id}`}>See this item’s passport</Link>: its recorded history, without anyone’s personal details.</p>
       </section>
+
+      {similar.length ? (
+        <section className="pv-item__similar" aria-labelledby="similar">
+          <h2 id="similar">Similar items</h2>
+          <ListingGrid listings={similar} label="Similar items" />
+        </section>
+      ) : null}
     </article>
   );
 }

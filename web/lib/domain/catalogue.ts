@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config';
 import { exampleCatalogue, fallbackCategories } from './examples';
 import { nextCursor } from './query';
+import { boxAround, milesBetween } from './places';
 import { filterInMemory, toPrefixTsQuery } from './search';
 import { breakdownFromJson, computeFees, DEFAULT_FEES, type FeeBreakdown } from './fees';
 import type { Category, Listing, ListingQuery, Media, MemberPage, Page, Variant } from './types';
@@ -71,7 +72,7 @@ export const exampleSource: CatalogueSource = {
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
   'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision', 'stock', 'variant_group',
-  'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode)',
+  'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode, area, area_lat, area_lng, collection_ok)',
   'media:listing_media(path, kind, shot, position, retired_at)',
 ].join(', ');
 
@@ -91,7 +92,7 @@ interface Row {
   status: Listing['status'];
   created_at: string;
   serial_hint?: string | null;
-  seller: { username: string; kyc_verified: boolean; is_pro: boolean; holiday_mode?: boolean } | null;
+  seller: { username: string; kyc_verified: boolean; is_pro: boolean; holiday_mode?: boolean; area?: string | null; area_lat?: number | null; area_lng?: number | null; collection_ok?: boolean } | null;
   revision?: number;
   stock?: number;
   variant_group?: string | null;
@@ -129,6 +130,8 @@ export function toListing(r: Row): Listing {
       verified: Boolean(r.seller?.kyc_verified),
       business: Boolean(r.seller?.is_pro),
       away: Boolean(r.seller?.holiday_mode),
+      area: r.seller?.collection_ok && r.seller.area && r.seller.area_lat != null && r.seller.area_lng != null
+        ? { district: r.seller.area, lat: Number(r.seller.area_lat), lng: Number(r.seller.area_lng) } : null,
     },
     createdAt: r.created_at,
     stock: r.stock ?? 1,
@@ -182,6 +185,11 @@ export const supabaseSource: CatalogueSource = {
     if (query.category) req = req.eq('category', query.category);
     if (query.condition) req = req.eq('condition_label', query.condition);
     if (query.size) req = req.ilike('size_label', likeExact(query.size.trim()));
+    if (query.near) {
+      const b = boxAround(query.near, query.near.miles);
+      req = req.eq('seller.collection_ok', true).gte('seller.area_lat', b.minLat).lte('seller.area_lat', b.maxLat)
+        .gte('seller.area_lng', b.minLng).lte('seller.area_lng', b.maxLng);
+    }
     if (query.minPence !== undefined) req = req.gte('price_pence', query.minPence);
     if (query.maxPence !== undefined) req = req.lte('price_pence', query.maxPence);
     if (query.sort === 'price_asc') req = req.order('price_pence', { ascending: true });
@@ -191,8 +199,10 @@ export const supabaseSource: CatalogueSource = {
 
     const { data, error } = await req;
     if (error) throw new CatalogueUnavailable(error);
-    const items = (data as unknown as Row[]).map(toListing);
-    return { items, nextCursor: nextCursor(query, items.length) };
+    const all = (data as unknown as Row[]).map(toListing);
+    // The box is a little wider than the circle: keep only what's within the distance.
+    const items = query.near ? all.filter((l) => l.seller.area && milesBetween(query.near!, l.seller.area) <= query.near!.miles) : all;
+    return { items, nextCursor: nextCursor(query, all.length) };
   },
 
   async get(id) {
@@ -274,6 +284,28 @@ export async function getMemberPage(username: string): Promise<{ member: MemberP
 /** Item pages: example IDs always come from the examples, real IDs from the database. */
 export async function getVariants(id: string): Promise<Variant[]> {
   return id.startsWith('example-') ? exampleSource.variants(id) : liveSource().variants(id);
+}
+
+/** Similar items for an item page: same category and a similar price, the same brand or size first. */
+export function rankSimilar(l: Listing, candidates: Listing[], max = 6): Listing[] {
+  const score = (x: Listing) =>
+    (l.brand && x.brand === l.brand ? 2 : 0) + (l.size && x.size?.toLowerCase() === l.size.toLowerCase() ? 1 : 0) - Math.abs(x.pricePence - l.pricePence) / Math.max(l.pricePence, 1);
+  return candidates
+    .filter((x) => x.id !== l.id && (!l.variantGroup || x.variantGroup !== l.variantGroup) && x.status === 'active')
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, max);
+}
+
+export async function getSimilar(l: Listing): Promise<Listing[]> {
+  const source = l.id.startsWith('example-') ? exampleSource : liveSource();
+  try {
+    const page = await source.search({
+      category: l.category ?? undefined, sort: 'newest', limit: 48, offset: 0,
+    });
+    return rankSimilar(l, page.items);
+  } catch {
+    return [];
+  }
 }
 
 export async function getListing(id: string): Promise<Listing | null> {

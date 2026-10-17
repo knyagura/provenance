@@ -61,9 +61,12 @@ export interface Profile {
   verified: boolean;
   business: boolean;
   joined: string;
+  /** Postcode district (never the address) and its centre, for collection in person. */
+  area?: { district: string; lat: number; lng: number } | null;
+  collectionOk?: boolean;
 }
 
-export type ProfileFields = Partial<Pick<Profile, 'username' | 'bio' | 'holidayMode'>>;
+export type ProfileFields = Partial<Pick<Profile, 'username' | 'bio' | 'holidayMode' | 'area' | 'collectionOk'>>;
 
 export interface Passkey {
   id: string;

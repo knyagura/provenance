@@ -47,6 +47,14 @@ const seeds: Seed[] = [
     'Speedcross 6, about 150 km of use. Plenty of grip left.'],
 ];
 
+// Where example sellers are, for "near me" (districts only). lens_vault doesn't offer collection.
+const EXAMPLE_AREAS: Record<string, { district: string; lat: number; lng: number }> = {
+  resole_archive: { district: 'SW11', lat: 51.46, lng: -0.16 },
+  'mia.k': { district: 'E8', lat: 51.54, lng: -0.06 },
+  parent_swap: { district: 'M20', lat: 53.43, lng: -2.23 },
+  brick_bench: { district: 'BS6', lat: 51.47, lng: -2.6 },
+};
+
 export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   id: `example-${i + 1}`,
   itemId: null,
@@ -65,7 +73,7 @@ export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   revision: 1,
   // Drawn pictures (scripts/example-art.mjs): the whole item, a close-up and its label.
   media: (['front', 'detail', 'label'] as const).map((shot) => ({ url: `/examples/example-${i + 1}-${shot}.svg`, kind: 'photo' as const, shot })),
-  seller: { username: s[6], verified: s[7], business: s[6] === 'lens_vault', away: false },
+  seller: { username: s[6], verified: s[7], business: s[6] === 'lens_vault', away: false, area: EXAMPLE_AREAS[s[6]] ?? null },
   // Newest first in seed order, an hour apart.
   createdAt: new Date(Date.UTC(2026, 9, 10, 12) - i * 3_600_000).toISOString(),
   example: true,

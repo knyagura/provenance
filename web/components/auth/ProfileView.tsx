@@ -8,6 +8,7 @@ import { ChangePassword } from '@/components/account/ChangePassword';
 import { MyOrders } from '@/components/checkout/MyOrders';
 import { PasskeyManager } from '@/components/account/PasskeyManager';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
+import { CollectionSettings } from '@/components/account/CollectionSettings';
 import { MyListings } from '@/components/sell/MyListings';
 import { NotificationSettings } from '@/components/market/Notifications';
 import type { Draft } from '@/lib/selling';
@@ -62,6 +63,7 @@ export function ProfileView() {
       {mine ? <MyListings drafts={mine} heading="Your listings" /> : null}
       <div className="pv-account">
         <ProfileEditor />
+        <CollectionSettings />
         <NotificationSettings />
         <PasskeyManager />
         <ChangePassword />
