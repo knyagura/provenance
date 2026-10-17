@@ -71,4 +71,5 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Email** for the same events, sent with Resend. Members choose which groups they get under *Account → Emails*. Message emails are held for 2 minutes, so nobody is emailed about a message they're already reading, and go out at most once every 15 minutes per order. Emails that wait more than 2 days are dropped.
 - Migration 016: notifications and email settings tables, triggers on orders, messages and offers, member functions, and a service-only email outbox. Migration 016b schedules the sender every minute and the "offer ending soon" check every hour.
 - New Edge Function `send-notifications`. It sends nothing until the owner adds `RESEND_API_KEY` (and later `RESEND_FROM` with a verified domain) to the Supabase function secrets.
+- Migration 017: only the scheduled job can start the sender. It uses a random token kept in Supabase Vault, and nobody handles it.
 - Documents: [ADR 0012](adr/0012-notifications.md).

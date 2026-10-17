@@ -13,7 +13,7 @@ Date: 2026-10-17. Status: accepted. Email starts once `RESEND_API_KEY` is set.
 - **Email outbox.** Each notification records its email state. The `send-notifications` Edge Function runs every minute (pg_cron + pg_net). It claims due rows with `for update skip locked`, sends them, and marks each one sent, or retries it up to 3 times. It uses a Resend idempotency key per notification, so a retry never sends twice. Rows read before sending are skipped. Rows older than 2 days are dropped.
 - **Message debounce.** One unread message notification per order, updated with the latest message and a count. Its email waits 2 minutes, then goes at most once every 15 minutes per order.
 - **Gifts.** Turn notifications for the unboxing go to the gift's recipient once they have claimed it. Otherwise they go to the buyer.
-- The function runs without a JWT check because it takes no input and only sends what the database has queued. Calling it more often sends nothing extra.
+- The function checks its own caller instead of a JWT. Migration 017 makes a random token inside the database and keeps it in Supabase Vault, so nobody types or sees it. pg_cron sends that token, and the function asks the database whether it matches. Any other caller gets 403.
 
 ## Setup (done by the owner; the key goes only into Supabase, never into code or chat)
 1. Create a Resend account and an API key with "Sending access".
