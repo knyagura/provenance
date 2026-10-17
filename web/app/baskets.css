@@ -36,12 +36,12 @@ li:has(> .pv-card[hidden]) { display: none; }
 .pv-drop--over { border-color: var(--ink); transform: scale(1.02); }
 .pv-drop--focus { border-color: var(--sage-text); border-style: solid; }
 .pv-drop__name { font-weight: 700; white-space: nowrap; }
-.pv-rail__toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-height) + 76px); max-width: min(92vw, 28rem); margin: 0; padding: 10px 14px; border-radius: var(--radius-md); background: var(--ink); color: var(--surface); box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 30; }
+.pv-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-height) + 76px); max-width: min(92vw, 28rem); margin: 0; padding: 10px 14px; border-radius: var(--radius-md); background: var(--ink); color: var(--surface); box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 30; }
 body.pv-has-rail .pv-main { padding-bottom: calc(var(--nav-height) + 72px + var(--space-8)); }
 @media (min-width: 1024px) {
   .pv-rail { bottom: 0; }
   body.pv-has-rail .pv-main { padding-bottom: calc(72px + var(--space-8)); }
-  .pv-rail__toast { bottom: 88px; }
+  .pv-toast { bottom: 88px; }
 }
 @media (min-width: 1280px), (min-width: 900px) and (orientation: landscape) and (pointer: coarse) {
   .pv-rail { top: 88px; bottom: var(--space-4); right: var(--space-4); left: auto; width: 248px; flex-direction: column; align-items: stretch; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); overflow-y: auto; }
@@ -53,7 +53,7 @@ body.pv-has-rail .pv-main { padding-bottom: calc(var(--nav-height) + 72px + var(
   .pv-budget { display: block; }
   .pv-rail__fits { display: flex; gap: var(--space-2); align-items: center; min-height: var(--tap-min); }
   body.pv-has-rail .pv-main { padding-right: calc(248px + var(--space-8)); padding-bottom: var(--space-8); max-width: calc(1240px + 248px); }
-  .pv-rail__toast { left: auto; right: 280px; transform: none; bottom: var(--space-6); }
+  body.pv-has-rail .pv-toast { left: auto; right: 280px; transform: none; bottom: var(--space-6); }
 }
 .pv-drop__focus { min-height: 36px; padding: 0 10px; border: 1px solid var(--ink-muted); border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--ink); font: 600 13px/1 var(--font-sans); cursor: pointer; align-self: flex-start; }
 .pv-drop__focus[aria-pressed="true"] { background: var(--sage-text); border-color: var(--sage-text); color: #fff; }
@@ -119,3 +119,10 @@ body.pv-has-rail .pv-main { padding-bottom: calc(var(--nav-height) + 72px + var(
 @media print {
   .pv-rail, .pv-noprint { display: none !important; }
 }
+
+.pv-toast { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+body:not(.pv-has-rail) .pv-toast { bottom: calc(var(--nav-height) + var(--space-4)); }
+@media (min-width: 1024px) { body:not(.pv-has-rail) .pv-toast { bottom: var(--space-6); } }
+.pv-toast__action { min-height: var(--tap-min); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 600 14px/1 var(--font-sans); cursor: pointer; }
+.pv-toast__close { min-width: var(--tap-min); min-height: var(--tap-min); border: 0; background: none; color: var(--surface); font-size: 22px; cursor: pointer; }
+.pv-toast button:focus-visible { outline: 3px solid var(--terracotta); outline-offset: 2px; }

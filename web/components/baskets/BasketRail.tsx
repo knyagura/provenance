@@ -15,22 +15,15 @@ const SHOPPING = /^\/($|search|item\/|member\/|saved)/;
  * Only shown once a member has switched multi-basket shopping on.
  */
 export function BasketRail() {
-  const { enabled, baskets, focus, setFocus, onlyFits, setOnlyFits, notice, put } = useBaskets();
+  const { enabled, baskets, focus, setFocus, onlyFits, setOnlyFits, put } = useBaskets();
   const pathname = usePathname() ?? '/';
   const [over, setOver] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const show = enabled && SHOPPING.test(pathname);
 
   useEffect(() => {
     document.body.classList.toggle('pv-has-rail', show);
     return () => document.body.classList.remove('pv-has-rail');
   }, [show]);
-  useEffect(() => {
-    if (!notice) return;
-    setToast(notice);
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [notice]);
 
   if (!show) return null;
 
@@ -94,7 +87,6 @@ export function BasketRail() {
           Only show {focus.name}’s sizes
         </label>
       ) : null}
-      {toast ? <p className="pv-rail__toast" aria-hidden="true">{toast}</p> : null}
     </aside>
   );
 }

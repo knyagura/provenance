@@ -237,3 +237,9 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
 .pv-staff textarea, .pv-staff select, .pv-staff input { font: inherit; }
 .pv-staff .pv-events { font-size: 14px; }
+
+/* Social sign-in */
+.pv-social { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-social__btn { font-weight: 600; }
+.pv-social__or { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-2) 0 0; color: var(--ink-muted); font-size: 14px; }
+.pv-social__or::before, .pv-social__or::after { content: ""; flex: 1; height: 1px; background: var(--line); }

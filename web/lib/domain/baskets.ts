@@ -135,10 +135,15 @@ const norm = (kind: SizeKind, s: string) => {
 export type Fit = 'fits' | 'mismatch' | 'unknown';
 
 /** Whether an item's size matches a basket's profile. Items with no size (a lamp, a book) always fit. */
-export function fitFor(basket: Pick<Basket, 'sizes' | 'general'>, item: { size: string | null; category: string | null }): Fit {
+const ADULT_KINDS: SizeKind[] = ['top', 'trousers', 'dress'];
+const ageClash = (basket: Pick<Basket, 'ageGroup'>, kind: SizeKind) =>
+  (basket.ageGroup === 'child' && ADULT_KINDS.includes(kind)) || (basket.ageGroup === 'adult' && kind === 'kids');
+
+export function fitFor(basket: Pick<Basket, 'sizes' | 'general' | 'ageGroup'>, item: { size: string | null; category: string | null }): Fit {
   if (basket.general || !item.size) return 'unknown';
   const kind = sizeKindOf(item.size, item.category);
   if (!kind) return 'unknown';
+  if (ageClash(basket, kind)) return 'mismatch';
   const want = basket.sizes[kind];
   if (!want) return 'unknown';
   return norm(kind, want) === norm(kind, item.size) ? 'fits' : 'mismatch';
@@ -148,8 +153,35 @@ export function fitNote(basket: Basket, item: { size: string | null; category: s
   const f = fitFor(basket, item);
   if (f !== 'mismatch') return null;
   const kind = sizeKindOf(item.size, item.category)!;
+  if (ageClash(basket, kind)) return kind === 'kids' ? `This is a children’s size, but ${basket.name}’s basket is for an adult.` : `This is an adult size, but ${basket.name}’s basket is for a child.`;
   const label = SIZE_KINDS.find((k) => k.key === kind)!.label.toLowerCase();
   return `Size ${item.size}, but ${basket.name}’s ${label} size is ${basket.sizes[kind]}.`;
+}
+
+export interface SizeCheck {
+  /** What happened, in words. */
+  note: string | null;
+  /** The size to save to the basket now (the basket had none for this kind of item). */
+  learn: { kind: SizeKind; size: string } | null;
+  /** The size the person could switch the basket to, when it doesn't match. */
+  offer: { kind: SizeKind; size: string } | null;
+}
+
+/**
+ * What to do with sizes when an item lands in a person's basket. If the basket has no size yet for that kind
+ * of item, the item's size becomes the basket's size; if it has a different one, say so and offer to switch.
+ */
+export function sizeCheck(basket: Basket, item: { size: string | null; category: string | null }): SizeCheck {
+  const none: SizeCheck = { note: null, learn: null, offer: null };
+  if (basket.general || !item.size) return none;
+  const kind = sizeKindOf(item.size, item.category);
+  if (!kind) return none;
+  const label = SIZE_KINDS.find((k) => k.key === kind)!.label.toLowerCase();
+  if (ageClash(basket, kind)) return { ...none, note: fitNote(basket, item) };
+  const want = basket.sizes[kind];
+  if (!want) return { note: `${basket.name}’s ${label} size is now ${item.size}, from this item.`, learn: { kind, size: item.size }, offer: null };
+  if (norm(kind, want) === norm(kind, item.size)) return { ...none, note: `It’s ${basket.name}’s size.` };
+  return { note: fitNote(basket, item), learn: null, offer: { kind, size: item.size } };
 }
 
 // ---------- Money ----------

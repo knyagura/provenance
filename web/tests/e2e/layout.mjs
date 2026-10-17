@@ -564,6 +564,19 @@ try {
     await octx.close();
   }
 
+  // Google and Facebook sign-in (example mode stands in for the providers): one button for new and returning members.
+  {
+    const sctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const sp = await sctx.newPage();
+    await sp.goto(`${BASE}/signin?next=${encodeURIComponent('/saved')}`);
+    await sp.getByRole('button', { name: 'Continue with Google' }).click();
+    await sp.waitForURL((u) => u.pathname === '/saved', { timeout: 10000 }).catch(() => fail('social sign-in: Google did not land on the page asked for'));
+    await sp.goto(BASE + '/signin');
+    await sp.getByText('You’re signed in as').waitFor();
+    if (!(await sp.getByRole('button', { name: 'Continue with Facebook' }).count()) && !(await sp.getByText('You’re signed in as').count())) fail('social sign-in: Facebook button missing');
+    await sctx.close();
+  }
+
   // Multi-basket shopping: opt in, a person with sizes, drag an item onto them, one-basket view, one payment, gift link.
   {
     const kctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -596,6 +609,12 @@ try {
     await p.getByRole('status').filter({ hasText: 'Trail running shoes added to Alex, to be wrapped.' }).waitFor({ timeout: 5000 })
       .catch(() => fail('baskets: drag and drop onto a person did not add the item'));
     if (!(await p.getByRole('status').filter({ hasText: 'Alex’s shoes size is UK 8' }).count())) fail('baskets: size mismatch not announced');
+    // Offered on the spot: make the item's size the person's size.
+    await p.getByRole('button', { name: 'Make UK 9 Alex’s size' }).click();
+    await p.getByRole('status').filter({ hasText: 'Alex’s size is now UK 9.' }).waitFor({ timeout: 5000 }).catch(() => fail('baskets: switching to the item’s size failed'));
+    // A size Alex doesn't have yet is learned from the item (the rollneck jumper is a size S top).
+    await p.locator('.pv-card', { hasText: 'Wool rollneck jumper' }).first().dragTo(target);
+    await p.getByRole('status').filter({ hasText: 'Alex’s tops size is now S, from this item.' }).waitFor({ timeout: 5000 }).catch(() => fail('baskets: the top size was not learned from the item'));
     // Tap to add (the bag button) to General.
     await p.getByRole('button', { name: 'Add Ceramic table lamp to a basket' }).click();
     await p.getByRole('list', { name: 'Add Ceramic table lamp to' }).getByRole('button', { name: /General/ }).click();
@@ -605,9 +624,9 @@ try {
     await p.goto(BASE + '/basket');
     await p.getByRole('button', { name: 'One basket' }).click();
     const list = p.getByRole('list', { name: 'Everything in your baskets' });
-    if ((await list.getByRole('listitem').count()) !== 2) fail('baskets: the General view should show every item');
+    if ((await list.getByRole('listitem').count()) !== 3) fail('baskets: the General view should show every item');
     await p.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'Alex' }).click();
-    if ((await p.locator('.pv-bitem').count()) !== 1) fail('baskets: filtering to Alex should show one item');
+    if ((await p.locator('.pv-bitem').count()) !== 2) fail('baskets: filtering to Alex should show Alex’s two items');
 
     // One payment, everything to me; then the gift link.
     await p.getByRole('link', { name: 'Check out all baskets' }).click();

@@ -2,6 +2,7 @@ import type { AuthError, PostgrestError } from '@supabase/supabase-js';
 import { mediaUrl } from '@/lib/domain/catalogue';
 import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
+import { config } from '@/lib/config';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { versionFromSnapshot, type ListingVersion } from '@/lib/domain/versions';
 import { planFor, type Actor, type AgentTask, type CustodyEvent, type CustodyState, type CustodyView, type Evidence, type SealKind, type StepDef } from '@/lib/domain/custody';
@@ -212,6 +213,27 @@ export const supabaseBackend: SellingBackend = {
     if (error) return fail(error);
     const m = await memberFromSession();
     return m ? { ok: true, value: m } : { ok: false, message: 'Signed in, but we couldn’t load your account.' };
+  },
+
+  async socialProviders() {
+    try {
+      const r = await fetch(`${config.supabaseUrl}/auth/v1/settings`, { headers: { apikey: config.supabaseKey } });
+      const j = await r.json();
+      return { google: !!j?.external?.google, facebook: !!j?.external?.facebook };
+    } catch {
+      return { google: false, facebook: false };
+    }
+  },
+
+  async signInWithProvider(provider, next) {
+    const { error } = await supabase().auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        scopes: provider === 'facebook' ? 'email public_profile' : undefined,
+      },
+    });
+    return error ? fail(error) : { ok: true, value: undefined };
   },
 
   async signUp(email, password) {

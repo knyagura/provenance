@@ -115,6 +115,17 @@ export const exampleBackend: SellingBackend = {
     setMember(s, { id: memberId(email), email, username: s.profile?.username ?? email.split('@')[0] });
     return ok(s.member!);
   },
+  async socialProviders() {
+    return { google: true, facebook: true };
+  },
+  // Example mode: no real Google or Facebook. Signs in as a pretend account and goes straight to the callback.
+  async signInWithProvider(provider, next) {
+    const email = `${provider}.member@example.com`;
+    const s = load();
+    setMember(s, { id: memberId(email), email, username: s.profile?.username ?? `${provider}_member` });
+    window.location.assign(`/auth/callback?next=${encodeURIComponent(next)}`);
+    return ok(undefined);
+  },
   async signUp(email, password) {
     if (password.length < 8) return { ok: false, message: 'Choose a password of at least 8 characters.' };
     return ok({ needsConfirmation: !email });

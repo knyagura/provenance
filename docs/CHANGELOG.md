@@ -41,3 +41,7 @@ Newest first. Each entry says what changed for people using the site, and which 
   gift links where the recipient does the unboxing steps without prices; shared baskets.
 - Migration 012 applied live. Migration 013 still to apply (basket features need it on the live site).
 - Next: variants for business sellers (colour/size, stock per variant, each unit its own protected order).
+
+## 2026-10-17: Sizes learned on drop; Google and Facebook sign-in
+- Dropping clothing into a person's basket checks its size. If the basket has no size yet for that kind of item, it takes the item's size ("Alex's tops size is now S"). If the sizes differ, it warns and offers "Make UK 9 Alex's size". Adult and child sizes never mix.
+- "Continue with Google" and "Continue with Facebook" on sign-in and registration (ADR 0011). They appear once each provider is enabled in Supabase.

@@ -291,6 +291,8 @@ export interface BasketBackend {
   myGifts(): Promise<MyGift[]>;
 }
 
+export type SocialProvider = 'google' | 'facebook';
+
 export interface SellingBackend extends MarketBackend, BasketBackend {
   /** Current member, or null when signed out. */
   member(): Promise<Member | null>;
@@ -299,6 +301,10 @@ export interface SellingBackend extends MarketBackend, BasketBackend {
   /** Creates an account. Supabase may ask the person to confirm their email first (needsConfirmation). */
   signUp(email: string, password: string): Promise<Result<{ needsConfirmation: boolean }>>;
   signOut(): Promise<void>;
+  /** Which social sign-ins are switched on (Google, Facebook). */
+  socialProviders(): Promise<Record<SocialProvider, boolean>>;
+  /** Sign in or create an account with Google or Facebook. Leaves the page; comes back to /auth/callback?next=… */
+  signInWithProvider(provider: SocialProvider, next: string): Promise<Result>;
   /** Sign in with a passkey (Face ID, fingerprint, a password manager). */
   signInWithPasskey(): Promise<Result<Member>>;
   /** Emails a link to set a new password. Always succeeds, so it never reveals who has an account. */

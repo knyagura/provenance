@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { budgetState, everything, fitFor, fitNote, sizeKindOf, visibleBaskets, wrapCharge, type Basket, type Baskets } from '@/lib/domain/baskets';
+import { budgetState, everything, fitFor, fitNote, sizeCheck, sizeKindOf, visibleBaskets, wrapCharge, type Basket, type Baskets } from '@/lib/domain/baskets';
 
 const basket = (o: Partial<Basket> = {}): Basket => ({
   id: 'b1', position: 1, name: 'Alex', general: false, ageGroup: 'adult', sizes: {}, budgetPence: null, styleNotes: null, wrapStyle: null,
@@ -24,7 +24,7 @@ describe('fit', () => {
   it('matches sizes however they are written', () => {
     expect(fitFor(alex, { size: '9', category: 'shoes' })).toBe('fits');
     expect(fitFor(alex, { size: 'M', category: 'women' })).toBe('fits');
-    expect(fitFor(alex, { size: '5–6 years', category: 'kids' })).toBe('fits');
+    expect(fitFor(basket({ ageGroup: 'child', sizes: { kids: '5-6' } }), { size: '5–6 years', category: 'kids' })).toBe('fits');
   });
   it('warns on a different size, and explains it', () => {
     expect(fitFor(alex, { size: '34', category: 'men' })).toBe('mismatch');
@@ -56,5 +56,29 @@ describe('views', () => {
   it('the single view lists everything with its basket; multi-basket off shows General only', () => {
     expect(everything({ enabled: true, wrapFeePence: 0, wrappingLive: false, baskets: [general, alex] }).map((x) => [x.item.listingId, x.basket.name])).toEqual([['a', 'General'], ['b', 'Alex']]);
     expect(visibleBaskets({ enabled: false, wrapFeePence: 0, wrappingLive: false, baskets: [general, alex] }).map((b) => b.name)).toEqual(['General']);
+  });
+});
+
+describe('size check on drop', () => {
+  it('learns a size the basket doesn’t have yet', () => {
+    const r = sizeCheck(basket({ sizes: {} }), { size: 'UK 9', category: 'shoes' });
+    expect(r.learn).toEqual({ kind: 'shoe', size: 'UK 9' });
+    expect(r.note).toBe('Alex’s shoes size is now UK 9, from this item.');
+  });
+  it('confirms a match and offers to switch on a mismatch', () => {
+    expect(sizeCheck(basket({ sizes: { top: 'M' } }), { size: 'm', category: 'men' })).toEqual({ note: 'It’s Alex’s size.', learn: null, offer: null });
+    const r = sizeCheck(basket({ sizes: { top: 'M' } }), { size: 'L', category: 'men' });
+    expect(r.offer).toEqual({ kind: 'top', size: 'L' });
+    expect(r.learn).toBeNull();
+  });
+  it('never learns across adult and child sizes', () => {
+    const r = sizeCheck(basket({ ageGroup: 'child', sizes: {} }), { size: 'M', category: 'men' });
+    expect(r.learn).toBeNull();
+    expect(r.note).toBe('This is an adult size, but Alex’s basket is for a child.');
+    expect(fitFor(basket({ ageGroup: 'adult' }), { size: '5–6 years', category: 'kids' })).toBe('mismatch');
+  });
+  it('ignores unsized items and General', () => {
+    expect(sizeCheck(basket(), { size: null, category: 'home' })).toEqual({ note: null, learn: null, offer: null });
+    expect(sizeCheck(basket({ general: true, position: 0 }), { size: 'M', category: 'men' }).learn).toBeNull();
   });
 });
