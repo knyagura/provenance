@@ -569,6 +569,7 @@ try {
       await ls.getByRole('radio', { name: /Royal Mail Tracked 48/ }).check();
       await ls.getByRole('button', { name: 'Create test label' }).click();
       await ls.getByText('Test label', { exact: true }).waitFor().catch(() => fail('labels: no test label made'));
+      await ls.waitForFunction(() => (document.querySelector('input[id$="-track"]'))?.value.startsWith('P2GTEST'), null, { timeout: 8000 }).catch(() => {});
       const tracking = await ls.getByLabel('Tracking number').inputValue();
       if (!/^P2GTEST[0-9A-F]{9}$/.test(tracking) || (await ls.getByLabel('Carrier').inputValue()) !== 'Royal Mail') fail(`labels: carrier and tracking not filled in (${tracking})`);
       await ls.getByRole('link', { name: 'Print label' }).click();
@@ -919,6 +920,8 @@ try {
     await p.getByRole('button', { name: 'Pay £0.00 (test)' }).click();
     await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await p.goto(BASE + '/gift-cards');
+    // The balance loads after the page; wait for it rather than reading the placeholder.
+    await p.getByRole('heading', { name: /Your NuTuYu balance: £(?!0\.00)/ }).waitFor({ timeout: 8000 }).catch(() => {});
     const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
     const leftPence = Math.round(Number((left.match(/£([\d.]+)/) ?? [])[1]) * 100);
     if (!(leftPence > 0 && leftPence < 2500)) fail(`gift cards: the balance after paying looks wrong (${left})`);
