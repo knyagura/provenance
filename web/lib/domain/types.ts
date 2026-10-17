@@ -92,6 +92,8 @@ export interface ListingQuery {
   minPence?: number;
   maxPence?: number;
   condition?: string;
+  /** Exact size label, ignoring case. */
+  size?: string;
   sort: Sort;
   limit: number;
   /** Opaque position from the previous page's nextCursor. */

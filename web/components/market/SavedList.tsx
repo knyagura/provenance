@@ -8,6 +8,7 @@ import { ListingCard } from '@/components/ui';
 import { toCard } from '@/lib/domain/present';
 import type { Listing } from '@/lib/domain/types';
 import { useMarketState } from './MarketState';
+import { SavedSearches } from './SavedSearches';
 
 /** The member's saved items. Removing the heart takes an item off the list. */
 export function SavedList() {
@@ -31,6 +32,7 @@ export function SavedList() {
   if (!items) return <p role="status">Loading your saved items…</p>;
   const shown = items.filter((l) => saved.has(l.id));
   return (
+    <>
     <section className="pv-section" aria-labelledby="saved-h">
       <h1 id="saved-h">Saved</h1>
       {shown.length ? (
@@ -46,5 +48,7 @@ export function SavedList() {
         <EmptyState heading title="Nothing saved yet" note="Tap the heart on an item to keep it here." action={{ href: '/search', label: 'Start browsing' }} />
       )}
     </section>
+    <SavedSearches />
+    </>
   );
 }

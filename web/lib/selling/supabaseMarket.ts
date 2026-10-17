@@ -3,7 +3,7 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import type { Tier } from '@/lib/domain/types';
 import type {
-  CheckoutStarted, MarketBackend, NotificationPrefs, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
+  CheckoutStarted, MarketBackend, NotificationPrefs, SavedSearch, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
 } from './types';
 
 // Favourites, messages, offers, reviews, the Item Passport and the staff console, through Supabase.
@@ -12,6 +12,13 @@ import type {
 type Err = { message: string; code?: string };
 const fail = (e: Err): { ok: false; message: string } => ({ ok: false, message: tidy(e.message) });
 const done = { ok: true as const, value: undefined };
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const toSearches = (data: any): SavedSearch[] => ((data as Record<string, unknown>[] | null) ?? []).map((s) => ({
+  id: s.id as string, name: s.name as string, q: (s.q as string) ?? null, category: (s.category as string) ?? null, size: (s.size as string) ?? null,
+  condition: (s.condition as string) ?? null, minPence: (s.min_pence as number) ?? null, maxPence: (s.max_pence as number) ?? null,
+  alert: Boolean(s.alert), createdAt: s.created_at as string, liveCount: Number(s.live_count ?? 0),
+}));
 
 /** Database errors are already written for people; strip the technical prefix some carry. */
 function tidy(m: string): string {
@@ -282,6 +289,26 @@ export const supabaseMarket: MarketBackend = {
     return error ? fail(error) : { ok: true, value: data as { username: string; business: boolean } };
   },
 
+  async mySavedSearches() {
+    const { data, error } = await supabase().rpc('my_saved_searches');
+    return error ? [] : toSearches(data);
+  },
+  async saveSearch(name, q) {
+    const { data, error } = await supabase().rpc('save_search', {
+      p_name: name, p_q: q.q ?? null, p_category: q.category ?? null, p_size: q.size ?? null, p_condition: q.condition ?? null,
+      p_min: q.minPence ?? null, p_max: q.maxPence ?? null,
+    });
+    return error ? fail(error) : { ok: true, value: toSearches([data])[0] };
+  },
+  async setSearchAlert(id, on) {
+    const { data, error } = await supabase().rpc('set_search_alert', { p_id: id, p_on: on });
+    return error ? fail(error) : { ok: true, value: toSearches(data) };
+  },
+  async deleteSavedSearch(id) {
+    const { data, error } = await supabase().rpc('delete_saved_search', { p_id: id });
+    return error ? fail(error) : { ok: true, value: toSearches(data) };
+  },
+
   async notifications() {
     const { data, error } = await supabase().rpc('my_notifications', { p_limit: 50 });
     if (error || !data) return [];
@@ -301,10 +328,10 @@ export const supabaseMarket: MarketBackend = {
   },
   async notificationPrefs() {
     const { data } = await supabase().rpc('my_notification_prefs');
-    return { turn: true, messages: true, offers: true, sales: true, ...((data as object) ?? {}) };
+    return { turn: true, messages: true, offers: true, sales: true, alerts: true, ...((data as object) ?? {}) };
   },
   async setNotificationPrefs(p) {
-    const { data, error } = await supabase().rpc('set_notification_prefs', { p_turn: p.turn, p_messages: p.messages, p_offers: p.offers, p_sales: p.sales });
+    const { data, error } = await supabase().rpc('set_notification_prefs', { p_turn: p.turn, p_messages: p.messages, p_offers: p.offers, p_sales: p.sales, p_alerts: p.alerts });
     return error ? fail(error) : { ok: true, value: data as NotificationPrefs };
   },
 };

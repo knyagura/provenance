@@ -68,8 +68,8 @@ describe('example notifications follow migration 016', () => {
   });
 
   it('keeps email choices per person and marks read', () => {
-    expect(exampleNotifications.prefs(BUYER)).toEqual({ turn: true, messages: true, offers: true, sales: true });
-    exampleNotifications.setPrefs(BUYER, { turn: true, messages: false, offers: true, sales: true });
+    expect(exampleNotifications.prefs(BUYER)).toEqual({ turn: true, messages: true, offers: true, sales: true, alerts: true });
+    exampleNotifications.setPrefs(BUYER, { turn: true, messages: false, offers: true, sales: true, alerts: true });
     expect(exampleNotifications.prefs(BUYER).messages).toBe(false);
     expect(exampleNotifications.prefs(SELLER).messages).toBe(true);
     exampleNotifyMessage(SELLER, 'o1', 'Coat', 'bea', 'Hi');

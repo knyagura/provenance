@@ -247,9 +247,10 @@ export interface ContactMessage {
   handledBy: string | null;
 }
 
-export type NotificationGroup = 'turn' | 'messages' | 'offers' | 'sales';
+export type NotificationGroup = 'turn' | 'messages' | 'offers' | 'sales' | 'alerts';
 export type NotificationKind =
-  | 'turn' | 'message' | 'offer_new' | 'offer_counter' | 'offer_accepted' | 'offer_expiring' | 'sold' | 'payout' | 'dispute' | 'decision';
+  | 'turn' | 'message' | 'offer_new' | 'offer_counter' | 'offer_accepted' | 'offer_expiring' | 'sold' | 'payout' | 'dispute' | 'decision'
+  | 'search_match' | 'price_drop';
 /** Something that happened on the member's orders or offers (migration 016). */
 export interface AppNotification {
   id: string;
@@ -266,6 +267,23 @@ export interface AppNotification {
 }
 /** Which groups the member gets emails for. The in-app list always shows everything. */
 export type NotificationPrefs = Record<NotificationGroup, boolean>;
+
+/** A search the member saved, to be told about new matches (migration 019). */
+export interface SavedSearch {
+  id: string;
+  name: string;
+  q: string | null;
+  category: string | null;
+  size: string | null;
+  condition: string | null;
+  minPence: number | null;
+  maxPence: number | null;
+  alert: boolean;
+  createdAt: string;
+  /** Listings matching it right now. */
+  liveCount: number;
+}
+export interface SearchToSave { q?: string; category?: string; size?: string; condition?: string; minPence?: number; maxPence?: number }
 
 export interface MarketBackend {
   favourites(): Promise<string[]>;
@@ -310,6 +328,11 @@ export interface MarketBackend {
   setListingStock(listingId: string, stock: number): Promise<Result<Variant[]>>;
   addVariant(listingId: string, colour: string, size: string, stock: number, pricePence: number | null): Promise<Result<Variant[]>>;
   staffSetBusiness(username: string, on: boolean): Promise<Result<{ username: string; business: boolean }>>;
+
+  mySavedSearches(): Promise<SavedSearch[]>;
+  saveSearch(name: string, search: SearchToSave): Promise<Result<SavedSearch>>;
+  setSearchAlert(id: string, on: boolean): Promise<Result<SavedSearch[]>>;
+  deleteSavedSearch(id: string): Promise<Result<SavedSearch[]>>;
 
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;

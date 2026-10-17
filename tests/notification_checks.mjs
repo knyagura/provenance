@@ -119,7 +119,7 @@ await as(db, U.OTHER, 'select public.mark_notifications_read(null)');
 ok((await one(U.SELLER, 'select public.unread_notifications() as c')).c === before - 1, 'someone else marking “all read” doesn’t touch them');
 await as(db, U.SELLER, 'select public.mark_notifications_read(null)');
 ok((await one(U.SELLER, 'select public.unread_notifications() as c')).c === 0, 'and all can be marked read');
-ok(JSON.stringify((await one(U.BUYER, 'select public.my_notification_prefs() as p')).p) === JSON.stringify({ turn: true, sales: true, offers: true, messages: true }), 'every email is on to begin with');
+ok(JSON.stringify((await one(U.BUYER, 'select public.my_notification_prefs() as p')).p) === JSON.stringify({ turn: true, sales: true, alerts: true, offers: true, messages: true }), 'every email is on to begin with');
 const p = (await one(U.BUYER, 'select public.set_notification_prefs(true, false, true, true) as p')).p;
 ok(p.messages === false && p.turn === true, 'a member switches off message emails');
 ok((await db.query(`select email_state from public.notifications where kind = 'message' and user_id = $1 and read_at is null`, [U.BUYER])).rows[0].email_state === 'off', 'which stops the one already waiting');

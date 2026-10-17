@@ -115,6 +115,7 @@ const GROUPS: { key: NotificationGroup; label: string; note: string }[] = [
   { key: 'messages', label: 'Messages', note: 'At most one email per order every 15 minutes.' },
   { key: 'offers', label: 'Offers', note: 'New offers, counter-offers, accepted offers, and offers about to end.' },
   { key: 'sales', label: 'Sales and problems', note: 'Sold, payment released, a problem reported, and our team’s decisions.' },
+  { key: 'alerts', label: 'Alerts', note: 'New matches for your saved searches, and price drops on items you saved.' },
 ];
 
 /** Which emails the member gets. The Updates list always shows everything. */
@@ -124,7 +125,7 @@ export function NotificationSettings() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
-    backend.notificationPrefs().then(setPrefs).catch(() => setPrefs({ turn: true, messages: true, offers: true, sales: true }));
+    backend.notificationPrefs().then(setPrefs).catch(() => setPrefs({ turn: true, messages: true, offers: true, sales: true, alerts: true }));
   }, [backend]);
   if (!prefs) return null;
   const change = async (key: NotificationGroup, on: boolean) => {

@@ -730,6 +730,32 @@ try {
     await vctx.close();
   }
 
+  // Saved searches: save one from the results, see it on the Saved page, switch its alerts off, delete it.
+  {
+    const sctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const serr = [];
+    const p = await sctx.newPage();
+    p.on('pageerror', (e) => serr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/search?q=barbour&size=m&max=60')}`);
+    await p.getByLabel('Email').fill('searcher@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/search');
+    await p.getByRole('link', { name: /Barbour Beaufort wax jacket/ }).first().waitFor({ timeout: 5000 }).catch(() => fail('saved searches: the size filter lost the M jacket'));
+    await p.getByRole('button', { name: 'Save this search' }).click();
+    await p.getByRole('link', { name: 'Your searches' }).click();
+    await p.waitForURL((u) => u.pathname === '/saved');
+    const row = p.locator('#searches li', { hasText: 'barbour · size m · under £60.00' });
+    await row.getByText('1 item for sale now').waitFor({ timeout: 5000 }).catch(() => fail('saved searches: the saved search or its count is missing'));
+    await row.getByRole('checkbox', { name: 'Tell me about new matches' }).uncheck();
+    await p.reload();
+    if (await p.locator('#searches li').first().getByRole('checkbox').isChecked()) fail('saved searches: switching alerts off did not stick');
+    await p.getByRole('button', { name: /^Delete saved search/ }).click();
+    await p.getByText('No saved searches yet.').waitFor({ timeout: 5000 }).catch(() => fail('saved searches: delete did not work'));
+    if (serr.length) fail(`saved searches: page errors: ${serr.slice(0, 3).join(' | ')}`);
+    await sctx.close();
+  }
+
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.
   for (const p of ['/sitemap.xml', '/robots.txt']) {
     const r = await fetch(BASE + p);

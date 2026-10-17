@@ -32,6 +32,7 @@ export function openApi(siteUrl: string) {
             { name: 'category', in: 'query', schema: { type: 'string' }, description: 'A category slug from /categories.' },
             { name: 'seller', in: 'query', schema: { type: 'string' }, description: 'Only this seller’s listings, by username. Without it, sellers on holiday are left out.' },
             { name: 'condition', in: 'query', schema: { type: 'string', enum: CONDITIONS } },
+            { name: 'size', in: 'query', schema: { type: 'string', maxLength: 40 }, description: 'Exact size label, ignoring case (for example 10, M or UK 9).' },
             { name: 'min_price_pence', in: 'query', schema: { type: 'integer', minimum: 0 } },
             { name: 'max_price_pence', in: 'query', schema: { type: 'integer', minimum: 0 } },
             { name: 'sort', in: 'query', schema: { type: 'string', enum: ['newest', 'price_asc', 'price_desc'], default: 'newest' } },

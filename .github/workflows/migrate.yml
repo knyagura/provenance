@@ -38,6 +38,7 @@ jobs:
       - run: node contact_checks.mjs
       - run: node notification_checks.mjs
       - run: node variant_checks.mjs
+      - run: node alert_checks.mjs
 
   migrate:
     needs: database-tests

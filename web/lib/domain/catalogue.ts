@@ -181,6 +181,7 @@ export const supabaseSource: CatalogueSource = {
     else req = req.eq('seller.holiday_mode', false);
     if (query.category) req = req.eq('category', query.category);
     if (query.condition) req = req.eq('condition_label', query.condition);
+    if (query.size) req = req.ilike('size_label', likeExact(query.size.trim()));
     if (query.minPence !== undefined) req = req.gte('price_pence', query.minPence);
     if (query.maxPence !== undefined) req = req.lte('price_pence', query.maxPence);
     if (query.sort === 'price_asc') req = req.order('price_pence', { ascending: true });

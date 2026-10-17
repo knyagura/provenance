@@ -26,7 +26,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const ACTION: Record<string, string> = {
   turn: 'Open the order', message: 'Read and reply', offer_new: 'Answer the offer', offer_counter: 'Answer the offer',
   offer_accepted: 'See the offer', offer_expiring: 'See the offer', sold: 'Start the handover', payout: 'See the order',
-  dispute: 'See the order', decision: 'See the order',
+  dispute: 'See the order', decision: 'See the order', search_match: 'See the item', price_drop: 'See the item',
 };
 
 function email(r: Row) {

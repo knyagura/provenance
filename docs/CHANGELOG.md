@@ -81,3 +81,10 @@ Newest first. Each entry says what changed for people using the site, and which 
 - Migration 018. Example mode has a business seller, `knit_house`, selling a merino jumper in two colours and two sizes.
 - New checklist: [When the domain is bought](when-the-domain-is-bought.md), covering Netlify, Supabase, passkeys, Google sign-in, Resend and the uptime check.
 - Documents: [ADR 0013](adr/0013-variants-for-business-sellers.md).
+
+## 2026-10-17: Saved searches, price-drop alerts and a size filter
+- *Save this search* on the results page. The Saved page lists your searches with how many items match now, an alert switch and Delete.
+- When a new listing matches a saved search (or drops into its price range), you get an Update and, if you like, an email. Items you saved tell you when their price drops ("Now £49 (was £55)").
+- New **Size** filter in search, and a `size` parameter in the API.
+- New email switch, *Alerts*, under Account → Emails.
+- Migration 019. Documents: [ADR 0014](adr/0014-saved-searches-and-alerts.md).

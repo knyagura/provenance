@@ -3,11 +3,12 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { filterInMemory } from '@/lib/domain/search';
 import { exampleSource } from '@/lib/domain/catalogue';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
-  CheckoutStarted, ContactMessage, MarketBackend, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
+  CheckoutStarted, ContactMessage, MarketBackend, SavedSearch, Member, Offer, OfferStatus, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffSettings,
 } from './types';
 
 // Example mode's favourites, messages, offers, reviews, passport and staff console, shared between tabs in
@@ -32,6 +33,7 @@ interface Extras {
   settings?: { custody: Record<string, number>; offers: Record<string, number>; fees: StaffSettings['fees'] };
   actions: { orderId: string; action: string; by: string; detail: Record<string, unknown>; at: string }[];
   contact?: ContactMessage[];
+  searches?: Record<string, SavedSearch[]>;
 }
 
 function load(): Extras {
@@ -76,6 +78,13 @@ function offerView(o: StoredOffer, me: Member): Offer {
     createdAt: o.createdAt, expiresAt: o.expiresAt,
   };
 }
+const withCounts = (list: SavedSearch[]): SavedSearch[] => list.map((s) => ({
+  ...s,
+  liveCount: filterInMemory(exampleCatalogue, {
+    q: s.q ?? undefined, category: s.category ?? undefined, size: s.size ?? undefined, condition: s.condition ?? undefined,
+    minPence: s.minPence ?? undefined, maxPence: s.maxPence ?? undefined, sort: 'newest', limit: 200, offset: 0,
+  }).length,
+}));
 const isStaffMember = (m: Member | null) => !!m && m.email.toLowerCase().startsWith('staff');
 const party = (o: StoredOrder, me: Member) => o.buyerId === me.id || o.sellerId === me.id;
 
@@ -441,6 +450,43 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffSetBusiness(username, on) {
       if (!isStaffMember(me())) return fail('Staff only.');
       return { ok: true, value: { username, business: on } };
+    },
+    async mySavedSearches() {
+      const m = me();
+      return m ? withCounts(load().searches?.[m.id] ?? []) : [];
+    },
+    async saveSearch(name, q) {
+      const m = me();
+      if (!m) return fail('Sign in to save searches.');
+      if (!q.q?.trim() && !q.category && !q.size?.trim() && !q.condition && q.minPence === undefined && q.maxPence === undefined) {
+        return fail('Search for something, or choose a filter, before saving.');
+      }
+      const x = load();
+      const mine = x.searches?.[m.id] ?? [];
+      if (mine.length >= 20) return fail('You can keep up to 20 saved searches. Delete one to add another.');
+      const s: SavedSearch = {
+        id: id('search'), name: name.trim().slice(0, 80) || 'Saved search', q: q.q?.trim() || null, category: q.category ?? null, size: q.size?.trim() || null,
+        condition: q.condition ?? null, minPence: q.minPence ?? null, maxPence: q.maxPence ?? null, alert: true, createdAt: now(), liveCount: 0,
+      };
+      x.searches = { ...x.searches, [m.id]: [s, ...mine] };
+      save(x);
+      return { ok: true, value: withCounts([s])[0] };
+    },
+    async setSearchAlert(sid, on) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const x = load();
+      for (const s of x.searches?.[m.id] ?? []) if (s.id === sid) s.alert = on;
+      save(x);
+      return { ok: true, value: withCounts(x.searches?.[m.id] ?? []) };
+    },
+    async deleteSavedSearch(sid) {
+      const m = me();
+      if (!m) return fail('Sign in first.');
+      const x = load();
+      x.searches = { ...x.searches, [m.id]: (x.searches?.[m.id] ?? []).filter((s) => s.id !== sid) };
+      save(x);
+      return { ok: true, value: withCounts(x.searches[m.id]) };
     },
     async notifications() {
       const m = me();

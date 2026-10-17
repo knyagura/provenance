@@ -27,3 +27,24 @@ describe('variants for business sellers', () => {
     expect(exampleCatalogue.filter((l) => l.variantGroup === 'example-merino')).toHaveLength(4);
   });
 });
+
+import { searchName } from '@/components/browse/SaveSearch';
+import { searchHref } from '@/components/market/SavedSearches';
+import { parseSiteQuery } from '@/lib/domain/query';
+import { filterInMemory } from '@/lib/domain/search';
+
+describe('saved searches and the size filter', () => {
+  it('names a search from its filters', () => {
+    expect(searchName({ q: 'Barbour jacket', size: '10', maxPence: 6000 }, 'Women')).toBe('Barbour jacket · Women · size 10 · under £60.00');
+    expect(searchName({})).toBe('Saved search');
+  });
+  it('links back to the same search', () => {
+    expect(searchHref({ q: 'barbour', category: null, size: '10', condition: null, minPence: null, maxPence: 6000 })).toBe('/search?q=barbour&size=10&max=60');
+  });
+  it('filters by size, ignoring case and spaces', () => {
+    const { query } = parseSiteQuery({ size: ' uk 9 ' });
+    expect(query.size).toBe('uk 9');
+    expect(filterInMemory(exampleCatalogue, query).map((l) => l.title)).toEqual(['Trail running shoes']);
+    expect(parseSiteQuery({ size: 'x'.repeat(41) }).query.size).toBeUndefined();
+  });
+});

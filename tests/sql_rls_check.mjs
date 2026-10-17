@@ -55,6 +55,7 @@ export async function freshDb() {
   await db.exec(read('015_fk_indexes.sql'));
   await db.exec(read('016_notifications.sql'));
   await db.exec(read('018_variants.sql'));
+  await db.exec(read('019_saved_searches.sql'));
   return db;
 }
 
@@ -93,7 +94,8 @@ if (isMain) {
   await db.exec(read('015_fk_indexes.sql'));
   await db.exec(read('016_notifications.sql'));
   await db.exec(read('018_variants.sql'));
-  ok(true, 'schema + migrations 002-016 and 018 apply cleanly, and re-run idempotently');
+  await db.exec(read('019_saved_searches.sql'));
+  ok(true, 'schema + migrations 002-016, 018 and 019 apply cleanly, and re-run idempotently');
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
