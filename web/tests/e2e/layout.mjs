@@ -706,7 +706,7 @@ try {
     await p.waitForURL((u) => u.pathname === '/item/example-13');
     await p.getByRole('heading', { name: 'Colours and sizes' }).waitFor();
     if (await p.getByRole('button', { name: 'Make an offer' }).count()) fail('variants: business listings should not take offers');
-    await p.getByRole('link', { name: /^Charcoal, size S: Available/ }).click();
+    await p.getByRole('link', { name: /^Charcoal, size S:\s*Available/ }).click();
     await p.waitForURL((u) => u.pathname === '/item/example-15');
     await p.getByRole('link', { name: 'Buy now' }).click();
     await p.waitForURL((u) => u.pathname === '/checkout/example-15');
@@ -716,7 +716,7 @@ try {
     await vpay.click();
     await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await p.goto(BASE + '/item/example-13');
-    await p.getByRole('link', { name: /^Charcoal, size S: Sold out/ }).waitFor({ timeout: 5000 }).catch(() => fail('variants: the bought size should show as sold out'));
+    await p.getByRole('link', { name: /^Charcoal, size S:\s*Sold out/ }).waitFor({ timeout: 5000 }).catch(() => fail('variants: the bought size should show as sold out'));
     // Shopping for several people: drag one size onto a basket.
     await p.goto(BASE + '/basket');
     await p.getByRole('switch', { name: 'Multi-basket shopping' }).check();

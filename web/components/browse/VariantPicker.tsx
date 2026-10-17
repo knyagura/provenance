@@ -69,10 +69,10 @@ export function VariantPicker({ initial, title, category }: { initial: Variant[]
                       e.dataTransfer.effectAllowed = 'copyMove';
                     } : undefined}
                   >
-                    {/* Read as "Oatmeal, size S: 3 left"; seen as "S" with "3 left" under it. */}
-                    <span><span className="pv-visually-hidden">{v.colour ? `${v.colour}, ` : ''}{v.size ? 'size ' : ''}</span>{v.size ?? colour}<span className="pv-visually-hidden">: </span></span>
-                    {shortLeft ? <span className="pv-variant__left">{shortLeft}</span> : <span className="pv-visually-hidden">{leftText(v)}</span>}
-                    {v.pricePence !== current?.pricePence ? <span className="pv-visually-hidden">, {formatPence(v.pricePence)}</span> : null}
+                    {/* Seen as "S" with "3 left" under it; read as "Oatmeal, size S: 3 left". */}
+                    <span aria-hidden="true">{v.size ?? colour}</span>
+                    {shortLeft ? <span className="pv-variant__left" aria-hidden="true">{shortLeft}</span> : null}
+                    <span className="pv-visually-hidden">{`${label || colour}: ${leftText(v)}${v.pricePence !== current?.pricePence ? `, ${formatPence(v.pricePence)}` : ''}`}</span>
                   </Link>
                 </li>
               );
