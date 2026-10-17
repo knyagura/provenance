@@ -57,3 +57,11 @@ Newest first. Each entry says what changed for people using the site, and which 
 ## 2026-10-17: Breached passwords refused (free stand-in for Supabase's Pro-plan setting)
 - Creating an account or setting a new password checks the password against Have I Been Pwned. Only the first 5 characters of its SHA-1 hash are sent, using k-anonymity. A password found in a breach is refused with a plain message. If the service can't be reached, the check passes rather than blocking anyone.
 - This applies to the site's own forms. Once on Supabase Pro, switch on "Prevent use of leaked passwords" so passwords set any other way are covered too.
+
+## 2026-10-17: Tidy-up (search engines, faster photos, indexes, error pages, live checks)
+- `sitemap.xml` covers live listings, Item Passports and member pages. `robots.txt` keeps private pages out of search. Item pages carry schema.org Product data (price, photo, condition, availability).
+- On Netlify, listing photos are served through its image CDN at the width each screen needs (WebP/AVIF). Cards, the gallery and thumbnails use `srcset`. Local runs and tests use the originals.
+- Migration 015: indexes behind 12 foreign keys flagged by the database advisor.
+- Friendly error, not-found and last-resort pages.
+- New workflow `uptime.yml` checks the live pages and the database every 30 minutes, so a failure emails the owner.
+- Download size: the largest shared piece is the Supabase client, which every page needs. Stripe, QR and camera code already load only where they're used.

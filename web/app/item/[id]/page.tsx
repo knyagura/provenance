@@ -12,6 +12,7 @@ import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
 import type { Listing, Tier } from '@/lib/domain/types';
 import { formatPence } from '@/lib/format';
+import { config } from '@/lib/config';
 
 export const revalidate = 60;
 
@@ -90,8 +91,28 @@ export default async function ItemPage({ params }: Props) {
     ['Serial ends', l.serialHint],
   ];
 
+  // Structured data, so search engines can show the item with its price, photo and availability.
+  const ld = l.example ? null : {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: l.title,
+    description: l.description ?? undefined,
+    image: photos.map((m) => m.url).slice(0, 5),
+    sku: l.itemId ?? l.id,
+    brand: l.brand ? { '@type': 'Brand', name: l.brand } : undefined,
+    itemCondition: /new with tags/i.test(l.condition ?? '') ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+    offers: {
+      '@type': 'Offer',
+      url: `${config.siteUrl}/item/${l.id}`,
+      priceCurrency: 'GBP',
+      price: (l.pricePence / 100).toFixed(2),
+      availability: l.status === 'active' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+      seller: { '@type': 'Person', name: l.seller.username },
+    },
+  };
   return (
     <article className="pv-item">
+      {ld ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, '\\u003c') }} /> : null}
       <nav className="pv-crumbs" aria-label="Breadcrumb">
         <ol>
           <li><Link href="/">Home</Link></li>

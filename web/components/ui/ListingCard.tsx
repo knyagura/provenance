@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import { useState } from 'react';
 import { useMarketState } from '@/components/market/MarketState';
 import { AddToBasket } from '@/components/baskets/AddToBasket';
@@ -58,7 +59,7 @@ export function ListingCard(props: ListingCardProps) {
       } : undefined}
     >
       <div className="pv-card__photo" style={{ background: `var(--${placeholder})` }}>
-        {photoUrl ? <img src={photoUrl} alt="" loading="lazy" /> : null}
+        {photoUrl ? <img {...photo(photoUrl, SIZES.card)} alt="" loading="lazy" decoding="async" /> : null}
         {tier ? <TierBadge tier={tier} /> : null}
         {boosted ? <span className="pv-card__boost"><Badge tone="boosted">Boosted</Badge></span> : null}
         <button

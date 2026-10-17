@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { categoryName } from '@/lib/domain/present';
 import { fallbackCategories } from '@/lib/domain/examples';
@@ -26,7 +27,7 @@ export function MyListings({ drafts, heading }: { drafts: Draft[]; heading: stri
           const thumb = d.media.find((m) => m.kind === 'photo');
           return (
             <li key={d.id} className="pv-row">
-              <span className="pv-row__thumb" aria-hidden="true">{thumb ? <img src={thumb.url} alt="" /> : null}</span>
+              <span className="pv-row__thumb" aria-hidden="true">{thumb ? <img {...photo(thumb.url, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" /> : null}</span>
               <span className="pv-row__text">
                 <strong>{d.title || 'Untitled draft'}</strong>
                 <span className="pv-note">

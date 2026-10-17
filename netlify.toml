@@ -15,3 +15,7 @@
 # Netlify recommends taking the latest adapter on each build.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Listing photos are stored full-size in Supabase; Netlify's image CDN resizes them per screen (web/lib/images.ts).
+[images]
+  remote_images = ["https://tkjmnivvcrcqkqjywafb\\.supabase\\.co/storage/v1/object/public/.*"]

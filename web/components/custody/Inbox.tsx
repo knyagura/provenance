@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -134,7 +135,7 @@ function RowList({ title, rows }: { title: string; rows: Row[] }) {
       <ul className="pv-rows">
         {rows.map((r) => (
           <li key={`${r.group}-${r.id}`} className={`pv-row${r.turn ? ' pv-row--turn' : ''}`}>
-            <span className="pv-row__thumb" aria-hidden="true">{r.photoUrl ? <img src={r.photoUrl} alt="" /> : <PackageIcon />}</span>
+            <span className="pv-row__thumb" aria-hidden="true">{r.photoUrl ? <img {...photo(r.photoUrl, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" /> : <PackageIcon />}</span>
             <span className="pv-row__text">
               <span className="pv-row__top">
                 <strong>{r.title}</strong>

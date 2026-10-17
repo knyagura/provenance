@@ -677,6 +677,20 @@ try {
     await kctx.close();
   }
 
+  // Search engines: sitemap and robots answer; a missing page is a friendly 404.
+  for (const p of ['/sitemap.xml', '/robots.txt']) {
+    const r = await fetch(BASE + p);
+    if (r.status !== 200) fail(`${p} returned ${r.status}`);
+  }
+  if (!(await (await fetch(BASE + '/robots.txt')).text()).includes('Sitemap:')) fail('robots.txt should point to the sitemap');
+  {
+    const nctx = await browser.newContext();
+    const np = await nctx.newPage();
+    const r = await np.goto(BASE + '/no-such-page');
+    if (r?.status() !== 404 || !(await np.getByRole('heading', { name: 'We can’t find that page' }).isVisible())) fail('404 page missing or wrong');
+    await nctx.close();
+  }
+
   // API v1
   const KEY = 'pv_test_Example1_' + 'x'.repeat(43);
   const api = async (path, key) => {

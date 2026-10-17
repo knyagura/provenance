@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -25,7 +26,7 @@ export function SharedBasketView({ token }: { token: string }) {
       <ul className="pv-rows">
         {b.items.map((i) => (
           <li key={i.listingId} className="pv-bitem">
-            <span className="pv-bitem__thumb" aria-hidden="true">{i.photoUrl ? <img src={i.photoUrl} alt="" /> : null}</span>
+            <span className="pv-bitem__thumb" aria-hidden="true">{i.photoUrl ? <img {...photo(i.photoUrl, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" /> : null}</span>
             <div className="pv-bitem__body">
               <Link href={`/item/${i.listingId}`}><strong>{i.title}</strong></Link>
               <span className="pv-note">{[i.size ? `Size ${i.size}` : null, formatPence(i.pricePence)].filter(Boolean).join(' · ')}</span>

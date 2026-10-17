@@ -1,5 +1,6 @@
 'use client';
 
+import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -24,7 +25,7 @@ export function MyOrders() {
       <ul className="pv-rows" aria-label="Your orders">
         {orders.map((o) => (
           <li key={o.id} className="pv-row">
-            <span className="pv-row__thumb" aria-hidden="true">{o.photoUrl ? <img src={o.photoUrl} alt="" /> : null}</span>
+            <span className="pv-row__thumb" aria-hidden="true">{o.photoUrl ? <img {...photo(o.photoUrl, SIZES.thumb, THUMB_WIDTHS)} alt="" loading="lazy" decoding="async" /> : null}</span>
             <span className="pv-row__text">
               <strong>{o.title}</strong>
               <span className="pv-note">
