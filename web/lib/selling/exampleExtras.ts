@@ -3,6 +3,7 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { examplePopups } from './examplePopups';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -422,6 +423,16 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffContactMessages(openOnly) {
       if (!isStaffMember(me())) return [];
       return (load().contact ?? []).filter((m) => !openOnly || !m.handledAt);
+    },
+    async livePopups() {
+      return examplePopups.live();
+    },
+    async staffPopups() {
+      return isStaffMember(me()) ? examplePopups.all() : [];
+    },
+    async staffSavePopup(pid, patch, showAgain) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return examplePopups.save(pid, patch, showAgain);
     },
     async notifications() {
       const m = me();

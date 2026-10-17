@@ -17,6 +17,7 @@ import { MarketStateProvider } from '@/components/market/MarketState';
 import { ServiceWorker } from '@/components/pwa/InstallApp';
 import { BasketsProvider } from '@/components/baskets/BasketsState';
 import { BasketRail } from '@/components/baskets/BasketRail';
+import { PopupHost } from '@/components/popups/PopupHost';
 import { config } from '@/lib/config';
 
 export const metadata: Metadata = {
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <BottomNav />
           <BasketRail />
+          <PopupHost />
           <ServiceWorker />
           </BasketsProvider>
           </MarketStateProvider>
