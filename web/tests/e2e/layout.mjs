@@ -790,7 +790,7 @@ try {
     const sold = p.locator('.pv-tile', { hasText: 'Sold' });
     if (!(await sold.getByText('2 in bundles').isVisible())) fail('dashboard: the two bundled sales are missing');
     if ((await p.locator('.pv-table tbody tr').count()) < 2) fail('dashboard: the sold history should list both orders');
-    await p.getByLabel('Discount').selectOption('15');
+    await p.getByLabel('Discount', { exact: true }).selectOption('15');
     await p.getByRole('button', { name: 'Save', exact: true }).click();
     await p.getByRole('status').filter({ hasText: 'Saved: 15% off 2 or more' }).waitFor({ timeout: 5000 }).catch(() => fail('dashboard: changing the bundle discount failed'));
     if (berr.length) fail(`seller tools: page errors: ${berr.slice(0, 3).join(' | ')}`);
