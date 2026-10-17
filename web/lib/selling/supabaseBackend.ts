@@ -3,6 +3,7 @@ import { mediaUrl } from '@/lib/domain/catalogue';
 import { DRAFT_TITLE, PARCEL_SIZES, profileFor } from '@/lib/domain/evidence';
 import { supabase } from '@/lib/supabase';
 import { config } from '@/lib/config';
+import { BREACHED_MESSAGE, breachCount } from '@/lib/account/pwned';
 import { breakdownFromJson } from '@/lib/domain/fees';
 import { versionFromSnapshot, type ListingVersion } from '@/lib/domain/versions';
 import { planFor, type Actor, type AgentTask, type CustodyEvent, type CustodyState, type CustodyView, type Evidence, type SealKind, type StepDef } from '@/lib/domain/custody';
@@ -237,6 +238,7 @@ export const supabaseBackend: SellingBackend = {
   },
 
   async signUp(email, password) {
+    if ((await breachCount(password)) > 0) return { ok: false, message: BREACHED_MESSAGE };
     const { data, error } = await supabase().auth.signUp({
       email,
       password,
@@ -265,6 +267,7 @@ export const supabaseBackend: SellingBackend = {
   },
 
   async setPassword(password) {
+    if ((await breachCount(password)) > 0) return { ok: false, message: BREACHED_MESSAGE };
     const { error } = await supabase().auth.updateUser({ password });
     return error ? fail(error) : { ok: true, value: undefined };
   },
