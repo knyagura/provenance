@@ -288,7 +288,8 @@ export const exampleBackend: SellingBackend = {
     return exampleVersion(listingId);
   },
   async quote(listingId) {
-    const sold = loadMarket().orders.some((o) => o.summary.listingId === listingId && o.summary.paymentStatus === 'paid');
+    const stock = exampleCatalogue.find((l) => l.id === listingId)?.stock ?? 1;
+    const sold = loadMarket().orders.filter((o) => o.summary.listingId === listingId && o.summary.paymentStatus === 'paid').length >= stock;
     return sold ? null : exampleQuote(listingId)?.quote ?? null;
   },
   async startCheckout(listingId, revision) {
@@ -302,8 +303,10 @@ export const exampleBackend: SellingBackend = {
     const sellerId = exampleSellerId(listingId);
     if (sellerId === me.id) return { ok: false, message: 'You can’t buy your own listing' };
     const now_ = new Date().toISOString();
-    const taken = market.orders.find((o) => o.summary.listingId === listingId &&
-      (o.summary.paymentStatus === 'paid' || (o.summary.paymentStatus === 'awaiting_payment' && o.buyerId !== me.id && (o.summary.holdExpiresAt ?? '') > now_)));
+    // Paid units, and units held by other people paying (stocked items have several).
+    const taken = market.orders.filter((o) => o.summary.listingId === listingId &&
+      (o.summary.paymentStatus === 'paid' || (o.summary.paymentStatus === 'awaiting_payment' && o.buyerId !== me.id && (o.summary.holdExpiresAt ?? '') > now_))).length
+      >= (q?.listing.stock ?? 1);
     if (!q || !sellerId || taken) return { ok: false, message: 'This item is not available to buy' };
     const open = market.orders.find((o) => o.summary.listingId === listingId && o.buyerId === me.id && o.summary.paymentStatus === 'awaiting_payment');
     if (open) return ok({ orderId: open.summary.id, quote: open.summary.quote!, holdExpiresAt: open.summary.holdExpiresAt!, revision: open.summary.bought?.revision ?? null });

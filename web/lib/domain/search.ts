@@ -19,7 +19,7 @@ export function toPrefixTsQuery(q: string | undefined): string | null {
 export function filterInMemory(all: Listing[], query: ListingQuery): Listing[] {
   const words = searchWords(query.q);
   const matches = all.filter((l) => {
-    if (l.status !== 'active') return false;
+    if (l.status !== 'active' || l.browseVisible === false) return false;
     if (query.seller ? l.seller.username.toLowerCase() !== query.seller.toLowerCase() : l.seller.away) return false;
     if (query.category && l.category !== query.category) return false;
     if (query.condition && l.condition !== query.condition) return false;

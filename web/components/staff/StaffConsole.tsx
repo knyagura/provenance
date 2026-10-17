@@ -120,7 +120,34 @@ function Agents() {
           ))}
         </ul>
       ) : <p className="pv-note">No courier or hub accounts yet.</p>}
+      <BusinessSellers />
     </>
+  );
+}
+
+/** Mark a member as a business seller, so they can sell stock and colours/sizes. */
+function BusinessSellers() {
+  const { backend } = useMember();
+  const id = useId();
+  const [name, setName] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const set = async (on: boolean) => {
+    if (!name.trim()) return setMsg({ ok: false, text: 'Enter their username.' });
+    const r = await backend.staffSetBusiness(name.trim(), on);
+    if (!r.ok) return setMsg({ ok: false, text: r.message });
+    setMsg({ ok: true, text: on ? `${r.value.username} is now a business seller.` : `${r.value.username} is no longer a business seller.` });
+  };
+  return (
+    <form className="pv-panel pv-form" onSubmit={(e) => { e.preventDefault(); void set(true); }} aria-labelledby={`${id}-h`}>
+      <h2 id={`${id}-h`}>Business sellers</h2>
+      <p className="pv-note">Business sellers can sell more than one of an item, in several colours and sizes, at fixed prices. Their listings show “Business seller”.</p>
+      <div className="pv-field"><label htmlFor={`${id}-u`}>Username</label><input id={`${id}-u`} value={name} onChange={(e) => setName(e.target.value)} /></div>
+      {msg ? <p className={msg.ok ? 'pv-note' : 'pv-errors'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</p> : null}
+      <div className="pv-actions">
+        <Button type="submit" variant="primary">Make business seller</Button>
+        <Button variant="quiet" onClick={() => set(false)}>Remove</Button>
+      </div>
+    </form>
   );
 }
 

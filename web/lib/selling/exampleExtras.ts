@@ -3,6 +3,7 @@ import { exampleCatalogue } from '@/lib/domain/examples';
 import type { Listing } from '@/lib/domain/types';
 import { stepAt } from '@/lib/domain/custody';
 import { formatPence } from '@/lib/format';
+import { exampleSource } from '@/lib/domain/catalogue';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -183,6 +184,7 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
       const sellerId = exampleSellerId(listingId);
       if (!l || sold(listingId)) return fail('This item isn’t taking offers.');
       if (sellerId === m.id) return fail('You can’t make an offer on your own listing.');
+      if ((l.stock ?? 1) > 1 || l.variantGroup) return fail('This seller’s prices are fixed, so it doesn’t take offers.');
       if (!Number.isInteger(amountPence) || amountPence >= l.pricePence) return fail('Offer less than the price, or just buy it.');
       if (amountPence < Math.ceil((l.pricePence * OFFER_MIN_PCT) / 100)) return fail(`Offers start at ${OFFER_MIN_PCT}% of the price.`);
       const x = load();
@@ -422,6 +424,23 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffContactMessages(openOnly) {
       if (!isStaffMember(me())) return [];
       return (load().contact ?? []).filter((m) => !openOnly || !m.handledAt);
+    },
+    async isBusiness() {
+      const m = me();
+      return !!m && (/^shop/i.test(m.email) || exampleCatalogue.some((l) => l.seller.business && memberId(`${l.seller.username}@example.test`) === m.id));
+    },
+    async listingVariants(listingId) {
+      return exampleSource.variants(listingId);
+    },
+    async setListingStock() {
+      return fail('Example listings can’t be restocked. Sign in to the live site with a business account to try it.');
+    },
+    async addVariant() {
+      return fail('Example listings can’t get new variants. Sign in to the live site with a business account to try it.');
+    },
+    async staffSetBusiness(username, on) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return { ok: true, value: { username, business: on } };
     },
     async notifications() {
       const m = me();

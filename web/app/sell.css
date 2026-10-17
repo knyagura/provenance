@@ -259,3 +259,6 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-note-row__body { color: var(--ink-soft, var(--ink)); }
 #notifications .pv-choice input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--olive); }
 #notifications { scroll-margin-top: 80px; }
+.pv-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+@media (min-width: 560px) { .pv-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pv-inline-form input[inputmode="numeric"] { width: 5rem; }

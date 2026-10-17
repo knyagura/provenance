@@ -1,4 +1,5 @@
 import { exampleCatalogue } from '@/lib/domain/examples';
+import { exampleUnitsLeft } from '@/lib/domain/exampleStock';
 import { MAX_PERSONAL, UK_POSTCODE, type Basket, type BasketCheckout, type BasketItem, type BasketPatch, type Baskets, type GiftView, type SizeKind } from '@/lib/domain/baskets';
 import { exampleSellerId, loadMarket, saveMarket, type StoredOrder } from './exampleMarket';
 import type { BasketBackend, Member, Result, SellingBackend } from './types';
@@ -46,8 +47,7 @@ const id = (p: string) => `${p}-${Math.random().toString(36).slice(2, 10)}`;
 const token = () => Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 const fail = (message: string): { ok: false; message: string } => ({ ok: false, message });
 const listing = (lid: string) => exampleCatalogue.find((l) => l.id === lid);
-const available = (lid: string) =>
-  !loadMarket().orders.some((o) => o.summary.listingId === lid && (o.summary.paymentStatus === 'paid' || (o.summary.paymentStatus === 'awaiting_payment' && (o.summary.holdExpiresAt ?? '') > now())));
+const available = (lid: string) => exampleUnitsLeft(lid, listing(lid)?.stock ?? 1) > 0;
 
 const blank = (ownerId: string, position: number, name: string): StoredBasket => ({
   ownerId, id: id('basket'), position, name, general: position === 0, ageGroup: null, sizes: {}, budgetPence: null, styleNotes: null, wrapStyle: null,

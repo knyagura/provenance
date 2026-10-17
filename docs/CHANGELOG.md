@@ -73,3 +73,11 @@ Newest first. Each entry says what changed for people using the site, and which 
 - New Edge Function `send-notifications`. It sends nothing until the owner adds `RESEND_API_KEY` (and later `RESEND_FROM` with a verified domain) to the Supabase function secrets.
 - Migration 017: only the scheduled job can start the sender. It uses a random token kept in Supabase Vault, and nobody handles it.
 - Documents: [ADR 0012](adr/0012-notifications.md).
+
+## 2026-10-17: Variants and stock for business sellers
+- Business sellers (marked by staff in the console) can sell more than one of an item, and add colours and sizes from the listing page (*Stock, colours and sizes*). Each one has its own stock and, if they like, its own price, and shares the original's photos.
+- Item pages show every colour and size with what's left ("2 left", "Sold out"). Search shows one card per item. With multi-basket shopping on, each size can be dragged straight onto someone's basket.
+- Every unit sold is its own order with its own protected handover. A listing stays on sale while units are left, shows "Reserved" while the rest are being paid for, and "Sold" when they've all gone. Overselling is refused. Business prices are fixed, so they don't take offers.
+- Migration 018. Example mode has a business seller, `knit_house`, selling a merino jumper in two colours and two sizes.
+- New checklist: [When the domain is bought](when-the-domain-is-bought.md), covering Netlify, Supabase, passkeys, Google sign-in, Resend and the uptime check.
+- Documents: [ADR 0013](adr/0013-variants-for-business-sellers.md).

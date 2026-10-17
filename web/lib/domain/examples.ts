@@ -70,3 +70,34 @@ export const exampleCatalogue: Listing[] = seeds.map((s, i) => ({
   createdAt: new Date(Date.UTC(2026, 9, 10, 12) - i * 3_600_000).toISOString(),
   example: true,
 }));
+
+// A business seller's item in two colours and two sizes, each with its own stock (migration 018).
+// They share the jumper drawings; search shows the first one.
+const VARIANTS: [colour: string, size: string, stock: number][] = [
+  ['Oatmeal', 'S', 3], ['Oatmeal', 'M', 2], ['Charcoal', 'S', 1], ['Charcoal', 'M', 4],
+];
+const base = exampleCatalogue.length;
+exampleCatalogue.push(...VARIANTS.map(([colour, size, stock], i): Listing => ({
+  id: `example-${base + i + 1}`,
+  itemId: null,
+  title: 'Merino crew jumper',
+  description: 'Fine-knit extra-fine merino, made in Scotland. New, from our shop: each one you buy is its own protected order.',
+  brand: 'Knit House',
+  category: 'women',
+  size,
+  colour,
+  condition: 'New with tags',
+  serialHint: null,
+  pricePence: 6500,
+  shippingPence: 399,
+  tier: 'enhanced',
+  status: 'active',
+  revision: 1,
+  media: (['front', 'detail', 'label'] as const).map((shot) => ({ url: `/examples/example-8-${shot}.svg`, kind: 'photo' as const, shot })),
+  seller: { username: 'knit_house', verified: true, business: true, away: false },
+  createdAt: new Date(Date.UTC(2026, 9, 10, 13) + i * 60_000).toISOString(),
+  example: true,
+  stock,
+  variantGroup: 'example-merino',
+  browseVisible: i === 0,
+})));

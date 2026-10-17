@@ -7,7 +7,8 @@ import { Gallery } from '@/components/browse/Gallery';
 import { OfferBox } from '@/components/market/OfferBox';
 import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
 import { RatingLine } from '@/components/market/Reviews';
-import { getListing } from '@/lib/domain/catalogue';
+import { getListing, getVariants } from '@/lib/domain/catalogue';
+import { VariantPicker } from '@/components/browse/VariantPicker';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
 import type { Listing, Tier } from '@/lib/domain/types';
@@ -80,6 +81,9 @@ export default async function ItemPage({ params }: Props) {
   const cat = categoryName(fallbackCategories, l.category);
   const photos = l.media.filter((m) => m.kind === 'photo');
   const exampleMode = process.env.PV_DATA_SOURCE === 'examples';
+  // Business sellers: colours, sizes and stock. Fixed prices, so no offers.
+  const fixed = (l.stock ?? 1) > 1 || !!l.variantGroup;
+  const variants = fixed ? await getVariants(l.id).catch(() => []) : [];
   const buyable = l.status === 'active' && !l.seller.away && (!l.example || exampleMode);
   const videos = l.media.filter((m) => m.kind === 'video');
   const details: [string, string | null][] = [
@@ -143,6 +147,7 @@ export default async function ItemPage({ params }: Props) {
           <TierBadge tier={l.tier} size="large" />
           <span className="pv-note">{TIER_NOTE[l.tier]}</span>
         </div>
+        {variants.length ? <VariantPicker initial={variants} title={l.title} category={l.category} /> : null}
         <p className="pv-note">
           {l.shippingPence ? `Postage ${formatPence(l.shippingPence)}` : 'Free postage'} · Buyer protection is added at checkout
         </p>
@@ -155,7 +160,7 @@ export default async function ItemPage({ params }: Props) {
             <Button variant="primary" block disabled aria-describedby="buy-note">Buy now</Button>
           )}
           {buyable ? <ItemBasketButton listingId={l.id} title={l.title} size={l.size} category={l.category} /> : null}
-          {buyable ? (
+          {fixed ? null : buyable ? (
             <OfferBox listingId={l.id} pricePence={l.pricePence} available sellerName={l.seller.username} />
           ) : (
             <Button variant="secondary" block disabled aria-describedby="buy-note">Make an offer</Button>
@@ -167,7 +172,9 @@ export default async function ItemPage({ params }: Props) {
                 ? 'This item is no longer available.'
                 : l.seller.away
                   ? 'Buying is paused while the seller is away.'
-                  : 'Make an offer and the seller can accept, decline or reply with another amount.'}
+                  : fixed
+                    ? 'A fixed price from a business seller. Each one you buy is its own protected order.'
+                    : 'Make an offer and the seller can accept, decline or reply with another amount.'}
           </p>
         </div>
 

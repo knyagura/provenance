@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -691,6 +691,43 @@ try {
     }
     if (kerr.length) fail(`baskets: page errors: ${kerr.slice(0, 3).join(' | ')}`);
     await kctx.close();
+  }
+
+  // Variants (business seller): pick a colour and size, no offers, each unit is its own order, sold-out shows.
+  {
+    const vctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const verr = [];
+    const p = await vctx.newPage();
+    p.on('pageerror', (e) => verr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/item/example-13')}`);
+    await p.getByLabel('Email').fill('variantbuyer@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/item/example-13');
+    await p.getByRole('heading', { name: 'Colours and sizes' }).waitFor();
+    if (await p.getByRole('button', { name: 'Make an offer' }).count()) fail('variants: business listings should not take offers');
+    await p.getByRole('link', { name: /^Charcoal, size S: 1 left/ }).click();
+    await p.waitForURL((u) => u.pathname === '/item/example-15');
+    await p.getByRole('link', { name: 'Buy now' }).click();
+    await p.waitForURL((u) => u.pathname === '/checkout/example-15');
+    await p.getByRole('button', { name: /^Continue to payment/ }).click();
+    const vpay = p.getByRole('button', { name: /^Pay £[\d.,]+ \(test\)$/ });
+    await vpay.waitFor();
+    await vpay.click();
+    await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
+    await p.goto(BASE + '/item/example-13');
+    await p.getByRole('link', { name: /^Charcoal, size S: Sold out/ }).waitFor({ timeout: 5000 }).catch(() => fail('variants: the bought size should show as sold out'));
+    // Shopping for several people: drag one size onto a basket.
+    await p.goto(BASE + '/basket');
+    await p.getByRole('switch', { name: 'Multi-basket shopping' }).check();
+    await p.goto(BASE + '/item/example-13');
+    const rail = p.getByRole('complementary', { name: 'Your baskets' });
+    await rail.waitFor();
+    await p.getByRole('link', { name: /^Oatmeal, size M/ }).dragTo(rail.locator('[data-basket="General"]'));
+    await p.getByRole('status').filter({ hasText: /Merino crew jumper \(Oatmeal, size M\) added to/ }).waitFor({ timeout: 5000 })
+      .catch(() => fail('variants: dragging a size onto a basket did not add it'));
+    if (verr.length) fail(`variants: page errors: ${verr.slice(0, 3).join(' | ')}`);
+    await vctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

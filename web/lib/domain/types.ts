@@ -62,6 +62,24 @@ export interface Listing {
   createdAt: string;
   /** True for the example listings shown while the catalogue is empty. Never true in the API. */
   example?: boolean;
+  /** Business sellers: how many they have (sold ones included). 1 for one-of-a-kind items. */
+  stock?: number;
+  /** Colours and sizes of the same item share a group; search shows one card per group. */
+  variantGroup?: string | null;
+  browseVisible?: boolean;
+}
+
+/** One colour or size of an item, with what's left of it. */
+export interface Variant {
+  id: string;
+  colour: string | null;
+  size: string | null;
+  pricePence: number;
+  stock: number;
+  unitsLeft: number;
+  status: Listing['status'];
+  /** The listing being looked at. */
+  current: boolean;
 }
 
 export type Sort = 'newest' | 'price_asc' | 'price_desc';

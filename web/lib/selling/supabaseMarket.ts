@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { breakdownFromJson } from '@/lib/domain/fees';
-import { mediaUrl, toListing } from '@/lib/domain/catalogue';
+import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import type { Tier } from '@/lib/domain/types';
 import type {
   CheckoutStarted, MarketBackend, NotificationPrefs, Offer, OrderMessage, Passport, Result, Review, StaffAgent, StaffOrder, StaffQueueItem, StaffSettings,
@@ -257,6 +257,29 @@ export const supabaseMarket: MarketBackend = {
   async staffContactHandled(id) {
     const { error } = await supabase().rpc('staff_contact_handled', { p_id: id });
     return error ? fail(error) : done;
+  },
+
+  async isBusiness() {
+    const id = await uid();
+    if (!id) return false;
+    const { data } = await supabase().from('profiles').select('is_pro').eq('id', id).maybeSingle();
+    return Boolean(data?.is_pro);
+  },
+  async listingVariants(listingId) {
+    const { data, error } = await supabase().rpc('listing_variants', { p_listing: listingId });
+    return error ? [] : toVariants(data);
+  },
+  async setListingStock(listingId, stock) {
+    const { data, error } = await supabase().rpc('set_listing_stock', { p_listing: listingId, p_stock: stock });
+    return error ? fail(error) : { ok: true, value: toVariants(data) };
+  },
+  async addVariant(listingId, colour, size, stock, pricePence) {
+    const { data, error } = await supabase().rpc('add_variant', { p_listing: listingId, p_colour: colour, p_size: size, p_stock: stock, p_price: pricePence });
+    return error ? fail(error) : { ok: true, value: toVariants(data) };
+  },
+  async staffSetBusiness(username, on) {
+    const { data, error } = await supabase().rpc('staff_set_business', { p_username: username, p_on: on });
+    return error ? fail(error) : { ok: true, value: data as { username: string; business: boolean } };
   },
 
   async notifications() {

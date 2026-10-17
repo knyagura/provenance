@@ -4,7 +4,8 @@ import { exampleCatalogue, fallbackCategories } from './examples';
 import { nextCursor } from './query';
 import { filterInMemory, toPrefixTsQuery } from './search';
 import { breakdownFromJson, computeFees, DEFAULT_FEES, type FeeBreakdown } from './fees';
-import type { Category, Listing, ListingQuery, Media, MemberPage, Page } from './types';
+import type { Category, Listing, ListingQuery, Media, MemberPage, Page, Variant } from './types';
+import { exampleUnitsLeft } from './exampleStock';
 
 // The catalogue domain module: the one place that reads listings and categories.
 // Website pages call it directly on the server; /api/v1 route handlers wrap the same functions.
@@ -20,6 +21,8 @@ export interface CatalogueSource {
   member(username: string): Promise<MemberPage | null>;
   /** Today's price breakdown; null when the listing can't be bought. */
   quote(id: string): Promise<FeeBreakdown | null>;
+  /** The item's colours and sizes (just itself when it has none). */
+  variants(id: string): Promise<Variant[]>;
 }
 
 export class CatalogueUnavailable extends Error {
@@ -48,6 +51,15 @@ export const exampleSource: CatalogueSource = {
     const l = exampleCatalogue.find((x) => x.id === id);
     return l ? computeFees(DEFAULT_FEES, { pricePence: l.pricePence, postagePence: l.shippingPence, payer: 'buyer', boostBp: null }) : null;
   },
+  async variants(id) {
+    const l = exampleCatalogue.find((x) => x.id === id);
+    if (!l) return [];
+    const group = l.variantGroup ? exampleCatalogue.filter((x) => x.variantGroup === l.variantGroup) : [l];
+    return group.map((x) => {
+      const left = exampleUnitsLeft(x.id, x.stock ?? 1);
+      return { id: x.id, colour: x.colour, size: x.size, pricePence: x.pricePence, stock: x.stock ?? 1, unitsLeft: left, status: left > 0 ? 'active' : 'sold', current: x.id === id };
+    });
+  },
   async member(username) {
     const l = exampleCatalogue.find((x) => x.seller.username.toLowerCase() === username.toLowerCase());
     return l ? { username: l.seller.username, bio: null, verified: l.seller.verified, business: l.seller.business, away: false, joined: '2026-01-15T10:00:00.000Z' } : null;
@@ -58,7 +70,7 @@ export const exampleSource: CatalogueSource = {
 
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
-  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision',
+  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision', 'stock', 'variant_group',
   'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode)',
   'media:listing_media(path, kind, shot, position, retired_at)',
 ].join(', ');
@@ -81,6 +93,8 @@ interface Row {
   serial_hint?: string | null;
   seller: { username: string; kyc_verified: boolean; is_pro: boolean; holiday_mode?: boolean } | null;
   revision?: number;
+  stock?: number;
+  variant_group?: string | null;
   media: { path: string; kind: Media['kind']; shot: string | null; position: number; retired_at?: string | null }[] | null;
 }
 
@@ -117,7 +131,17 @@ export function toListing(r: Row): Listing {
       away: Boolean(r.seller?.holiday_mode),
     },
     createdAt: r.created_at,
+    stock: r.stock ?? 1,
+    variantGroup: r.variant_group ?? null,
   };
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function toVariants(data: any): Variant[] {
+  return ((data as Record<string, unknown>[] | null) ?? []).map((v) => ({
+    id: v.id as string, colour: (v.colour as string) ?? null, size: (v.size as string) ?? null, pricePence: v.price_pence as number,
+    stock: v.stock as number, unitsLeft: v.units_left as number, status: v.status as Variant['status'], current: Boolean(v.current),
+  }));
 }
 
 /** An exact, case-insensitive match for ilike: escapes its wildcards (usernames often contain "_"). */
@@ -148,7 +172,8 @@ export const supabaseSource: CatalogueSource = {
       .from('listings')
       .select(LISTING_COLUMNS)
       .eq('published', true)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .eq('browse_visible', true);
     const ts = toPrefixTsQuery(query.q);
     if (ts) req = req.textSearch('search', ts, { config: 'simple' });
     // Sellers on holiday drop out of browsing; their own page still lists their items.
@@ -181,6 +206,13 @@ export const supabaseSource: CatalogueSource = {
     const { data, error } = await db().rpc('order_quote', { p_listing: id });
     if (error) throw new CatalogueUnavailable(error);
     return breakdownFromJson(data as Record<string, unknown> | null);
+  },
+
+  async variants(id) {
+    if (!UUID.test(id)) return [];
+    const { data, error } = await db().rpc('listing_variants', { p_listing: id });
+    if (error) throw new CatalogueUnavailable(error);
+    return toVariants(data);
   },
 
   async member(username) {
@@ -239,6 +271,10 @@ export async function getMemberPage(username: string): Promise<{ member: MemberP
 }
 
 /** Item pages: example IDs always come from the examples, real IDs from the database. */
+export async function getVariants(id: string): Promise<Variant[]> {
+  return id.startsWith('example-') ? exampleSource.variants(id) : liveSource().variants(id);
+}
+
 export async function getListing(id: string): Promise<Listing | null> {
   return id.startsWith('example-') ? exampleSource.get(id) : liveSource().get(id);
 }

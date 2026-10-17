@@ -2,7 +2,7 @@ import type { BasketCheckout, BasketPatch, Baskets, GiftView, MyGift, SharedBask
 import type { FeeBreakdown } from '@/lib/domain/fees';
 import type { ListingVersion } from '@/lib/domain/versions';
 import type { AgentTask, CustodyState, CustodyView, Evidence } from '@/lib/domain/custody';
-import type { Listing, Tier } from '@/lib/domain/types';
+import type { Listing, Tier, Variant } from '@/lib/domain/types';
 // The selling and sign-in operations the screens use. Two implementations: Supabase (real) and an
 // in-browser example backend for tests and demos without a database. Screens never call Supabase directly.
 
@@ -303,6 +303,13 @@ export interface MarketBackend {
   submitContact(name: string, email: string, topic: ContactTopic, body: string): Promise<Result>;
   staffContactMessages(openOnly: boolean): Promise<ContactMessage[]>;
   staffContactHandled(id: string): Promise<Result>;
+
+  /** Business sellers (set by staff) can sell stock and colours/sizes. */
+  isBusiness(): Promise<boolean>;
+  listingVariants(listingId: string): Promise<Variant[]>;
+  setListingStock(listingId: string, stock: number): Promise<Result<Variant[]>>;
+  addVariant(listingId: string, colour: string, size: string, stock: number, pricePence: number | null): Promise<Result<Variant[]>>;
+  staffSetBusiness(username: string, on: boolean): Promise<Result<{ username: string; business: boolean }>>;
 
   notifications(): Promise<AppNotification[]>;
   unreadNotifications(): Promise<number>;
