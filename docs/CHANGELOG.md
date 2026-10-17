@@ -45,3 +45,7 @@ Newest first. Each entry says what changed for people using the site, and which 
 ## 2026-10-17: Sizes learned on drop; Google and Facebook sign-in
 - Dropping clothing into a person's basket checks its size. If the basket has no size yet for that kind of item, it takes the item's size ("Alex's tops size is now S"). If the sizes differ, it warns and offers "Make UK 9 Alex's size". Adult and child sizes never mix.
 - "Continue with Google" and "Continue with Facebook" on sign-in and registration (ADR 0011). They appear once each provider is enabled in Supabase.
+
+## 2026-10-17: Migrations apply themselves from GitHub
+- New workflow `.github/workflows/migrate.yml`: when a migration file reaches `main`, the database tests run, and then any file not yet recorded in `ops.applied_migrations` is applied to the live database in one transaction. Needs the `SUPABASE_ACCESS_TOKEN` secret. It can also be run by hand from the Actions tab, with a dry-run option.
+- Ledger seeded with 002–012. 013 is left off, so the first run finishes it (013 is safe to re-run).

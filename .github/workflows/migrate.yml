@@ -1,0 +1,53 @@
+name: Database migrations
+# When a new migration file reaches main, run the database tests and then apply it to the live
+# Supabase database. Each file runs once, in a transaction, and is recorded in ops.applied_migrations.
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**.sql', 'backend/migrate.mjs', 'tests/**', '.github/workflows/migrate.yml']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only list what would be applied'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-migrations
+  cancel-in-progress: false
+
+jobs:
+  database-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: node sql_rls_check.mjs
+      - run: node custody_attacks.mjs
+      - run: node marketplace_checks.mjs
+      - run: node basket_checks.mjs
+
+  migrate:
+    needs: database-tests
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply new migrations
+        run: node backend/migrate.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: tkjmnivvcrcqkqjywafb
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
