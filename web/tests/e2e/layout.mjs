@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -575,6 +575,28 @@ try {
     await sp.getByText('You’re signed in as').waitFor();
     if (!(await sp.getByRole('button', { name: 'Continue with Facebook' }).count()) && !(await sp.getByText('You’re signed in as').count())) fail('social sign-in: Facebook button missing');
     await sctx.close();
+  }
+
+  // Contact form: a privacy request goes to the staff console.
+  {
+    const cx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const cp = await cx.newPage();
+    await cp.goto(BASE + '/contact?topic=privacy');
+    if (!(await cp.getByLabel('Privacy, or a request about my information').isChecked())) fail('contact: the privacy topic should be preselected');
+    await cp.getByLabel('Your name').fill('Ana Example');
+    await cp.getByLabel('Email to reply to').fill('ana@example.com');
+    await cp.getByLabel('Your message').fill('Please send me a copy of my data.');
+    await cp.getByRole('button', { name: 'Send message' }).click();
+    await cp.getByRole('heading', { name: 'Thanks, we’ve got your message' }).waitFor();
+    await cp.goto(`${BASE}/signin?next=${encodeURIComponent('/staff')}`);
+    await cp.getByLabel('Email').fill('staff2@example.test');
+    await cp.getByLabel('Password').fill('a-long-password');
+    await cp.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await cp.waitForURL((u) => u.pathname === '/staff' || u.pathname === '/passkey');
+    if (new URL(cp.url()).pathname === '/passkey') { await cp.getByRole('button', { name: 'Not now' }).click(); await cp.waitForURL((u) => u.pathname === '/staff'); }
+    await cp.getByRole('tab', { name: 'Messages' }).click();
+    await cp.getByText('Please send me a copy of my data.').waitFor({ timeout: 5000 }).catch(() => fail('contact: staff should see the message'));
+    await cx.close();
   }
 
   // Multi-basket shopping: opt in, a person with sizes, drag an item onto them, one-basket view, one payment, gift link.

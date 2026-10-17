@@ -49,3 +49,8 @@ Newest first. Each entry says what changed for people using the site, and which 
 ## 2026-10-17: Migrations apply themselves from GitHub
 - New workflow `.github/workflows/migrate.yml`: when a migration file reaches `main`, the database tests run, and then any file not yet recorded in `ops.applied_migrations` is applied to the live database in one transaction. Needs the `SUPABASE_ACCESS_TOKEN` secret. It can also be run by hand from the Actions tab, with a dry-run option.
 - Ledger seeded with 002–012. 013 is left off, so the first run finishes it (013 is safe to re-run).
+
+## 2026-10-17: Privacy notice, terms and a contact form
+- New `/privacy` page (needed for Google sign-in's public mode), `/terms`, and `/contact`, all linked from the footer and the social sign-in buttons.
+- Migration 014: the contact form stores messages that only staff can read, in the console's new Messages tab. No email address is published. Limits: 5 messages per address per day and 200 an hour overall, plus a hidden field to catch bots. It is applied automatically when merged.
+- The privacy notice is a plain-English first draft. Have it reviewed before launch, and add the legal entity name once there is one.

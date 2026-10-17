@@ -5,12 +5,13 @@ import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
-import type { StaffAgent, StaffQueueItem, StaffSettings } from '@/lib/selling';
+import type { ContactMessage, StaffAgent, StaffQueueItem, StaffSettings } from '@/lib/selling';
 import { StaffGate } from './StaffGate';
 
-type Tab = 'queue' | 'agents' | 'settings';
+type Tab = 'queue' | 'messages' | 'agents' | 'settings';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'queue', label: 'Queue' },
+  { key: 'messages', label: 'Messages' },
   { key: 'agents', label: 'Couriers and hubs' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -34,7 +35,7 @@ export function StaffConsole() {
           ))}
         </div>
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-          {tab === 'queue' ? <Queue /> : tab === 'agents' ? <Agents /> : <Settings />}
+          {tab === 'queue' ? <Queue /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : <Settings />}
         </div>
       </div>
     </StaffGate>
@@ -217,6 +218,39 @@ function Settings() {
           <ul className="pv-list">{s.fees.map((f) => <li key={f.version}>Version {f.version}, from {since(f.effectiveFrom)}{f.note ? `: ${f.note}` : ''}</li>)}</ul>
         </details>
       </form>
+    </>
+  );
+}
+
+const TOPIC: Record<ContactMessage['topic'], string> = { privacy: 'Privacy', account: 'Account', order: 'Order', other: 'Other' };
+
+/** Contact form messages. Reply by email, then mark handled. Privacy requests must be answered within one month. */
+function Messages() {
+  const { backend } = useMember();
+  const [openOnly, setOpenOnly] = useState(true);
+  const [list, setList] = useState<ContactMessage[] | null>(null);
+  const load = useCallback(() => backend.staffContactMessages(openOnly).then(setList).catch(() => setList([])), [backend, openOnly]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  if (!list) return <p role="status">Loading messages…</p>;
+  return (
+    <>
+      <label className="pv-check"><input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />Only messages not yet handled</label>
+      {!list.length ? <p className="pv-note">No messages.</p> : (
+        <ul className="pv-rows">
+          {list.map((m) => (
+            <li key={m.id} className="pv-row pv-row--plain">
+              <span className="pv-row__text">
+                <span className="pv-row__top"><strong>{m.name}</strong><span className={`pv-status pv-status--${m.topic === 'privacy' ? 'held' : 'turn'}`}>{TOPIC[m.topic]}</span></span>
+                <span className="pv-note"><a href={`mailto:${m.email}?subject=${encodeURIComponent('Your message to NuTuYu')}`}>{m.email}</a>{m.member ? ` · member ${m.member}` : ''} · {since(m.createdAt)}{m.handledAt ? ` · handled by ${m.handledBy ?? 'staff'}` : ''}</span>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
+              </span>
+              {!m.handledAt ? <Button variant="secondary" onClick={async () => { await backend.staffContactHandled(m.id); void load(); }}>Mark handled</Button> : null}
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

@@ -16,6 +16,9 @@ export function SiteFooter() {
           <li><Link href="/search">Browse</Link></li>
           <li><Link href="/sell">Sell</Link></li>
           <li><Link href="/developers">Developers and API</Link></li>
+          <li><Link href="/contact">Contact</Link></li>
+          <li><Link href="/privacy">Privacy</Link></li>
+          <li><Link href="/terms">Terms</Link></li>
           <li><Link href="/styleguide">Style guide</Link></li>
           <li><a href="https://knyagura.github.io/provenance/">The working prototype</a></li>
         </ul>

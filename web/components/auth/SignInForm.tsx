@@ -120,6 +120,7 @@ export function SignInForm() {
           {mode === 'up' ? 'Creates your NuTuYu account with the email from your ' : 'New or returning, it’s the same button. We only get your name and email from '}
           {providers.map((p) => PROVIDER_NAME[p]).join(' or ')}{mode === 'up' ? ' account.' : '. We never post anything.'}
         </p>
+        <p className="pv-note">By continuing you agree to our <Link href="/terms">terms</Link> and <Link href="/privacy">privacy notice</Link>.</p>
         <p className="pv-social__or" aria-hidden="true"><span>or use your email</span></p>
       </div>
     ) : null}
