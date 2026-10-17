@@ -1,3 +1,4 @@
+import { TrustLine } from '@/components/market/Trust';
 import { MemberReviews } from '@/components/market/Reviews';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -41,6 +42,7 @@ export default async function MemberPage({ params }: Props) {
             {member.business ? <Badge tone="neutral">Business seller</Badge> : null}
             {member.away ? <Badge tone="neutral">On holiday</Badge> : null}
           </div>
+          <TrustLine username={member.username} />
           {member.bio ? <p className="pv-item__desc">{member.bio}</p> : null}
         </div>
       </section>

@@ -28,7 +28,8 @@ describe('example notifications follow migration 016', () => {
   it('tells the seller about a sale, without a separate turn notification', () => {
     exampleNotifyOrderChange(order(null, false), order({}));
     expect(kinds(SELLER)).toEqual(['sold']);
-    expect(kinds(BUYER)).toEqual([]);
+    // The buyer is only asked for a delivery address (migration 025), since the seller posts this one.
+    expect(exampleNotifications.list(BUYER).map((n) => n.title)).toEqual(['Where should it be delivered?']);
   });
 
   it('only says “your turn” when the turn moves to the other person', () => {

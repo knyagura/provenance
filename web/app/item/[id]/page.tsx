@@ -7,6 +7,7 @@ import { Gallery } from '@/components/browse/Gallery';
 import { OfferBox } from '@/components/market/OfferBox';
 import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
 import { RatingLine } from '@/components/market/Reviews';
+import { TrustLine } from '@/components/market/Trust';
 import { BundleNote } from '@/components/market/BundleNote';
 import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
 import { ListingGrid } from '@/components/browse/ListingGrid';
@@ -188,6 +189,7 @@ export default async function ItemPage({ params }: Props) {
               {[l.seller.verified ? 'Identity checked' : null, l.seller.business ? 'Business seller' : null].filter(Boolean).join(' · ') || 'Member'}
             </span>
             <RatingLine username={l.seller.username} />
+            <TrustLine username={l.seller.username} />
           </span>
         </section>
         {buyable ? <BundleNote seller={l.seller.username} /> : null}

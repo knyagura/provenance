@@ -17,6 +17,7 @@ export function SiteFooter() {
           <li><Link href="/sell">Sell</Link></li>
           <li><Link href="/developers">Developers and API</Link></li>
           <li><Link href="/gift-cards">Gift cards</Link></li>
+          <li><Link href="/trust">Trust tracker</Link></li>
           <li><Link href="/contact">Contact</Link></li>
           <li><Link href="/privacy">Privacy</Link></li>
           <li><Link href="/terms">Terms</Link></li>

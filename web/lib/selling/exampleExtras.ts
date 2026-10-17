@@ -8,6 +8,9 @@ import { filterInMemory } from '@/lib/domain/search';
 import { exampleBundle, setExampleBundle } from './exampleBundles';
 import { exampleSource } from '@/lib/domain/catalogue';
 import { examplePopups } from './examplePopups';
+import { exampleShipping } from './exampleShipping';
+import { exampleTrust } from './exampleTrust';
+import { exampleReport } from './exampleReports';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -606,6 +609,28 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffSavePopup(pid, patch, showAgain) {
       if (!isStaffMember(me())) return fail('Staff only.');
       return examplePopups.save(pid, patch, showAgain);
+    },
+    async staffReport(from, to) {
+      if (!isStaffMember(me())) return fail('Staff only.');
+      return exampleReport(from, to);
+    },
+    async sellerTrust(username) {
+      return exampleTrust.seller(username);
+    },
+    async trustStats() {
+      return exampleTrust.stats();
+    },
+    async orderShipping(orderId) {
+      return exampleShipping.get(orderId, me());
+    },
+    async setDeliveryAddress(orderId, address) {
+      return exampleShipping.setAddress(orderId, address, me());
+    },
+    async createLabel(orderId, service, parcel) {
+      return exampleShipping.create(orderId, service, parcel, me());
+    },
+    async cancelLabel(orderId) {
+      return exampleShipping.cancel(orderId, me());
     },
     async notifications() {
       const m = me();

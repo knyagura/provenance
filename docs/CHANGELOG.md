@@ -118,3 +118,25 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Sizes from your baskets** appear as one-tap chips above the Size filter.
 - **Similar items** on every item page.
 - Migration 023. Documents: [ADR 0017](adr/0017-better-search.md).
+
+## 2026-10-17: Shipping labels (Parcel2Go, test mode)
+- **Delivery address.** When the seller posts the item themselves, the buyer is asked for a delivery address on the order page. Only the seller sees it, printed on the label.
+- **Labels.** At *Post it with tracking*, the seller chooses a parcel size and a service (Evri, Royal Mail or DPD, with prices). They get a printable label, and the carrier and tracking number are filled in. The buyer sees the carrier and tracking number.
+- **Test mode for now.** Labels say *TEST — not valid for posting* and cost nothing. Live labels need NuTuYu's Parcel2Go key, added as a Supabase function secret.
+- Migration 025. Documents: [ADR 0018](adr/0018-shipping-labels.md).
+
+## 2026-10-17: Trust badges and a public trust tracker
+- Seller record on item and member pages: protected handovers completed, the dispute rate (from 5 sales) and the typical handover time.
+- **Trusted seller** badge: identity checked, 5 or more completed and no more than 1 in 20 disputed.
+- **Trust tracker** at `/trust` (in the footer): completed handovers, disputes and refunds, typical time, counts by protection level, and recently completed items linked to their passports. It never shows anyone's details.
+- Migration 026. Documents: [ADR 0019](adr/0019-trust-badges-and-tracker.md).
+
+## 2026-10-17: Staff reports
+- New *Reports* tab in the staff console, for any period:
+  - sales: orders, items sold, buyers paid, average item, by protection level and category;
+  - fees, and what NuTuYu keeps after promotions and its own voucher codes;
+  - disputes: rate, outcomes, reasons, time to decide;
+  - handover time from payment to confirmation;
+  - 12 months by month;
+  - a CSV download.
+- Migration 027. Documents: [ADR 0020](adr/0020-staff-reports.md).

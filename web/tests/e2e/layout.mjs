@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards', '/search?near=SW11&miles=10',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards', '/search?near=SW11&miles=10', '/trust',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -33,7 +33,10 @@ async function waitForServer() {
 }
 
 const failures = [];
-const fail = (msg) => { failures.push(msg); console.log('  FAIL ' + msg); };
+// On GitHub, problems also become annotations, readable on the run's summary without downloading logs.
+const annotate = (msg) => { if (process.env.GITHUB_ACTIONS) console.log(`::error title=Layout check::${String(msg).replace(/\r?\n/g, ' ').slice(0, 900)}`); };
+const fail = (msg) => { failures.push(msg); console.log('  FAIL ' + msg); annotate(msg); };
+process.on('uncaughtException', (e) => { annotate(`${e?.message ?? e} ${String(e?.stack ?? '').split('\n').find((l) => l.includes('layout.mjs')) ?? ''}`); console.error(e); process.exit(1); });
 
 await waitForServer();
 mkdirSync('test-results', { recursive: true });
@@ -464,6 +467,15 @@ try {
 
     await seller.reload();
     await seller.getByText('released and will be paid out').waitFor();
+    // Trust: the completed handover shows on the public tracker and on the seller's record.
+    await seller.goto(BASE + '/trust');
+    const tracked = seller.getByRole('definition').first();
+    await seller.getByRole('link', { name: 'LEGO Technic 42110' }).waitFor({ timeout: 5000 }).catch(() => fail('trust: the completed handover should be on the tracker'));
+    if ((await tracked.textContent())?.trim() !== '1') fail(`trust: expected 1 completed handover, saw ${await tracked.textContent()}`);
+    await seller.goto(BASE + '/member/brick_bench');
+    await seller.getByText(/1 protected handover completed/).waitFor({ timeout: 5000 }).catch(() => fail('trust: the seller’s page should show their record'));
+    await seller.goto(orderUrl);
+    await seller.getByText('released and will be paid out').waitFor();
     if (!(await seller.getByText('Record verified').isVisible())) fail('custody: the seller should see a verified record');
     const done = await seller.locator('.pv-step--done').count();
     if (done !== 12) fail(`custody: expected 12 recorded steps, saw ${done}`);
@@ -517,8 +529,64 @@ try {
     await staff.getByLabel('Organisation').fill('Swift Couriers');
     await staff.getByRole('button', { name: 'Add', exact: true }).click();
     await staff.getByText('newcourier@example.com can now record courier steps.').waitFor();
+    // Reports: the LEGO order above (paid, completed) is counted.
+    await staff.getByRole('tab', { name: 'Reports' }).click();
+    const headline = staff.getByLabel('Headline figures');
+    await headline.waitFor();
+    await staff.waitForFunction(() => !!document.querySelector('[aria-label="Headline figures"] dd'));
+    const orders = Number((await headline.getByRole('definition').first().textContent())?.trim());
+    if (!(orders >= 1)) fail(`reports: expected the paid orders to be counted, saw ${orders}`);
+    if (!(await staff.getByRole('table', { name: 'Fees' }).getByText('Net to NuTuYu').isVisible())) fail('reports: the fees table is missing');
+    const [csv] = await Promise.all([staff.waitForEvent('download'), staff.getByRole('button', { name: 'Download CSV' }).click()]);
+    if (!/^nutuyu-report-\d{4}-\d{2}-\d{2}-to-\d{4}-\d{2}-\d{2}\.csv$/.test(csv.suggestedFilename())) fail(`reports: CSV name ${csv.suggestedFilename()}`);
+    await staff.screenshot({ path: 'test-results/staff-reports-390.png', fullPage: true });
     await staff.getByRole('tab', { name: 'Settings' }).click();
     await staff.getByRole('heading', { name: 'Fees' }).waitFor();
+    // Shipping label (test mode): a £14 belt the seller posts. The buyer gives an address; the seller gets a label.
+    {
+      const lb = await tab('buyer3@example.com', '/checkout/example-4');
+      await lb.getByRole('button', { name: /^Continue to payment/ }).click();
+      await lb.getByRole('button', { name: /^Pay .* \(test\)$/ }).click();
+      await lb.waitForURL((u) => u.pathname.startsWith('/orders/'));
+      const beltUrl = lb.url();
+      const delivery = lb.getByRole('form', { name: 'Delivery address' });
+      await delivery.waitFor({ timeout: 10000 }).catch(() => fail('labels: the buyer should be asked for a delivery address'));
+      await delivery.getByLabel('Name').fill('Bea Buyer');
+      await delivery.getByLabel('Address line 1').fill('1 Test Street');
+      await delivery.getByLabel('Town or city').fill('London');
+      await delivery.getByLabel('Postcode').fill('zz1');
+      await delivery.getByRole('button', { name: 'Save address' }).click();
+      await lb.getByRole('alert').filter({ hasText: 'UK postcode' }).waitFor().catch(() => fail('labels: a bad postcode should be refused'));
+      await delivery.getByLabel('Postcode').fill('sw112ab');
+      await delivery.getByRole('button', { name: 'Save address' }).click();
+      await lb.getByText('SW11 2AB').waitFor().catch(() => fail('labels: the address should be saved and tidied'));
+      const ls = await tab('resole_archive@example.test');
+      await ls.goto(beltUrl);
+      await step(ls, 'Photograph the item as you pack it');
+      await addPhoto(ls);
+      await record(ls);
+      await step(ls, 'Post it with tracking');
+      await ls.getByRole('radio', { name: /Royal Mail Tracked 48/ }).check();
+      await ls.getByRole('button', { name: 'Create test label' }).click();
+      await ls.getByText('Test label', { exact: true }).waitFor().catch(() => fail('labels: no test label made'));
+      await ls.waitForFunction(() => (document.querySelector('input[id$="-track"]'))?.value.startsWith('P2GTEST'), null, { timeout: 8000 }).catch(() => {});
+      const tracking = await ls.getByLabel('Tracking number').inputValue();
+      if (!/^P2GTEST[0-9A-F]{9}$/.test(tracking) || (await ls.getByLabel('Carrier').inputValue()) !== 'Royal Mail') fail(`labels: carrier and tracking not filled in (${tracking})`);
+      await ls.getByRole('link', { name: 'Print label' }).click();
+      await ls.waitForURL(/shipping-label$/);
+      const sheet = ls.getByLabel('Label to print');
+      await sheet.waitFor();
+      const sheetText = (await sheet.textContent()) ?? '';
+      if (!sheetText.includes('TEST — not valid for posting') || !sheetText.includes('SW11 2AB') || !sheetText.includes(tracking)) fail(`labels: printed label incomplete (${sheetText.slice(0, 120)})`);
+      await ls.screenshot({ path: 'test-results/shipping-label-390.png', fullPage: true });
+      await ls.goto(beltUrl);
+      await step(ls, 'Post it with tracking');
+      await ls.getByLabel('Tracking number').waitFor();
+      await ls.waitForFunction(() => (document.querySelector('input[id$="-track"]'))?.value.startsWith('P2GTEST'));
+      await record(ls);
+      await lb.reload();
+      await lb.getByText(/Sent with Royal Mail/).waitFor().catch(() => fail('labels: the buyer should see the carrier and tracking'));
+    }
     if (cerr.length) fail(`custody: page errors: ${cerr.slice(0, 3).join(' | ')}`);
     await cctx.close();
   }
@@ -852,6 +920,8 @@ try {
     await p.getByRole('button', { name: 'Pay £0.00 (test)' }).click();
     await p.waitForURL((u) => u.pathname.startsWith('/orders/'));
     await p.goto(BASE + '/gift-cards');
+    // The balance loads after the page; wait for it rather than reading the placeholder.
+    await p.getByRole('heading', { name: /Your NuTuYu balance: £(?!0\.00)/ }).waitFor({ timeout: 8000 }).catch(() => {});
     const left = (await p.getByRole('heading', { name: /Your NuTuYu balance/ }).textContent()) ?? '';
     const leftPence = Math.round(Number((left.match(/£([\d.]+)/) ?? [])[1]) * 100);
     if (!(leftPence > 0 && leftPence < 2500)) fail(`gift cards: the balance after paying looks wrong (${left})`);

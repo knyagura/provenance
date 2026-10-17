@@ -77,6 +77,11 @@ export function exampleNotifyOrderChange(before: StoredOrder | undefined, o: Sto
   const link = `/orders/${o.summary.id}`;
   const id = o.summary.id;
   const soldNow = o.summary.paymentStatus === 'paid' && before?.summary.paymentStatus !== 'paid';
+  // Seller posts it themselves and there's no address yet: ask the buyer (as migration 025 does).
+  const tier = o.custody?.tier ?? o.summary.quote?.tier ?? 'enhanced';
+  if (soldNow && tier === 'enhanced' && !o.shipTo && !(o as { deliverTo?: unknown }).deliverTo) {
+    exampleNotify(o.buyerId, 'turn', 'Where should it be delivered?', 'Add your delivery address so the seller can post your item.', link, { orderId: id, dedupe: `address:${id}` });
+  }
   if (soldNow) exampleNotify(o.sellerId, 'sold', `Sold: ${t}`, 'Payment is held safely until the buyer confirms. Your first step is ready: open the order to start the handover.', link, { orderId: id });
 
   const c = o.custody;
