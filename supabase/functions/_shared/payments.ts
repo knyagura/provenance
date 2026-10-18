@@ -150,6 +150,8 @@ export interface WebhookDeps {
   verify(payload: string, signature: string): Promise<{ type: string; data: { object: PaymentIntentLike } }>;
   /** Stripe Connect: a seller's account changed (finished onboarding, or Stripe paused payouts). */
   accountUpdated?(accountId: string, detailsSubmitted: boolean, payoutsEnabled: boolean): Promise<void>;
+  /** Stripe Identity: a member's identity check changed. */
+  identityUpdated?(sessionId: string, status: string, error: string | null): Promise<void>;
   confirmPayment(orderId: string, ref: string, amountPence: number): Promise<string>;
   confirmGroupPayment?(groupId: string, ref: string, amountPence: number): Promise<string>;
   confirmGiftCard?(cardId: string, ref: string, amountPence: number): Promise<string>;
@@ -169,6 +171,13 @@ export async function handleWebhook(payload: string, signature: string | null, d
     if (!/^acct_[A-Za-z0-9]+$/.test(a.id ?? '')) return { status: 200, body: { ignored: 'no_account' } };
     await deps.accountUpdated(a.id, !!a.details_submitted, !!a.payouts_enabled);
     return { status: 200, body: { result: 'account_updated' } };
+  }
+  if (event.type.startsWith('identity.verification_session.') && deps.identityUpdated) {
+    const m = /^identity\.verification_session\.(verified|requires_input|canceled|processing)$/.exec(event.type);
+    const o = event.data.object as unknown as { id?: string; last_error?: { code?: string } | null };
+    if (!m || !o.id?.startsWith('vs_')) return { status: 200, body: { ignored: event.type } };
+    await deps.identityUpdated(o.id, m[1], o.last_error?.code ?? null);
+    return { status: 200, body: { result: 'identity_updated' } };
   }
   if (event.type !== 'payment_intent.succeeded') return { status: 200, body: { ignored: event.type } };
   const pi = event.data.object;

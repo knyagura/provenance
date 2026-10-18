@@ -7,7 +7,7 @@ import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
 import { addressLines } from '@/lib/selling/shipping';
-import type { Address, OrderShipping, ParcelSize, ShippingLabel } from '@/lib/selling/types';
+import type { Address, OrderShipping, ParcelSize, SavedAddress, ShippingLabel } from '@/lib/selling/types';
 
 function useShipping(orderId: string) {
   const { backend, member } = useMember();
@@ -115,6 +115,8 @@ export function DeliveryAddress({ orderId }: { orderId: string }) {
   const [a, setA] = useState<Address>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [saved, setSaved] = useState<SavedAddress[]>([]);
+  useEffect(() => { backend.myAddresses().then(setSaved).catch(() => {}); }, [backend]);
   if (!s || (!s.canLabel && !s.label && !s.address)) return null;
   const open = !s.address || edit;
   const save = async (e: FormEvent) => {
@@ -150,6 +152,11 @@ export function DeliveryAddress({ orderId }: { orderId: string }) {
       {open && s.canLabel && !s.label ? (
         <form className="pv-form" onSubmit={save} aria-label="Delivery address">
           {!s.address ? <p className="pv-note">The seller posts this item. Where should it go? Only the seller sees it, printed on the label.</p> : null}
+          {saved.length ? (
+            <div className="pv-chips" role="group" aria-label="Your saved addresses">
+              {saved.map((x) => <button key={x.id} type="button" className="pv-chip" onClick={() => setA(x.address)}>{x.label ?? 'Saved'}: {x.address.postcode}</button>)}
+            </div>
+          ) : null}
           {field('name', 'Name', 'name')}
           {field('line1', 'Address line 1', 'address-line1')}
           {field('line2', 'Address line 2', 'address-line2', true)}

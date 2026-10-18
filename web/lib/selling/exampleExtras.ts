@@ -12,6 +12,7 @@ import { exampleShipping } from './exampleShipping';
 import { exampleTrust } from './exampleTrust';
 import { exampleReport } from './exampleReports';
 import { exampleSafety } from './exampleSafety';
+import { exampleAccount } from './exampleAccount';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -656,6 +657,51 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     },
     async myHiddenListings() {
       return exampleSafety.hiddenFor(me());
+    },
+    async myAddresses() {
+      return exampleAccount.addresses(me());
+    },
+    async saveAddress(aid, label, address, makeDefault) {
+      return exampleAccount.saveAddress(me(), aid, label, address, makeDefault);
+    },
+    async deleteAddress(aid) {
+      return exampleAccount.deleteAddress(me(), aid);
+    },
+    async exportMyData() {
+      return exampleAccount.exportData(me());
+    },
+    async accountDeletionBlockers() {
+      return exampleAccount.blockers(me());
+    },
+    async deleteMyAccount(confirm) {
+      return exampleAccount.deleteAccount(me(), confirm);
+    },
+    async myIdentity() {
+      return exampleAccount.identity(me());
+    },
+    async startIdentityCheck() {
+      return exampleAccount.startIdentity(me());
+    },
+    async orderReturn(orderId) {
+      return exampleAccount.orderReturn(orderId, me());
+    },
+    async requestReturn(orderId, reason, note) {
+      return exampleAccount.requestReturn(orderId, reason, note, me());
+    },
+    async respondReturn(orderId, accept, note) {
+      return exampleAccount.respondReturn(orderId, accept, note, me());
+    },
+    async returnPosted(orderId) {
+      return exampleAccount.returnPosted(orderId, me());
+    },
+    async returnReceived(orderId) {
+      return exampleAccount.returnReceived(orderId, me());
+    },
+    async cancelReturn(orderId) {
+      return exampleAccount.cancelReturn(orderId, me());
+    },
+    async staffRefunds() {
+      return [];
     },
     async staffReport(from, to) {
       if (!isStaffMember(me())) return fail('Staff only.');

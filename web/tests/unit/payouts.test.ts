@@ -90,3 +90,49 @@ describe('stripe-webhook: connected accounts', () => {
     expect(accountUpdated).toHaveBeenCalledWith('acct_s1', true, true);
   });
 });
+
+import { sendRefunds, type QueuedRefund } from '../../../supabase/functions/_shared/payouts';
+import { handleIdentity, type IdentityDeps } from '../../../supabase/functions/_shared/identity';
+
+describe('refunds (send-payouts function)', () => {
+  const r = (id: string, ref: string | null = 'pi_9'): QueuedRefund => ({ id, order_id: `o-${id}`, amount_pence: 3719, payment_ref: ref, attempts: 1 });
+  it('refunds the card payment once per order', async () => {
+    const done = vi.fn(async () => {});
+    const refund = vi.fn(async (x: { idempotencyKey: string }) => ({ id: `re_${x.idempotencyKey}` }));
+    expect(await sendRefunds({ claim: async () => [r('a'), r('b', null)], done, stripe: { refund } })).toEqual({ refunded: 1, failed: 1 });
+    expect(refund).toHaveBeenCalledWith({ paymentIntent: 'pi_9', amount: 3719, orderId: 'o-a', idempotencyKey: 'refund-a' });
+    expect(done).toHaveBeenCalledWith('b', false, null, 'no card payment to refund');
+  });
+  it('waits without keys', async () => {
+    expect((await sendRefunds({ claim: async () => [r('a')], done: async () => {}, stripe: null })).waiting).toBe('STRIPE_SECRET_KEY is not set');
+  });
+});
+
+describe('identity function', () => {
+  const deps = (over: Partial<IdentityDeps> = {}) => {
+    const createSession = vi.fn(async () => ({ id: 'vs_123abc', url: 'https://verify.stripe.com/x' }));
+    const started = vi.fn(async () => {});
+    const d: IdentityDeps = {
+      userFromToken: async (t) => (t === 'good' ? { id: 'u1' } : null), canStart: async () => true, started,
+      stripe: { createSession }, siteUrl: 'https://nutuyu.test', now: () => 1_000_000_000, ...over,
+    };
+    return { d, createSession, started };
+  };
+  it('starts a check and remembers the session', async () => {
+    const { d, createSession, started } = deps();
+    expect((await handleIdentity('good', { action: 'start' }, d)).body).toEqual({ url: 'https://verify.stripe.com/x' });
+    expect(createSession).toHaveBeenCalledWith({ userId: 'u1', returnUrl: 'https://nutuyu.test/profile?identity=done#identity', idempotencyKey: 'identity-u1-1666' });
+    expect(started).toHaveBeenCalledWith('u1', 'vs_123abc');
+  });
+  it('is off without keys, needs sign-in, and keeps to the daily limit', async () => {
+    expect((await handleIdentity('good', { action: 'start' }, deps({ stripe: null }).d)).status).toBe(503);
+    expect((await handleIdentity(null, { action: 'start' }, deps().d)).status).toBe(401);
+    expect((await handleIdentity('good', { action: 'start' }, deps({ canStart: async () => false }).d)).status).toBe(429);
+  });
+  it('the webhook passes identity results on', async () => {
+    const identityUpdated = vi.fn(async () => {});
+    const verify = async () => ({ type: 'identity.verification_session.requires_input', data: { object: { id: 'vs_123abc', last_error: { code: 'document_expired' } } as never } });
+    expect((await handleWebhook('{}', 'sig', { verify, confirmPayment: async () => 'x', identityUpdated })).body).toEqual({ result: 'identity_updated' });
+    expect(identityUpdated).toHaveBeenCalledWith('vs_123abc', 'requires_input', 'document_expired');
+  });
+});

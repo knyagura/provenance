@@ -1,5 +1,5 @@
 // Payouts, questions and moderation: the database's JSON as the web's shapes (migrations 028, 029).
-import type { ListingQuestion, PayoutSummary, StaffModeration, StaffPayouts } from './types';
+import type { IdentityStatus, ListingQuestion, OrderReturn, PayoutSummary, SavedAddress, StaffModeration, StaffPayouts, StaffRefund } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const toPayouts = (d: any): PayoutSummary => ({
@@ -29,7 +29,35 @@ export const toModeration = (d: any): StaffModeration => ({
     count: Number(i.count), latest: i.latest, reasons: i.reasons ?? [], notes: i.notes ?? [],
   })),
 });
+export const toAddresses = (d: any): SavedAddress[] => (Array.isArray(d) ? d : []).map((a: any) => ({
+  id: a.id, label: a.label ?? null, isDefault: !!a.is_default,
+  address: { name: a.address?.name, line1: a.address?.line1, line2: a.address?.line2 ?? null, town: a.address?.town, postcode: a.address?.postcode },
+}));
+export const toIdentity = (d: any): IdentityStatus => ({
+  verified: !!d?.verified, canStart: d?.can_start !== false,
+  latest: d?.latest ? { status: d.latest.status, error: d.latest.error ?? null, at: d.latest.at } : null,
+});
+export const toReturn = (d: any): OrderReturn => ({
+  canRequest: !!d?.can_request,
+  return: d?.return ? {
+    status: d.return.status, reason: d.return.reason, note: d.return.note ?? null, sellerNote: d.return.seller_note ?? null, autoAccepted: !!d.return.auto_accepted,
+    requestedAt: d.return.requested_at, respondBy: d.return.respond_by, decidedAt: d.return.decided_at ?? null, postedAt: d.return.posted_at ?? null, receivedAt: d.return.received_at ?? null,
+  } : null,
+  label: d?.label ? {
+    carrier: d.label.carrier, service: d.label.service, tracking: d.label.tracking, mode: d.label.mode, labelUrl: d.label.label_url ?? null,
+    deliverTo: d.label.deliver_to ? { name: d.label.deliver_to.name, line1: d.label.deliver_to.line1, line2: d.label.deliver_to.line2 ?? null, town: d.label.deliver_to.town, postcode: d.label.deliver_to.postcode } : null,
+  } : null,
+});
+export const toRefunds = (d: any): StaffRefund[] => (Array.isArray(d) ? d : []).map((r: any) => ({
+  id: r.id, orderId: r.order_id, amountPence: Number(r.amount_pence), status: r.status, attempts: Number(r.attempts ?? 0), lastError: r.last_error ?? null, updatedAt: r.updated_at,
+}));
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+export const RETURN_REASONS: Record<string, string> = {
+  not_as_described: 'It isn’t as described',
+  damaged: 'It arrived damaged',
+  wrong_item: 'It’s the wrong item',
+};
 
 export const REPORT_REASONS: Record<string, string> = {
   counterfeit: 'It looks fake',

@@ -452,6 +452,29 @@ export interface MarketBackend {
   staffModerate(target: { listingId: string } | { member: string }, action: ModerationAction, note: string): Promise<Result<StaffModeration>>;
   myHiddenListings(): Promise<{ id: string; title: string; note: string | null; at: string }[]>;
 
+  /** Saved addresses (the default one is used for orders and returns). */
+  myAddresses(): Promise<SavedAddress[]>;
+  saveAddress(id: string | null, label: string, address: Address, makeDefault: boolean): Promise<Result<SavedAddress[]>>;
+  deleteAddress(id: string): Promise<Result<SavedAddress[]>>;
+
+  /** Privacy: download everything, or delete the account. */
+  exportMyData(): Promise<Result<Record<string, unknown>>>;
+  accountDeletionBlockers(): Promise<string[]>;
+  deleteMyAccount(confirmUsername: string): Promise<Result>;
+
+  /** Identity checks (Stripe Identity). */
+  myIdentity(): Promise<IdentityStatus | null>;
+  startIdentityCheck(): Promise<Result<{ url: string | null }>>;
+
+  /** Returns (after the item has arrived, before confirming). */
+  orderReturn(orderId: string): Promise<OrderReturn | null>;
+  requestReturn(orderId: string, reason: ReturnReason, note: string): Promise<Result<OrderReturn>>;
+  respondReturn(orderId: string, accept: boolean, note: string): Promise<Result<OrderReturn>>;
+  returnPosted(orderId: string): Promise<Result<OrderReturn>>;
+  returnReceived(orderId: string): Promise<Result<OrderReturn>>;
+  cancelReturn(orderId: string): Promise<Result<OrderReturn>>;
+  staffRefunds(): Promise<StaffRefund[]>;
+
   /** Staff: sales, fees, disputes and handover times between two dates (inclusive, UK time). */
   staffReport(from: string, to: string): Promise<Result<StaffReport>>;
   /** Public: a seller's protected-handover record, and the site-wide tracker. */
@@ -645,3 +668,16 @@ export interface StaffModeration {
   hidden: number;
   items: { kind: 'listing' | 'member'; listingId: string | null; title: string | null; hidden: boolean; member: string | null; suspended: boolean; count: number; latest: string; reasons: ReportReason[]; notes: string[] }[];
 }
+
+export interface SavedAddress { id: string; label: string | null; address: Address; isDefault: boolean }
+export interface IdentityStatus { verified: boolean; latest: { status: 'started' | 'processing' | 'verified' | 'requires_input' | 'canceled'; error: string | null; at: string } | null; canStart: boolean }
+export type ReturnReason = 'not_as_described' | 'damaged' | 'wrong_item';
+export interface OrderReturn {
+  canRequest: boolean;
+  return: {
+    status: 'requested' | 'accepted' | 'declined' | 'posted' | 'received' | 'cancelled'; reason: ReturnReason; note: string | null; sellerNote: string | null;
+    autoAccepted: boolean; requestedAt: string; respondBy: string; decidedAt: string | null; postedAt: string | null; receivedAt: string | null;
+  } | null;
+  label: { carrier: string; service: string; tracking: string; mode: 'test' | 'live'; deliverTo: Address | null; labelUrl: string | null } | null;
+}
+export interface StaffRefund { id: string; orderId: string; amountPence: number; status: 'queued' | 'sending' | 'sent' | 'failed' | 'manual'; attempts: number; lastError: string | null; updatedAt: string }

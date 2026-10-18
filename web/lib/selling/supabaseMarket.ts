@@ -3,7 +3,7 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import { toShipping } from './shipping';
 import { toReport } from './reports';
-import { toModeration, toPayouts, toQuestions, toStaffPayouts } from './trustAndSafety';
+import { toAddresses, toIdentity, toModeration, toPayouts, toQuestions, toRefunds, toReturn, toStaffPayouts } from './trustAndSafety';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
@@ -520,6 +520,69 @@ export const supabaseMarket: MarketBackend = {
     const { data, error } = await supabase().rpc('my_hidden_listings');
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     return error || !data ? [] : (data as any[]).map((h) => ({ id: h.id, title: h.title, note: h.note ?? null, at: h.at }));
+  },
+  async myAddresses() {
+    const { data, error } = await supabase().rpc('my_addresses');
+    return error ? [] : toAddresses(data);
+  },
+  async saveAddress(id, label, address, makeDefault) {
+    const { data, error } = await supabase().rpc('save_address', { p_id: id, p_label: label || null, p_address: address, p_default: makeDefault });
+    return error ? fail(error) : { ok: true, value: toAddresses(data) };
+  },
+  async deleteAddress(id) {
+    const { data, error } = await supabase().rpc('delete_address', { p_id: id });
+    return error ? fail(error) : { ok: true, value: toAddresses(data) };
+  },
+  async exportMyData() {
+    const { data, error } = await supabase().rpc('export_my_data');
+    return error ? fail(error) : { ok: true, value: data as Record<string, unknown> };
+  },
+  async accountDeletionBlockers() {
+    const { data, error } = await supabase().rpc('account_deletion_blockers');
+    return error || !Array.isArray(data) ? [] : (data as string[]);
+  },
+  async deleteMyAccount(confirm) {
+    const { error } = await supabase().rpc('delete_my_account', { p_confirm: confirm });
+    if (error) return fail(error);
+    await supabase().auth.signOut().catch(() => {});
+    return done;
+  },
+  async myIdentity() {
+    const { data, error } = await supabase().rpc('my_identity');
+    return error || !data ? null : toIdentity(data);
+  },
+  async startIdentityCheck() {
+    const { data, error } = await supabase().functions.invoke('identity', { body: { action: 'start' } });
+    if (error) return fnFail(error, 'Identity checks aren’t switched on yet.');
+    return { ok: true, value: { url: data.url ?? null } };
+  },
+  async orderReturn(orderId) {
+    const { data, error } = await supabase().rpc('order_return', { p_order: orderId });
+    return error || !data ? null : toReturn(data);
+  },
+  async requestReturn(orderId, reason, note) {
+    const { data, error } = await supabase().rpc('request_return', { p_order: orderId, p_reason: reason, p_note: note || null });
+    return error ? fail(error) : { ok: true, value: toReturn(data) };
+  },
+  async respondReturn(orderId, accept, note) {
+    const { data, error } = await supabase().rpc('respond_return', { p_order: orderId, p_accept: accept, p_note: note || null });
+    return error ? fail(error) : { ok: true, value: toReturn(data) };
+  },
+  async returnPosted(orderId) {
+    const { data, error } = await supabase().rpc('return_posted', { p_order: orderId });
+    return error ? fail(error) : { ok: true, value: toReturn(data) };
+  },
+  async returnReceived(orderId) {
+    const { data, error } = await supabase().rpc('return_received', { p_order: orderId });
+    return error ? fail(error) : { ok: true, value: toReturn(data) };
+  },
+  async cancelReturn(orderId) {
+    const { data, error } = await supabase().rpc('cancel_return', { p_order: orderId });
+    return error ? fail(error) : { ok: true, value: toReturn(data) };
+  },
+  async staffRefunds() {
+    const { data, error } = await supabase().rpc('staff_refunds');
+    return error ? [] : toRefunds(data);
   },
   async staffReport(from, to) {
     const { data, error } = await supabase().rpc('staff_report', { p_from: from, p_to: to });

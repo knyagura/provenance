@@ -48,6 +48,8 @@ jobs:
       - run: node report_checks.mjs
       - run: node payout_checks.mjs
       - run: node moderation_checks.mjs
+      - run: node returns_checks.mjs
+      - run: node privacy_checks.mjs
 
   migrate:
     needs: database-tests

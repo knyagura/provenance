@@ -10,6 +10,7 @@ import { PasskeyManager } from '@/components/account/PasskeyManager';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { CollectionSettings } from '@/components/account/CollectionSettings';
 import { PayoutsPanel } from '@/components/account/Payouts';
+import { AddressBook, IdentityCheck, PrivacyTools } from '@/components/account/AccountTools';
 import { MyListings } from '@/components/sell/MyListings';
 import { NotificationSettings } from '@/components/market/Notifications';
 import type { Draft } from '@/lib/selling';
@@ -65,10 +66,13 @@ export function ProfileView() {
       <div className="pv-account">
         <PayoutsPanel />
         <ProfileEditor />
+        <IdentityCheck />
+        <AddressBook />
         <CollectionSettings />
         <NotificationSettings />
         <PasskeyManager />
         <ChangePassword />
+        <PrivacyTools />
       </div>
     </>
   );

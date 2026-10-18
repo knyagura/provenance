@@ -103,6 +103,13 @@ const COPY: Record<string, { title: string; note: string }> = {
   unbox_item: { title: 'Photograph the item', note: 'As it came out of the parcel.' },
   witness_opening: { title: 'Courier confirms the opening', note: 'From the courier’s own account, not the buyer’s.' },
   confirm: { title: 'Confirm it’s as described', note: 'This releases the payment to the seller. If you do nothing, it confirms itself after the protection window.' },
+  // Returns (migration 031): recorded on the same chain, outside the tier's plan.
+  return_requested: { title: 'Buyer asked to return it', note: '' },
+  return_accepted: { title: 'Return accepted', note: '' },
+  return_declined: { title: 'Seller declined the return', note: '' },
+  return_posted: { title: 'Posted back to the seller', note: '' },
+  return_received: { title: 'Seller received the return', note: '' },
+  return_cancelled: { title: 'Return cancelled', note: '' },
 };
 
 /** A step's title by key, for records such as the Item Passport. */
@@ -262,6 +269,7 @@ export function isMyTurn(v: Pick<CustodyView, 'current' | 'myRoles' | 'state'>):
 }
 
 export const DISPUTE_REASONS: Record<string, string> = {
+  return: 'A return is in progress.',
   seal_mismatch: 'A seal code didn’t match the one fitted earlier.',
   failed_authentication: 'The item failed authentication.',
   not_as_described: 'The buyer says it isn’t as described.',
