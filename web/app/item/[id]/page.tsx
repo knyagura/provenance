@@ -11,6 +11,7 @@ import { TrustLine } from '@/components/market/Trust';
 import { Questions } from '@/components/safety/Questions';
 import { ReportButton } from '@/components/safety/Report';
 import { ExampleHiddenNotice } from '@/components/safety/SellerNotices';
+import { BoostControl } from '@/components/account/Growth';
 import { BundleNote } from '@/components/market/BundleNote';
 import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
 import { ListingGrid } from '@/components/browse/ListingGrid';
@@ -20,6 +21,7 @@ import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
 import type { Listing, Tier } from '@/lib/domain/types';
 import { formatPence } from '@/lib/format';
 import { config } from '@/lib/config';
+import { breadcrumbLd, jsonLd } from '@/lib/domain/landing';
 
 export const revalidate = 60;
 
@@ -123,10 +125,13 @@ export default async function ItemPage({ params }: Props) {
   return (
     <article className="pv-item">
       {ld ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, '\\u003c') }} /> : null}
+      {l.example ? null : <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbLd([
+        { name: 'Home', path: '/' }, ...(cat && l.category ? [{ name: cat, path: `/c/${l.category}` }] : []), { name: l.title, path: `/item/${l.id}` },
+      ])) }} />}
       <nav className="pv-crumbs" aria-label="Breadcrumb">
         <ol>
           <li><Link href="/">Home</Link></li>
-          {cat ? <li><Link href={`/search?category=${l.category}`}>{cat}</Link></li> : null}
+          {cat ? <li><Link href={`/c/${l.category}`}>{cat}</Link></li> : null}
           <li aria-current="page">{l.title}</li>
         </ol>
       </nav>
@@ -147,6 +152,7 @@ export default async function ItemPage({ params }: Props) {
 
       <div className="pv-item__buy">
         {l.example ? <Badge tone="neutral">Example listing</Badge> : null}
+        {l.boosted ? <Badge tone="boosted">Boosted</Badge> : null}
         <ExampleHiddenNotice listingId={l.id} />
         <h1>{l.title}</h1>
         <p className="pv-item__price">{formatPence(l.pricePence)}</p>
@@ -197,6 +203,7 @@ export default async function ItemPage({ params }: Props) {
           </span>
         </section>
         {buyable ? <BundleNote seller={l.seller.username} /> : null}
+        <BoostControl listingId={l.id} seller={l.seller.username} pricePence={l.pricePence} live={l.status === 'active'} />
 
         <dl className="pv-details">
           {details.filter(([, v]) => v).map(([k, v]) => (

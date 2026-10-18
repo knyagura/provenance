@@ -11,6 +11,7 @@ import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { CollectionSettings } from '@/components/account/CollectionSettings';
 import { PayoutsPanel } from '@/components/account/Payouts';
 import { AddressBook, IdentityCheck, PrivacyTools } from '@/components/account/AccountTools';
+import { PushOnThisDevice } from '@/components/account/Growth';
 import { MyListings } from '@/components/sell/MyListings';
 import { NotificationSettings } from '@/components/market/Notifications';
 import type { Draft } from '@/lib/selling';
@@ -50,6 +51,7 @@ export function ProfileView() {
           <Link className="pv-btn pv-btn--secondary" href="/selling">Your sales</Link>
           <Link className="pv-btn pv-btn--secondary" href="/saved">Saved items</Link>
           <Link className="pv-btn pv-btn--secondary" href="/gift-cards">Gift cards and balance</Link>
+          <Link className="pv-btn pv-btn--secondary" href="/plans">Your plan</Link>
           <Link className="pv-btn pv-btn--secondary" href={`/member/${encodeURIComponent(member.username)}`}>Your public page</Link>
           {staff ? <Link className="pv-btn pv-btn--secondary" href="/staff">Staff console</Link> : null}
           <button type="button" className="pv-btn pv-btn--secondary" onClick={async () => { await backend.signOut(); router.push('/'); }}>
@@ -70,6 +72,7 @@ export function ProfileView() {
         <AddressBook />
         <CollectionSettings />
         <NotificationSettings />
+        <PushOnThisDevice />
         <PasskeyManager />
         <ChangePassword />
         <PrivacyTools />

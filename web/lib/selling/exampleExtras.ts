@@ -13,6 +13,7 @@ import { exampleTrust } from './exampleTrust';
 import { exampleReport } from './exampleReports';
 import { exampleSafety } from './exampleSafety';
 import { exampleAccount } from './exampleAccount';
+import { exampleGrowth } from './exampleGrowth';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -702,6 +703,59 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     },
     async staffRefunds() {
       return [];
+    },
+    async pushPublicKey() {
+      return null;
+    },
+    async myPush() {
+      return exampleGrowth.push(me());
+    },
+    async savePushSubscription(sub) {
+      return exampleGrowth.savePush(me(), sub.endpoint);
+    },
+    async deletePushSubscription(endpoint) {
+      return exampleGrowth.deletePush(me(), endpoint);
+    },
+    async setPushOn(on) {
+      return exampleGrowth.setPushOn(me(), on);
+    },
+    async plans() {
+      return exampleGrowth.plans();
+    },
+    async myPlan() {
+      return exampleGrowth.myPlan(me());
+    },
+    async chooseFreePlan(key) {
+      return exampleGrowth.choosePlan(me(), key, false);
+    },
+    async startSubscription(key) {
+      // No Stripe in example mode: the plan starts straight away.
+      const r = exampleGrowth.choosePlan(me(), key, true);
+      return r.ok ? { ok: true, value: { url: null } } : r;
+    },
+    async billingPortal() {
+      return fail('In example mode there’s no billing to manage. Choose Standard to leave a plan.');
+    },
+    async memberPlan(username) {
+      return exampleGrowth.memberPlan(username);
+    },
+    async staffPlans() {
+      return exampleGrowth.staffPlans(me());
+    },
+    async staffSavePlan(key, price, perks) {
+      return exampleGrowth.staffSavePlan(me(), key, price, perks);
+    },
+    async boostRules() {
+      return exampleGrowth.boostRules();
+    },
+    async listingBoost(lid) {
+      return exampleGrowth.boost(lid);
+    },
+    async setBoost(lid, bp) {
+      return exampleGrowth.setBoost(me(), lid, bp);
+    },
+    async staffDashboard() {
+      return exampleGrowth.dashboard(me());
     },
     async staffReport(from, to) {
       if (!isStaffMember(me())) return fail('Staff only.');

@@ -475,6 +475,31 @@ export interface MarketBackend {
   cancelReturn(orderId: string): Promise<Result<OrderReturn>>;
   staffRefunds(): Promise<StaffRefund[]>;
 
+  /** Phone and desktop notifications (Web Push). */
+  pushPublicKey(): Promise<string | null>;
+  myPush(): Promise<PushStatus>;
+  savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string }): Promise<Result<PushStatus>>;
+  deletePushSubscription(endpoint: string): Promise<Result<PushStatus>>;
+  setPushOn(on: boolean): Promise<Result<PushStatus>>;
+
+  /** Account plans. */
+  plans(): Promise<Plan[]>;
+  myPlan(): Promise<MyPlan | null>;
+  chooseFreePlan(key: PlanKey): Promise<Result<MyPlan>>;
+  startSubscription(key: PlanKey): Promise<Result<{ url: string | null }>>;
+  billingPortal(): Promise<Result<{ url: string }>>;
+  memberPlan(username: string): Promise<{ key: PlanKey; name: string } | null>;
+  staffPlans(): Promise<(Plan & { active: boolean; members: number })[]>;
+  staffSavePlan(key: PlanKey, pricePence: number, perks: Partial<PlanPerks>): Promise<Result<(Plan & { active: boolean; members: number })[]>>;
+
+  /** Boosted listings. */
+  boostRules(): Promise<BoostRules>;
+  listingBoost(listingId: string): Promise<number | null>;
+  setBoost(listingId: string, bp: number | null): Promise<Result<{ boostBp: number | null }>>;
+
+  /** Staff: the owner's dashboard. */
+  staffDashboard(): Promise<OwnerDashboard | null>;
+
   /** Staff: sales, fees, disputes and handover times between two dates (inclusive, UK time). */
   staffReport(from: string, to: string): Promise<Result<StaffReport>>;
   /** Public: a seller's protected-handover record, and the site-wide tracker. */
@@ -681,3 +706,22 @@ export interface OrderReturn {
   label: { carrier: string; service: string; tracking: string; mode: 'test' | 'live'; deliverTo: Address | null; labelUrl: string | null } | null;
 }
 export interface StaffRefund { id: string; orderId: string; amountPence: number; status: 'queued' | 'sending' | 'sent' | 'failed' | 'manual'; attempts: number; lastError: string | null; updatedAt: string }
+
+export interface PushStatus { on: boolean; devices: number; endpoints: string[] }
+export type PlanKey = 'standard' | 'premium' | 'premium_plus';
+export interface PlanPerks { api: 'none' | 'core' | 'full'; badge: boolean; fee_free_orders: number; boost_credits: number; blurb: string }
+export interface Plan { key: PlanKey; name: string; pricePence: number; perks: PlanPerks }
+export interface MyPlan {
+  plan: PlanKey;
+  subscription: { plan: PlanKey; status: 'active' | 'past_due' | 'canceled' | 'incomplete'; paid: boolean; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null;
+}
+export interface BoostRules { on: boolean; minPricePence: number; minBp: number; maxBp: number; fixedPence: number }
+export interface OwnerDashboard {
+  week: { orders: number; ordersPrev: number; gmvPence: number; gmvPrevPence: number; netFeesPence: number; netFeesPrevPence: number };
+  members: { total: number; new: number; newPrev: number; paidPlans: number; identityChecked: number };
+  listings: { live: number; new: number; newPrev: number; boosted: number };
+  month: { completed: number; disputed: number; orders: number; avgHandoverHours: number | null };
+  attention: { disputes: number; paymentsToCheck: number; reports: number; payoutsFailed: number; payoutsWaitingPence: number; refundsByHand: number; contact: number };
+  daily: { day: string; orders: number; gmvPence: number; members: number; listings: number }[];
+  topSellers: { seller: string; orders: number; gmvPence: number }[];
+}
