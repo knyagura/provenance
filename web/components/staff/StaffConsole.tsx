@@ -1,6 +1,7 @@
 'use client';
 
 import { Reports } from './Reports';
+import { OwnerDashboardPanel, PlansEditor } from './OwnerDashboard';
 import { StaffModerationPanel, StaffPayoutsPanel } from './StaffSafety';
 import Link from 'next/link';
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
@@ -12,8 +13,9 @@ import { StaffGate } from './StaffGate';
 import { VoucherEditor } from '@/components/vouchers/VoucherEditor';
 import { PopupEditor } from './PopupEditor';
 
-type Tab = 'queue' | 'moderation' | 'payouts' | 'messages' | 'reports' | 'agents' | 'vouchers' | 'popups' | 'settings';
+type Tab = 'dashboard' | 'queue' | 'moderation' | 'payouts' | 'messages' | 'reports' | 'agents' | 'vouchers' | 'popups' | 'settings';
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'queue', label: 'Queue' },
   { key: 'moderation', label: 'Moderation' },
   { key: 'payouts', label: 'Payouts' },
@@ -28,7 +30,7 @@ const KIND: Record<StaffQueueItem['kind'], string> = { dispute: 'Dispute', payme
 const since = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 export function StaffConsole() {
-  const [tab, setTab] = useState<Tab>('queue');
+  const [tab, setTab] = useState<Tab>('dashboard');
   return (
     <StaffGate>
       <div className="pv-sell pv-staff">
@@ -44,7 +46,7 @@ export function StaffConsole() {
           ))}
         </div>
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-          {tab === 'queue' ? <Queue /> : tab === 'moderation' ? <StaffModerationPanel /> : tab === 'payouts' ? <StaffPayoutsPanel /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : tab === 'vouchers' ? <VoucherEditor mode="staff" /> : tab === 'popups' ? <PopupEditor /> : tab === 'reports' ? <Reports /> : <Settings />}
+          {tab === 'dashboard' ? <OwnerDashboardPanel go={(t) => setTab(t as Tab)} /> : tab === 'queue' ? <Queue /> : tab === 'moderation' ? <StaffModerationPanel /> : tab === 'payouts' ? <StaffPayoutsPanel /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : tab === 'vouchers' ? <VoucherEditor mode="staff" /> : tab === 'popups' ? <PopupEditor /> : tab === 'reports' ? <Reports /> : <Settings />}
         </div>
       </div>
     </StaffGate>
@@ -254,6 +256,7 @@ function Settings() {
           <ul className="pv-list">{s.fees.map((f) => <li key={f.version}>Version {f.version}, from {since(f.effectiveFrom)}{f.note ? `: ${f.note}` : ''}</li>)}</ul>
         </details>
       </form>
+      <PlansEditor />
     </>
   );
 }

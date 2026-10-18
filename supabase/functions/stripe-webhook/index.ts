@@ -37,6 +37,12 @@ Deno.serve(async (req) => {
       const { error } = await admin.rpc('payout_account_updated', { p_account: accountId, p_details: details, p_enabled: enabled });
       if (error) throw error;
     },
+    async subscriptionSynced(f) {
+      const { error } = await admin.rpc('subscription_synced', {
+        p_user: f.userId, p_key: f.plan, p_customer: f.customer, p_subscription: f.subscription, p_status: f.status, p_period_end: f.periodEnd, p_cancel_at_end: f.cancelAtEnd,
+      });
+      if (error) throw error;
+    },
     async identityUpdated(session, status, err) {
       const { error } = await admin.rpc('identity_updated', { p_session: session, p_status: status, p_error: err });
       if (error) throw error;

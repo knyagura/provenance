@@ -12,7 +12,7 @@ const pages = [
   '/', '/styleguide', '/search', '/search?q=barb%20jack', '/search?category=men&sort=price_asc&min=10',
   '/search?min=abc&condition=Mint', '/search?q=zzzz', '/item/example-1', '/item/example-6', '/developers',
   '/sell', '/inbox', '/profile', '/signin', '/reset', '/passkey', '/member/resole_archive', '/checkout/example-6',
-  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards', '/search?near=SW11&miles=10', '/trust',
+  '/saved', '/passport/example-1', '/staff', '/privacy', '/terms', '/contact', '/notifications', '/item/example-14', '/selling', '/gift-cards', '/search?near=SW11&miles=10', '/trust', '/plans', '/c/men', '/brand/barbour',
 ];
 const shots = { '/item/example-6': 'item-lux', '/checkout/example-6': 'checkout', '/member/resole_archive': 'member', '/': 'home', '/styleguide': 'styleguide', '/search': 'search', '/item/example-1': 'item', '/developers': 'developers' };
 const widths = [360, 768, 1024, 1440];
@@ -1062,6 +1062,57 @@ try {
     await p.waitForURL((u) => u.pathname === '/' && u.search.includes('account=deleted'), { timeout: 8000 }).catch(() => fail('privacy: deleting should sign out and go home'));
     if (aerr.length) fail(`account tools: page errors: ${aerr.slice(0, 3).join(' | ')}`);
     await actx.close();
+  }
+
+  // Plans, push on this device, boosts and the owner's dashboard.
+  {
+    const gctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const gerr = [];
+    const p = await gctx.newPage();
+    p.on('pageerror', (e) => gerr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await p.waitForURL((u) => u.pathname === next || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === next); }
+    };
+    await signIn('lens_vault@example.test', '/plans');
+    const plans = p.getByRole('list', { name: 'Plans' });
+    await plans.getByText('£17.50').waitFor({ timeout: 5000 }).catch(() => fail('plans: Premium+ should show £17.50 a month'));
+    await plans.getByRole('button', { name: 'Choose Premium' }).click();
+    await p.getByRole('status').filter({ hasText: 'You’re on Premium.' }).waitFor({ timeout: 5000 }).catch(() => fail('plans: choosing Premium should confirm'));
+    await p.goto(BASE + '/member/lens_vault');
+    await p.getByText('Premium', { exact: true }).waitFor({ timeout: 5000 }).catch(() => fail('plans: the member page should show the Premium badge'));
+    // Boost the seller's own £890 bag.
+    await p.goto(BASE + '/item/example-6');
+    const boost = p.getByRole('region', { name: 'Boost this listing' });
+    await boost.waitFor({ timeout: 5000 }).catch(() => fail('boosts: the seller should see Boost this listing'));
+    await boost.getByLabel('Boost').selectOption('500');
+    await boost.getByRole('button', { name: 'Boost it' }).click();
+    await boost.getByText(/if it sells, you pay £45.30/).waitFor({ timeout: 5000 }).catch(() => fail('boosts: 5% of £890 + 80p is £45.30'));
+    await boost.getByRole('button', { name: 'Stop boosting' }).click();
+    await boost.getByRole('button', { name: 'Boost it' }).waitFor();
+    // Notifications on this device (example: recorded without a push service).
+    await p.goto(BASE + '/profile');
+    const push = p.getByRole('region', { name: 'Phone and desktop notifications' });
+    await push.getByRole('button', { name: 'Notify me on this device' }).click();
+    await push.getByText('On for 1 device.').waitFor({ timeout: 5000 }).catch(() => fail('push: turning it on should count this device'));
+    await push.getByRole('button', { name: 'Turn off on this device' }).click();
+    await push.getByRole('button', { name: 'Notify me on this device' }).waitFor();
+    // Owner dashboard and plan settings.
+    await p.goto(BASE + '/profile');
+    await p.getByRole('button', { name: 'Sign out' }).click();
+    await p.waitForURL((u) => u.pathname === '/');
+    await signIn('staff.owner@example.com', '/staff');
+    await p.getByRole('list', { name: 'This week' }).waitFor({ timeout: 5000 }).catch(() => fail('dashboard: staff should land on the dashboard'));
+    await p.getByRole('heading', { name: 'Last 30 days' }).waitFor();
+    await p.getByRole('tab', { name: 'Settings' }).click();
+    await p.getByLabel('Free boosts a month').first().waitFor({ timeout: 5000 }).catch(() => fail('plans: staff should see plan settings'));
+    await p.screenshot({ path: 'test-results/staff-dashboard-390.png', fullPage: true });
+    if (gerr.length) fail(`growth: page errors: ${gerr.slice(0, 3).join(' | ')}`);
+    await gctx.close();
   }
 
   // Questions before buying, reporting, and staff moderation.

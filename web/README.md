@@ -82,6 +82,7 @@ Passkeys use Supabase Auth's built-in WebAuthn support. They only work once swit
 - **Payouts** (`components/account/Payouts.tsx`, migrations 028 and 028b, Edge Functions `connect` and `send-payouts`): see [ADR 0021](../docs/adr/0021-seller-payouts.md).
 - **Questions, reports and moderation** (`components/safety/`, `components/staff/StaffSafety.tsx`, migration 029): see [ADR 0022](../docs/adr/0022-questions-reports-moderation.md).
 - **Returns, refunds, addresses, privacy and identity** (`components/custody/Returns.tsx`, `components/account/AccountTools.tsx`, migrations 030–033): see ADRs [0023](../docs/adr/0023-refunds-and-returns.md), [0024](../docs/adr/0024-addresses-and-privacy.md) and [0025](../docs/adr/0025-identity-checks.md).
+- **Push, plans, boosts, landing pages and the owner's dashboard** (`components/account/Growth.tsx`, `components/staff/OwnerDashboard.tsx`, `app/c`, `app/brand`, `app/plans`, migrations 034–036): see ADRs [0026](../docs/adr/0026-push-notifications.md), [0027](../docs/adr/0027-plans-and-boosts.md) and [0028](../docs/adr/0028-landing-pages-and-owner-dashboard.md).
 - Example mode counts all of these from the example orders in the browser.
 
 ## Pictures

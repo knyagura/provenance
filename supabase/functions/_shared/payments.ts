@@ -150,6 +150,8 @@ export interface WebhookDeps {
   verify(payload: string, signature: string): Promise<{ type: string; data: { object: PaymentIntentLike } }>;
   /** Stripe Connect: a seller's account changed (finished onboarding, or Stripe paused payouts). */
   accountUpdated?(accountId: string, detailsSubmitted: boolean, payoutsEnabled: boolean): Promise<void>;
+  /** Paid plans: a subscription started, changed or ended. */
+  subscriptionSynced?(f: { userId: string | null; plan: string | null; customer: string | null; subscription: string; status: string; periodEnd: string | null; cancelAtEnd: boolean }): Promise<void>;
   /** Stripe Identity: a member's identity check changed. */
   identityUpdated?(sessionId: string, status: string, error: string | null): Promise<void>;
   confirmPayment(orderId: string, ref: string, amountPence: number): Promise<string>;
@@ -171,6 +173,18 @@ export async function handleWebhook(payload: string, signature: string | null, d
     if (!/^acct_[A-Za-z0-9]+$/.test(a.id ?? '')) return { status: 200, body: { ignored: 'no_account' } };
     await deps.accountUpdated(a.id, !!a.details_submitted, !!a.payouts_enabled);
     return { status: 200, body: { result: 'account_updated' } };
+  }
+  if (deps.subscriptionSynced && /^customer\.subscription\.(created|updated|deleted)$/.test(event.type)) {
+    const f = subscriptionFields(event.data.object as unknown as Record<string, unknown>);
+    if (!f) return { status: 200, body: { ignored: 'no_subscription' } };
+    await deps.subscriptionSynced(f);
+    return { status: 200, body: { result: 'subscription_synced' } };
+  }
+  if (deps.subscriptionSynced && event.type === 'checkout.session.completed') {
+    const o = event.data.object as unknown as { mode?: string; subscription?: string; customer?: string; metadata?: Record<string, string> };
+    if (o.mode !== 'subscription' || !o.subscription?.startsWith('sub_')) return { status: 200, body: { ignored: 'not_a_subscription' } };
+    await deps.subscriptionSynced({ userId: o.metadata?.user_id ?? null, plan: o.metadata?.plan_key ?? null, customer: o.customer ?? null, subscription: o.subscription, status: 'active', periodEnd: null, cancelAtEnd: false });
+    return { status: 200, body: { result: 'subscription_synced' } };
   }
   if (event.type.startsWith('identity.verification_session.') && deps.identityUpdated) {
     const m = /^identity\.verification_session\.(verified|requires_input|canceled|processing)$/.exec(event.type);
@@ -200,3 +214,16 @@ export const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+/** A Stripe subscription object → what subscription_synced() needs. */
+export function subscriptionFields(o: Record<string, unknown>): { userId: string | null; plan: string | null; customer: string | null; subscription: string; status: string; periodEnd: string | null; cancelAtEnd: boolean } | null {
+  const id = typeof o.id === 'string' ? o.id : '';
+  if (!id.startsWith('sub_')) return null;
+  const meta = (o.metadata ?? {}) as Record<string, string>;
+  const items = (o.items as { data?: { current_period_end?: number }[] } | undefined)?.data ?? [];
+  const end = (o.current_period_end as number | undefined) ?? items[0]?.current_period_end ?? null;
+  return {
+    userId: meta.user_id ?? null, plan: meta.plan_key ?? null, customer: typeof o.customer === 'string' ? o.customer : null, subscription: id,
+    status: String(o.status ?? 'incomplete'), periodEnd: end ? new Date(end * 1000).toISOString() : null, cancelAtEnd: !!o.cancel_at_period_end,
+  };
+}

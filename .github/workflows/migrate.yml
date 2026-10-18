@@ -50,6 +50,7 @@ jobs:
       - run: node moderation_checks.mjs
       - run: node returns_checks.mjs
       - run: node privacy_checks.mjs
+      - run: node growth_checks.mjs
 
   migrate:
     needs: database-tests

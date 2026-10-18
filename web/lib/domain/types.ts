@@ -69,6 +69,8 @@ export interface Listing {
   /** Colours and sizes of the same item share a group; search shows one card per group. */
   variantGroup?: string | null;
   browseVisible?: boolean;
+  /** The seller pays an advertising fee if it sells; shown first and labelled (migration 035). */
+  boosted?: boolean;
 }
 
 /** One colour or size of an item, with what's left of it. */
@@ -98,6 +100,8 @@ export interface ListingQuery {
   size?: string;
   /** Collection in person within `miles` of this point. */
   near?: { lat: number; lng: number; miles: number };
+  /** Exact brand, ignoring case (brand landing pages; not in the search address). */
+  brand?: string;
   sort: Sort;
   limit: number;
   /** Opaque position from the previous page's nextCursor. */

@@ -30,6 +30,7 @@ export function toCard(l: Listing): ListingCardProps {
     tier: l.tier,
     size: l.size,
     category: l.category,
+    boosted: l.boosted,
   };
 }
 

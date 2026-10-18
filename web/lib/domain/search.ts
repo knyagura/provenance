@@ -24,6 +24,7 @@ export function filterInMemory(all: Listing[], query: ListingQuery): Listing[] {
     if (query.seller ? l.seller.username.toLowerCase() !== query.seller.toLowerCase() : l.seller.away) return false;
     if (query.category && l.category !== query.category) return false;
     if (query.condition && l.condition !== query.condition) return false;
+    if (query.brand && (l.brand ?? '').trim().toLowerCase() !== query.brand.trim().toLowerCase()) return false;
     if (query.size && (l.size ?? '').trim().toLowerCase() !== query.size.trim().toLowerCase()) return false;
     if (query.near && (!l.seller.area || milesBetween(query.near, l.seller.area) > query.near.miles)) return false;
     if (query.minPence !== undefined && l.pricePence < query.minPence) return false;

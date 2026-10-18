@@ -71,7 +71,7 @@ export const exampleSource: CatalogueSource = {
 
 const LISTING_COLUMNS = [
   'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
-  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision', 'stock', 'variant_group',
+  'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision', 'stock', 'variant_group', 'boosted',
   'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode, area, area_lat, area_lng, collection_ok)',
   'media:listing_media(path, kind, shot, position, retired_at)',
 ].join(', ');
@@ -96,6 +96,7 @@ interface Row {
   revision?: number;
   stock?: number;
   variant_group?: string | null;
+  boosted?: boolean;
   media: { path: string; kind: Media['kind']; shot: string | null; position: number; retired_at?: string | null }[] | null;
 }
 
@@ -136,6 +137,7 @@ export function toListing(r: Row): Listing {
     createdAt: r.created_at,
     stock: r.stock ?? 1,
     variantGroup: r.variant_group ?? null,
+    boosted: Boolean(r.boosted),
   };
 }
 
@@ -185,6 +187,7 @@ export const supabaseSource: CatalogueSource = {
     if (query.category) req = req.eq('category', query.category);
     if (query.condition) req = req.eq('condition_label', query.condition);
     if (query.size) req = req.ilike('size_label', likeExact(query.size.trim()));
+    if (query.brand) req = req.ilike('brand', likeExact(query.brand.trim()));
     if (query.near) {
       const b = boxAround(query.near, query.near.miles);
       req = req.eq('seller.collection_ok', true).gte('seller.area_lat', b.minLat).lte('seller.area_lat', b.maxLat)
@@ -194,7 +197,8 @@ export const supabaseSource: CatalogueSource = {
     if (query.maxPence !== undefined) req = req.lte('price_pence', query.maxPence);
     if (query.sort === 'price_asc') req = req.order('price_pence', { ascending: true });
     else if (query.sort === 'price_desc') req = req.order('price_pence', { ascending: false });
-    else req = req.order('created_at', { ascending: false });
+    // Newest first, with boosted listings (migration 035) at the top.
+    else req = req.order('boosted', { ascending: false }).order('created_at', { ascending: false });
     req = req.order('id').range(query.offset, query.offset + query.limit - 1);
 
     const { data, error } = await req;

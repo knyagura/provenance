@@ -158,3 +158,11 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Your data.** Download everything NuTuYu holds about you. You can also delete your account once nothing is in progress; order records are kept without your name, as the law requires. Old data is cleaned up automatically.
 - **Identity check.** Check your identity with Stripe to show "Identity checked". Off until Stripe Identity is switched on.
 - Migrations 030, 031, 031b, 032, 032b and 033. Documents: [ADR 0023](adr/0023-refunds-and-returns.md), [ADR 0024](adr/0024-addresses-and-privacy.md), [ADR 0025](adr/0025-identity-checks.md).
+
+## 2026-10-18: Notifications on your phone, plans, boosts, category and brand pages, and the owner's dashboard
+- **Phone and desktop notifications.** Turn them on per device in your account. They work with no extra set-up.
+- **Plans.** Standard and Premium are free; Premium+ is £17.50 a month through Stripe, managed in Stripe's billing portal. Plan badges show on member pages. Staff set prices and perks.
+- **Boosts.** Sellers can boost items of £25 or more and pay 3–8% plus 80p only if it sells. Boosted items come first and are labelled.
+- **Category and brand pages** for search engines, with structured data, and in the sitemap.
+- **Owner's dashboard.** The first tab in the staff console: this week against last, what needs attention, 30 days, and top sellers.
+- Migrations 034, 034b, 035 and 036. Documents: [ADR 0026](adr/0026-push-notifications.md), [ADR 0027](adr/0027-plans-and-boosts.md), [ADR 0028](adr/0028-landing-pages-and-owner-dashboard.md).

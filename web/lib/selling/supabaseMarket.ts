@@ -3,6 +3,7 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import { toShipping } from './shipping';
 import { toReport } from './reports';
+import { toBoostRules, toDashboard, toMyPlan, toPlan, toPush } from './growth';
 import { toAddresses, toIdentity, toModeration, toPayouts, toQuestions, toRefunds, toReturn, toStaffPayouts } from './trustAndSafety';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
@@ -583,6 +584,76 @@ export const supabaseMarket: MarketBackend = {
   async staffRefunds() {
     const { data, error } = await supabase().rpc('staff_refunds');
     return error ? [] : toRefunds(data);
+  },
+  async pushPublicKey() {
+    const { data, error } = await supabase().rpc('push_public_key');
+    return error || typeof data !== 'string' ? null : data;
+  },
+  async myPush() {
+    const { data } = await supabase().rpc('my_push');
+    return toPush(data);
+  },
+  async savePushSubscription(sub) {
+    const { data, error } = await supabase().rpc('save_push_subscription', { p_endpoint: sub.endpoint, p_p256dh: sub.p256dh, p_auth: sub.auth, p_agent: navigator.userAgent.slice(0, 200) });
+    return error ? fail(error) : { ok: true, value: toPush(data) };
+  },
+  async deletePushSubscription(endpoint) {
+    const { data, error } = await supabase().rpc('delete_push_subscription', { p_endpoint: endpoint });
+    return error ? fail(error) : { ok: true, value: toPush(data) };
+  },
+  async setPushOn(on) {
+    const { data, error } = await supabase().rpc('set_push_on', { p_on: on });
+    return error ? fail(error) : { ok: true, value: toPush(data) };
+  },
+  async plans() {
+    const { data, error } = await supabase().rpc('plans_list');
+    return error || !Array.isArray(data) ? [] : data.map(toPlan);
+  },
+  async myPlan() {
+    const { data, error } = await supabase().rpc('my_plan');
+    return error || !data ? null : toMyPlan(data);
+  },
+  async chooseFreePlan(key) {
+    const { data, error } = await supabase().rpc('choose_free_plan', { p_key: key });
+    return error ? fail(error) : { ok: true, value: toMyPlan(data) };
+  },
+  async startSubscription(key) {
+    const { data, error } = await supabase().functions.invoke('subscribe', { body: { action: 'checkout', plan: key } });
+    return error ? fnFail(error, 'Paid plans aren’t switched on yet.') : { ok: true, value: { url: data.url ?? null } };
+  },
+  async billingPortal() {
+    const { data, error } = await supabase().functions.invoke('subscribe', { body: { action: 'portal' } });
+    return error ? fnFail(error, 'Paid plans aren’t switched on yet.') : { ok: true, value: { url: data.url } };
+  },
+  async memberPlan(username) {
+    const { data, error } = await supabase().rpc('member_plan', { p_username: username });
+    return error || !data ? null : (data as { key: never; name: string });
+  },
+  async staffPlans() {
+    const { data, error } = await supabase().rpc('staff_plans');
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return error || !Array.isArray(data) ? [] : data.map((p: any) => ({ ...toPlan(p), active: !!p.active, members: Number(p.members ?? 0) }));
+  },
+  async staffSavePlan(key, price, perks) {
+    const { data, error } = await supabase().rpc('staff_save_plan', { p_key: key, p_price: price, p_perks: perks });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return error ? fail(error) : { ok: true, value: (data as any[]).map((p) => ({ ...toPlan(p), active: !!p.active, members: Number(p.members ?? 0) })) };
+  },
+  async boostRules() {
+    const { data } = await supabase().rpc('boost_rules');
+    return toBoostRules(data);
+  },
+  async listingBoost(listingId) {
+    const { data } = await supabase().from('listings').select('boost_bp').eq('id', listingId).maybeSingle();
+    return (data?.boost_bp as number | null) ?? null;
+  },
+  async setBoost(listingId, bp) {
+    const { data, error } = await supabase().rpc('set_boost', { p_listing: listingId, p_bp: bp });
+    return error ? fail(error) : { ok: true, value: { boostBp: (data as { boost_bp: number | null }).boost_bp } };
+  },
+  async staffDashboard() {
+    const { data, error } = await supabase().rpc('staff_dashboard');
+    return error || !data ? null : toDashboard(data);
   },
   async staffReport(from, to) {
     const { data, error } = await supabase().rpc('staff_report', { p_from: from, p_to: to });

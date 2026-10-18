@@ -1,5 +1,6 @@
 import { TrustLine } from '@/components/market/Trust';
 import { ReportButton } from '@/components/safety/Report';
+import { MemberPlanBadge } from '@/components/account/Growth';
 import { MemberReviews } from '@/components/market/Reviews';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -41,6 +42,7 @@ export default async function MemberPage({ params }: Props) {
           <div className="pv-actions">
             {member.verified ? <Badge tone="verified">Identity checked</Badge> : null}
             {member.business ? <Badge tone="neutral">Business seller</Badge> : null}
+            <MemberPlanBadge username={member.username} />
             {member.away ? <Badge tone="neutral">On holiday</Badge> : null}
           </div>
           <TrustLine username={member.username} />

@@ -339,3 +339,13 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-addresses li { display: flex; flex-direction: column; gap: var(--space-1); padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
 .pv-returns { display: flex; flex-direction: column; gap: var(--space-3); }
 .pv-returns textarea, .pv-panel textarea { width: 100%; font: inherit; padding: var(--space-2); border: 1px solid var(--ink-muted); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
+
+/* Plans and boosts */
+.pv-plans { list-style: none; margin: var(--space-4) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-4); }
+.pv-plan { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.pv-plan--current { border: 2px solid var(--sage, var(--ink)); }
+.pv-plan h2 { margin: 0; }
+.pv-plan__price { font: 600 28px/1.1 var(--font-sans); margin: 0; }
+.pv-plan > .pv-btn, .pv-plan > .pv-badge { align-self: flex-start; margin-top: auto; }
+.pv-boost { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-boost .pv-field--inline { flex-wrap: wrap; }

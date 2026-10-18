@@ -8,8 +8,10 @@
 //                   which only delivers to the Resend account's own address
 //   SITE_URL        optional, defaults to the Netlify site
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase itself.
+// Pushes to phones and desktops (migration 034) need no setup: the first run makes the Web Push keys and keeps them in Vault.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
+import webpush from 'npm:web-push@3.6.7';
 
 const KEY = Deno.env.get('RESEND_API_KEY');
 const FROM = Deno.env.get('RESEND_FROM') || 'NuTuYu <onboarding@resend.dev>';
@@ -52,7 +54,8 @@ Deno.serve(async (req) => {
   const token = req.headers.get('x-worker-token');
   const { data: allowed } = await admin.rpc('notification_worker_ok', { p_token: token });
   if (allowed !== true) return Response.json({ error: 'forbidden' }, { status: 403 });
-  if (!KEY) return Response.json({ sent: 0, waiting: 'RESEND_API_KEY is not set' });
+  const pushed = await sendPushes().catch((e) => ({ pushed: 0, push_error: String(e).slice(0, 200) }));
+  if (!KEY) return Response.json({ sent: 0, waiting: 'RESEND_API_KEY is not set', ...pushed });
   const { data, error } = await admin.rpc('notification_outbox_claim', { p_limit: 25 });
   if (error) return Response.json({ error: error.message }, { status: 500 });
   let sent = 0;
@@ -101,5 +104,39 @@ Deno.serve(async (req) => {
       failed++;
     }
   }
-  return Response.json({ sent, failed });
+  return Response.json({ sent, failed, ...pushed });
 });
+
+/** Web Push: the Vault keys (made on the first run), then each waiting notification to each of the member's devices. */
+async function sendPushes(): Promise<{ pushed: number; push_failed?: number }> {
+  let { data: keys } = await admin.rpc('push_vapid');
+  if (!keys) {
+    const k = webpush.generateVAPIDKeys();
+    await admin.rpc('push_vapid_set', { p_public: k.publicKey, p_private: k.privateKey });
+    ({ data: keys } = await admin.rpc('push_vapid'));
+  }
+  if (!keys) return { pushed: 0 };
+  const { data, error } = await admin.rpc('push_outbox_claim', { p_limit: 100 });
+  if (error) throw error;
+  let pushed = 0;
+  let failed = 0;
+  for (const n of (data ?? []) as { id: string; title: string; body: string; link: string; devices: { endpoint: string; p256dh: string; auth: string }[] }[]) {
+    const gone: string[] = [];
+    let any = false;
+    const payload = JSON.stringify({ title: n.title, body: n.body.slice(0, 180), url: SITE + (n.link?.startsWith('/') ? n.link : '/inbox'), tag: n.id });
+    for (const d of n.devices) {
+      try {
+        await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload,
+          { TTL: 3600, urgency: 'normal', vapidDetails: { subject: SITE, publicKey: keys.public, privateKey: keys.private } });
+        any = true;
+      } catch (e) {
+        const code = (e as { statusCode?: number }).statusCode;
+        if (code === 404 || code === 410) gone.push(d.endpoint);
+      }
+    }
+    await admin.rpc('push_done', { p_id: n.id, p_ok: any, p_gone: gone.length ? gone : null });
+    if (any) pushed++;
+    else failed++;
+  }
+  return { pushed, push_failed: failed };
+}
