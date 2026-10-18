@@ -12,6 +12,8 @@ npm run dev          # http://localhost:3000, regenerates tokens first
 
 ## Checks
 
+- `npm run test:e2e:parallel` runs the browser checks' two parts (page sweep, journeys) side by side; `E2E_PART=layout` or `journeys` runs one. See [ADR 0029](../docs/adr/0029-security-review-and-faster-tests.md).
+
 | Command | What it checks |
 |---|---|
 | `npm run typecheck` | TypeScript |

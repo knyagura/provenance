@@ -33,6 +33,12 @@ jobs:
   # including the real-browser layout check that Netlify's build does not run.
   web:
     runs-on: ubuntu-latest
+    # Two parallel jobs: the page sweep (every page, width and theme, plus accessibility) and the journeys.
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [layout, journeys]
+    name: web (${{ matrix.part }})
     defaults:
       run:
         working-directory: web
@@ -51,11 +57,13 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run test:e2e
+        env:
+          E2E_PART: ${{ matrix.part }}
       - name: Upload new-site screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: web-screenshots
+          name: web-screenshots-${{ matrix.part }}
           path: web/test-results/
           retention-days: 14
 
