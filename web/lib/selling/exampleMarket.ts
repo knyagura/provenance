@@ -203,7 +203,7 @@ function find(market: Market, orderId: string, me: Member | null): StoredOrder |
   return o && me && canView(o, me) ? o : null;
 }
 
-async function append(o: StoredOrder, step: string, role: Actor | 'system' | 'staff', actorId: string | null, evidence: Evidence): Promise<void> {
+export async function append(o: StoredOrder, step: string, role: Actor | 'system' | 'staff', actorId: string | null, evidence: Evidence): Promise<void> {
   const c = o.custody!;
   const seq = c.events.length + 1;
   const at = new Date().toISOString();

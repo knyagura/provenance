@@ -77,3 +77,30 @@ export async function sendPayouts(deps: SendDeps, limit = 20): Promise<{ sent: n
   }
   return { sent, failed };
 }
+
+export interface QueuedRefund { id: string; order_id: string; amount_pence: number; payment_ref: string | null; attempts: number }
+
+export interface RefundDeps {
+  claim(limit: number): Promise<QueuedRefund[]>;
+  done(id: string, ok: boolean, ref: string | null, error: string | null): Promise<void>;
+  stripe: { refund(p: { paymentIntent: string; amount: number; orderId: string; idempotencyKey: string }): Promise<{ id: string }> } | null;
+}
+
+/** Card refunds (migration 031): what the buyer paid by card for that order goes back to the same card. */
+export async function sendRefunds(deps: RefundDeps, limit = 20): Promise<{ refunded: number; failed: number; waiting?: string }> {
+  if (!deps.stripe) return { refunded: 0, failed: 0, waiting: 'STRIPE_SECRET_KEY is not set' };
+  let refunded = 0;
+  let failed = 0;
+  for (const r of await deps.claim(limit)) {
+    try {
+      if (!r.payment_ref?.startsWith('pi_')) throw new Error('no card payment to refund');
+      const x = await deps.stripe.refund({ paymentIntent: r.payment_ref, amount: r.amount_pence, orderId: r.order_id, idempotencyKey: `refund-${r.id}` });
+      await deps.done(r.id, true, x.id, null);
+      refunded++;
+    } catch (e) {
+      await deps.done(r.id, false, null, String((e as Error)?.message ?? e).slice(0, 300));
+      failed++;
+    }
+  }
+  return { refunded, failed };
+}

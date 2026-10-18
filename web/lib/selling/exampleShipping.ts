@@ -4,6 +4,7 @@ import { planFor } from '@/lib/domain/custody';
 import { exampleNotify } from './exampleNotifications';
 import { loadMarket, saveMarket, type StoredOrder } from './exampleMarket';
 import { cleanAddress, PARCEL_SIZES, SERVICES } from './shipping';
+import { exampleDefaultAddress } from './exampleAccount';
 import type { Address, Member, OrderShipping, ParcelSize, Result, ShippingLabel } from './types';
 
 const fail = (message: string): { ok: false; message: string } => ({ ok: false, message });
@@ -14,8 +15,11 @@ export const postsItself = (o: StoredOrder) => planFor(o.custody?.tier ?? o.summ
 const canLabel = (o: Stored) => o.summary.paymentStatus === 'paid' && o.custody?.state === 'in_progress' && postsItself(o) && !shipped(o);
 const isStaff = (m: Member) => m.email.toLowerCase().startsWith('staff');
 
+// As migration 030: with no address on the order, the buyer's default address is used.
+const addressOf = (o: Stored) => (o.deliverTo ?? (o.shipTo as Address | null | undefined)) ?? exampleDefaultAddress(o.buyerId);
+
 function view(o: Stored, m: Member): OrderShipping {
-  const addr = (o.deliverTo ?? (o.shipTo as Address | null | undefined)) ?? null;
+  const addr = addressOf(o);
   const label = o.label ?? null;
   const seller = o.sellerId === m.id;
   return {
@@ -59,7 +63,7 @@ export const exampleShipping = {
       if (o.sellerId !== m!.id) return fail('Order not found.');
       if (!canLabel(o)) return fail('Labels are for paid orders you post yourself, before you’ve recorded sending it.');
       if (o.label) return fail('This order already has a label. Cancel it to make a new one.');
-      const addr = o.deliverTo ?? (o.shipTo as Address | null | undefined);
+      const addr = addressOf(o);
       if (!addr) return fail('The buyer hasn’t given a delivery address yet. We’ve asked them to.');
       const s = SERVICES.find((x) => x.service === service);
       if (!s) return fail('Choose a delivery service.');

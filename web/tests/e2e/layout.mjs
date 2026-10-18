@@ -594,6 +594,37 @@ try {
       await record(ls);
       await lb.reload();
       await lb.getByText(/Sent with Royal Mail/).waitFor().catch(() => fail('labels: the buyer should see the carrier and tracking'));
+      // Returns: the seller saves a returns address; the buyer asks to return it; accepted, posted, received, refunded.
+      await ls.goto(BASE + '/profile');
+      const book = ls.getByRole('region', { name: 'Addresses' });
+      await book.getByRole('button', { name: 'Add an address' }).click();
+      const newAddr = book.getByRole('form', { name: 'New address' });
+      await newAddr.getByLabel('Label (optional)').fill('Shop');
+      await newAddr.getByLabel('Name').fill('Resole Archive');
+      await newAddr.getByLabel('Address line 1').fill('9 Shop Lane');
+      await newAddr.getByLabel('Town or city').fill('London');
+      await newAddr.getByLabel('Postcode').fill('sw11 1aa');
+      await newAddr.getByRole('button', { name: 'Save address' }).click();
+      await book.getByText('Shop · default').waitFor({ timeout: 5000 }).catch(() => fail('addresses: the first address should be the default'));
+      await lb.reload();
+      const notRight = lb.getByRole('region', { name: 'Not right?' });
+      await notRight.waitFor({ timeout: 8000 }).catch(() => fail('returns: the buyer should be offered a return once it has arrived'));
+      await notRight.getByRole('button', { name: 'Return it' }).click();
+      await notRight.getByLabel('It isn’t as described').check();
+      await notRight.getByRole('button', { name: 'Ask to return it' }).click();
+      await lb.getByText(/Waiting for the seller to answer/).waitFor({ timeout: 5000 }).catch(() => fail('returns: asking should wait for the seller'));
+      await ls.goto(beltUrl);
+      await ls.getByRole('button', { name: 'Accept the return' }).click();
+      await ls.getByText(/Waiting for the buyer to post it/).waitFor({ timeout: 5000 }).catch(() => fail('returns: accepting should wait for the buyer'));
+      await lb.reload();
+      await lb.getByText('9 Shop Lane').waitFor({ timeout: 5000 }).catch(() => fail('returns: the buyer’s return label should go to the seller’s address'));
+      await lb.getByRole('button', { name: 'I’ve posted it' }).click();
+      await ls.reload();
+      await ls.getByRole('button', { name: 'It’s arrived back' }).click();
+      await ls.getByText('The seller has it back. The buyer is refunded.').waitFor({ timeout: 5000 }).catch(() => fail('returns: the seller should see the buyer refunded'));
+      await lb.reload();
+      await lb.getByText(/Your refund is on its way/).first().waitFor({ timeout: 5000 }).catch(() => fail('returns: the buyer should see their refund'));
+      await lb.screenshot({ path: 'test-results/returns-buyer-390.png', fullPage: true });
     }
     if (cerr.length) fail(`custody: page errors: ${cerr.slice(0, 3).join(' | ')}`);
     await cctx.close();
@@ -1006,6 +1037,31 @@ try {
     if (await sim.locator('a[href="/item/example-1"]').count()) fail('similar items should not include the item itself');
     if (serr.length) fail(`better search: page errors: ${serr.slice(0, 3).join(' | ')}`);
     await sctx.close();
+  }
+
+  // Account tools: identity check, download my data, delete my account.
+  {
+    const actx = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
+    const aerr = [];
+    const p = await actx.newPage();
+    p.on('pageerror', (e) => aerr.push(e.message));
+    await p.goto(`${BASE}/signin?next=${encodeURIComponent('/profile')}`);
+    await p.getByLabel('Email').fill('leaver@example.com');
+    await p.getByLabel('Password').fill('a-long-password');
+    await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/profile');
+    const idc = p.getByRole('region', { name: 'Identity check' });
+    await idc.getByRole('button', { name: 'Check my identity' }).click();
+    await idc.getByText('Identity checked.').waitFor({ timeout: 5000 }).catch(() => fail('identity: the example check should pass'));
+    const data = p.getByRole('region', { name: 'Your data' });
+    const [file] = await Promise.all([p.waitForEvent('download'), data.getByRole('button', { name: 'Download my data' }).click()]);
+    if (!/^nutuyu-my-data-\d{4}-\d{2}-\d{2}\.json$/.test(file.suggestedFilename())) fail(`privacy: odd download name ${file.suggestedFilename()}`);
+    await data.getByRole('button', { name: 'Delete my account…' }).click();
+    await data.getByLabel(/Type your username/).fill('leaver');
+    await data.getByRole('button', { name: 'Delete my account' }).click();
+    await p.waitForURL((u) => u.pathname === '/' && u.search.includes('account=deleted'), { timeout: 8000 }).catch(() => fail('privacy: deleting should sign out and go home'));
+    if (aerr.length) fail(`account tools: page errors: ${aerr.slice(0, 3).join(' | ')}`);
+    await actx.close();
   }
 
   // Questions before buying, reporting, and staff moderation.

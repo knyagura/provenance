@@ -37,6 +37,10 @@ Deno.serve(async (req) => {
       const { error } = await admin.rpc('payout_account_updated', { p_account: accountId, p_details: details, p_enabled: enabled });
       if (error) throw error;
     },
+    async identityUpdated(session, status, err) {
+      const { error } = await admin.rpc('identity_updated', { p_session: session, p_status: status, p_error: err });
+      if (error) throw error;
+    },
     async confirmGiftCard(cardId, ref, amount) {
       const { data, error } = await admin.rpc('confirm_gift_card_payment', { p_card: cardId, p_ref: ref, p_amount: amount });
       if (error) throw error;

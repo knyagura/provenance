@@ -81,6 +81,7 @@ Passkeys use Supabase Auth's built-in WebAuthn support. They only work once swit
 - **Staff reports** (`components/staff/Reports.tsx`, migration 027): the console's *Reports* tab, with a CSV download. See [ADR 0020](../docs/adr/0020-staff-reports.md).
 - **Payouts** (`components/account/Payouts.tsx`, migrations 028 and 028b, Edge Functions `connect` and `send-payouts`): see [ADR 0021](../docs/adr/0021-seller-payouts.md).
 - **Questions, reports and moderation** (`components/safety/`, `components/staff/StaffSafety.tsx`, migration 029): see [ADR 0022](../docs/adr/0022-questions-reports-moderation.md).
+- **Returns, refunds, addresses, privacy and identity** (`components/custody/Returns.tsx`, `components/account/AccountTools.tsx`, migrations 030–033): see ADRs [0023](../docs/adr/0023-refunds-and-returns.md), [0024](../docs/adr/0024-addresses-and-privacy.md) and [0025](../docs/adr/0025-identity-checks.md).
 - Example mode counts all of these from the example orders in the browser.
 
 ## Pictures

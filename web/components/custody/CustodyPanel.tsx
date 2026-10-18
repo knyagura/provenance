@@ -20,6 +20,7 @@ import { formatPence } from '@/lib/format';
 import { SealMark } from './SealMark';
 import { StepForm } from './StepForm';
 import { DeliveryAddress } from '@/components/shipping/Shipping';
+import { Returns } from './Returns';
 
 const REFRESH_MS = 8000;
 const CHOICES: Record<(typeof BUYER_DISPUTE_REASONS)[number], string> = {
@@ -155,6 +156,9 @@ export function CustodyPanel({ orderId, sellerPayoutPence, onChange }: { orderId
       ) : null}
 
       {view.myRoles.includes('buyer') ? <DeliveryAddress orderId={orderId} /> : null}
+      {view.myRoles.includes('buyer') || view.myRoles.includes('seller') ? (
+        <Returns key={`${view.state}-${view.events.length}`} orderId={orderId} role={view.myRoles.includes('seller') ? 'seller' : 'buyer'} onChange={load} />
+      ) : null}
       {mine && view.current ? <StepForm key={view.current.key} view={view} step={view.current} onDone={setView} /> : null}
 
       <section className="pv-panel" aria-labelledby={`custody-${orderId}`}>

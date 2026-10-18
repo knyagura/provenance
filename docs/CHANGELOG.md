@@ -150,3 +150,11 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Ask the seller.** Buyers can ask before buying. Answers are public on the item page, without the asker's name. Contact and payment details are refused, to keep sales protected.
 - **Report and moderation.** Report a listing or a member. Staff see reports grouped in *Moderation* and can hide a listing, suspend or restore an account, or dismiss. Every decision is recorded and the member is told why.
 - Migrations 028, 028b and 029. Documents: [ADR 0021](adr/0021-seller-payouts.md), [ADR 0022](adr/0022-questions-reports-moderation.md).
+
+## 2026-10-18: Returns, refunds to cards, saved addresses, privacy tools and identity checks
+- **Returns.** Once the item arrives, the buyer can return it if it isn't as described, is damaged or is the wrong item. The seller accepts (or it's accepted after 48 hours) and a return label is made. When the item is back, the buyer is refunded.
+- **Refunds to cards.** Every refund now goes back to the buyer's card automatically, through Stripe.
+- **Saved addresses.** Up to 5. The default is used for orders automatically, and for returns when you sell.
+- **Your data.** Download everything NuTuYu holds about you. You can also delete your account once nothing is in progress; order records are kept without your name, as the law requires. Old data is cleaned up automatically.
+- **Identity check.** Check your identity with Stripe to show "Identity checked". Off until Stripe Identity is switched on.
+- Migrations 030, 031, 031b, 032, 032b and 033. Documents: [ADR 0023](adr/0023-refunds-and-returns.md), [ADR 0024](adr/0024-addresses-and-privacy.md), [ADR 0025](adr/0025-identity-checks.md).

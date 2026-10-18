@@ -6,7 +6,7 @@ import { useMember } from '@/components/auth/MemberProvider';
 import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
 import { REPORT_REASONS } from '@/lib/selling/trustAndSafety';
-import type { ModerationAction, PayoutStatus, StaffModeration, StaffPayouts } from '@/lib/selling/types';
+import type { ModerationAction, PayoutStatus, StaffModeration, StaffPayouts, StaffRefund } from '@/lib/selling/types';
 
 const at = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const STATUS: Record<PayoutStatus, string> = { waiting: 'Waiting for seller', queued: 'Queued', sending: 'Sending', sent: 'Sent', failed: 'Failed', held: 'Held' };
@@ -19,7 +19,9 @@ export function StaffPayoutsPanel() {
   const [d, setD] = useState<StaffPayouts | null | undefined>(undefined);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [refunds, setRefunds] = useState<StaffRefund[]>([]);
   const load = useCallback(() => backend.staffPayouts(filter || null).then(setD).catch(() => setD(null)), [backend, filter]);
+  useEffect(() => { backend.staffRefunds().then(setRefunds).catch(() => {}); }, [backend]);
   useEffect(() => { load(); }, [load]);
   const act = async (pid: string, action: 'hold' | 'release' | 'retry') => {
     setError(null);
@@ -65,6 +67,17 @@ export function StaffPayoutsPanel() {
           ))}
         </ul>
       ) : <p>No payouts here.</p>}
+      <h3 className="pv-h3">Refunds to buyers</h3>
+      {refunds.length ? (
+        <ul className="pv-staff-list" aria-label="Refunds">
+          {refunds.map((r) => (
+            <li key={r.id} className="pv-panel">
+              <p><strong>{formatPence(r.amountPence)}</strong> · {r.status === 'manual' ? 'Needs doing by hand (no card payment)' : r.status} · <Link href={`/orders/${r.orderId}`}>order</Link></p>
+              <p className="pv-note">updated {at(r.updatedAt)}{r.attempts ? ` · ${r.attempts} ${r.attempts === 1 ? 'try' : 'tries'}` : ''}{r.lastError ? ` · ${r.lastError}` : ''}</p>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="pv-note">No refunds in the last 30 days.</p>}
     </div>
   );
 }
