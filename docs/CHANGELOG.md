@@ -166,3 +166,8 @@ Newest first. Each entry says what changed for people using the site, and which 
 - **Category and brand pages** for search engines, with structured data, and in the sitemap.
 - **Owner's dashboard.** The first tab in the staff console: this week against last, what needs attention, 30 days, and top sellers.
 - Migrations 034, 034b, 035 and 036. Documents: [ADR 0026](adr/0026-push-notifications.md), [ADR 0027](adr/0027-plans-and-boosts.md), [ADR 0028](adr/0028-landing-pages-and-owner-dashboard.md).
+
+## 2026-10-18: Security review and faster tests
+- **Security.** Suspension reasons are now private. The trust tracker is cached so it can't load the database. Internal helpers can no longer be called from outside. Every page now sends security headers (a Content Security Policy, HSTS, no framing, a strict referrer policy).
+- **Faster tests.** The browser checks run in parallel, locally and on GitHub: about 3 minutes instead of 12.
+- Migration 037. Documents: [ADR 0029](adr/0029-security-review-and-faster-tests.md).
