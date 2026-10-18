@@ -18,11 +18,24 @@ Deno.serve(async (req) => {
   if (!whsec) return new Response(JSON.stringify({ error: 'payments_not_configured' }), { status: 503 });
   const payload = await req.text();
   const reply = await handleWebhook(payload, req.headers.get('Stripe-Signature'), {
-    verify: (p, sig) => stripe.webhooks.constructEventAsync(p, sig, whsec, undefined, crypto) as never,
+    // The account endpoint's secret, then the Connect endpoint's (account.updated comes from connected accounts).
+    verify: async (p, sig) => {
+      try {
+        return await stripe.webhooks.constructEventAsync(p, sig, whsec, undefined, crypto) as never;
+      } catch (e) {
+        const connect = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
+        if (!connect) throw e;
+        return await stripe.webhooks.constructEventAsync(p, sig, connect, undefined, crypto) as never;
+      }
+    },
     async confirmPayment(orderId, ref, amount) {
       const { data, error } = await admin.rpc('confirm_payment', { p_order: orderId, p_ref: ref, p_amount: amount });
       if (error) throw error;
       return data as string;
+    },
+    async accountUpdated(accountId, details, enabled) {
+      const { error } = await admin.rpc('payout_account_updated', { p_account: accountId, p_details: details, p_enabled: enabled });
+      if (error) throw error;
     },
     async confirmGiftCard(cardId, ref, amount) {
       const { data, error } = await admin.rpc('confirm_gift_card_payment', { p_card: cardId, p_ref: ref, p_amount: amount });

@@ -140,3 +140,13 @@ Newest first. Each entry says what changed for people using the site, and which 
   - 12 months by month;
   - a CSV download.
 - Migration 027. Documents: [ADR 0020](adr/0020-staff-reports.md).
+
+## 2026-10-18: Seller payouts, questions before buying, and reporting
+- **Payouts (Stripe Connect).**
+  - Sellers set up payouts once with Stripe (*Account* or *Your sales → Getting paid*).
+  - When a buyer confirms, the seller's share is sent to their bank automatically.
+  - Staff can hold, release or retry payouts (*Staff console → Payouts*).
+  - Off until Stripe Connect and the keys are switched on.
+- **Ask the seller.** Buyers can ask before buying. Answers are public on the item page, without the asker's name. Contact and payment details are refused, to keep sales protected.
+- **Report and moderation.** Report a listing or a member. Staff see reports grouped in *Moderation* and can hide a listing, suspend or restore an account, or dismiss. Every decision is recorded and the member is told why.
+- Migrations 028, 028b and 029. Documents: [ADR 0021](adr/0021-seller-payouts.md), [ADR 0022](adr/0022-questions-reports-moderation.md).

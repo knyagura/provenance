@@ -3,6 +3,7 @@ import { breakdownFromJson } from '@/lib/domain/fees';
 import { mediaUrl, toListing, toVariants } from '@/lib/domain/catalogue';
 import { toShipping } from './shipping';
 import { toReport } from './reports';
+import { toModeration, toPayouts, toQuestions, toStaffPayouts } from './trustAndSafety';
 import { fromVoucherPatch, toBalance, toCodes, toGiftCard, toVoucher } from './money';
 import type { Tier } from '@/lib/domain/types';
 import type {
@@ -15,6 +16,13 @@ import type {
 type Err = { message: string; code?: string };
 const fail = (e: Err): { ok: false; message: string } => ({ ok: false, message: tidy(e.message) });
 const done = { ok: true as const, value: undefined };
+/** An Edge Function's error: "not configured" gets a friendly message. */
+async function fnFail(error: unknown, notConfigured: string): Promise<{ ok: false; message: string; code?: string }> {
+  const ctx = (error as { context?: Response }).context;
+  const body = ctx && typeof ctx.json === 'function' ? await ctx.json().catch(() => null) : null;
+  if (body?.error === 'payments_not_configured') return { ok: false, code: 'not_configured', message: notConfigured };
+  return { ok: false, code: body?.error, message: body?.message ?? tidy((error as Error).message ?? 'Something went wrong.') };
+}
 
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 const toSearches = (data: any): SavedSearch[] => ((data as Record<string, unknown>[] | null) ?? []).map((s) => ({
@@ -443,6 +451,75 @@ export const supabaseMarket: MarketBackend = {
       id: n.id, kind: n.kind, group: n.group, title: n.title, body: n.body, link: n.link, count: n.count,
       createdAt: n.created_at, read: Boolean(n.read), emailed: Boolean(n.emailed),
     }));
+  },
+  async myPayouts() {
+    const { data, error } = await supabase().rpc('my_payouts');
+    return error || !data ? null : toPayouts(data);
+  },
+  async startPayoutSetup() {
+    const { data, error } = await supabase().functions.invoke('connect', { body: { action: 'onboard' } });
+    if (error) return fnFail(error, 'Payouts aren’t switched on yet. Your money is kept safe and will be paid once they are.');
+    return { ok: true, value: { url: data.url } };
+  },
+  async refreshPayoutStatus() {
+    const { error } = await supabase().functions.invoke('connect', { body: { action: 'status' } });
+    if (error) return fnFail(error, 'Payouts aren’t switched on yet.');
+    const { data } = await supabase().rpc('my_payouts');
+    return { ok: true, value: toPayouts(data) };
+  },
+  async payoutDashboard() {
+    const { data, error } = await supabase().functions.invoke('connect', { body: { action: 'dashboard' } });
+    return error ? fnFail(error, 'Payouts aren’t switched on yet.') : { ok: true, value: { url: data.url } };
+  },
+  async staffPayouts(status) {
+    const { data, error } = await supabase().rpc('staff_payouts', { p_status: status });
+    return error || !data ? null : toStaffPayouts(data);
+  },
+  async staffPayoutAction(id, action, note) {
+    const { data, error } = await supabase().rpc('staff_payout_action', { p_id: id, p_action: action, p_note: note });
+    return error ? fail(error) : { ok: true, value: toStaffPayouts(data) };
+  },
+  async listingQuestions(listingId) {
+    const { data, error } = await supabase().rpc('listing_questions', { p_listing: listingId });
+    return error ? [] : toQuestions(data);
+  },
+  async askQuestion(listingId, body) {
+    const { data, error } = await supabase().rpc('ask_question', { p_listing: listingId, p_body: body });
+    return error ? fail(error) : { ok: true, value: toQuestions(data) };
+  },
+  async answerQuestion(id, answer) {
+    const { data, error } = await supabase().rpc('answer_question', { p_question: id, p_answer: answer });
+    return error ? fail(error) : { ok: true, value: toQuestions(data) };
+  },
+  async removeQuestion(id) {
+    const { data, error } = await supabase().rpc('remove_question', { p_question: id });
+    return error ? fail(error) : { ok: true, value: toQuestions(data) };
+  },
+  async myUnansweredQuestions() {
+    const { data, error } = await supabase().rpc('my_unanswered_questions');
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return error || !data ? [] : (data as any[]).map((q) => ({ id: q.id, listingId: q.listing_id, title: q.title, body: q.body, createdAt: q.created_at }));
+  },
+  async report(target, reason, note) {
+    const { error } = await supabase().rpc('report', {
+      p_listing: 'listingId' in target ? target.listingId : null, p_member: 'member' in target ? target.member : null, p_reason: reason, p_note: note || null,
+    });
+    return error ? fail(error) : done;
+  },
+  async staffModeration(status) {
+    const { data, error } = await supabase().rpc('staff_moderation', { p_status: status });
+    return error || !data ? null : toModeration(data);
+  },
+  async staffModerate(target, action, note) {
+    const { data, error } = await supabase().rpc('staff_moderate', {
+      p_listing: 'listingId' in target ? target.listingId : null, p_member: 'member' in target ? target.member : null, p_action: action, p_note: note,
+    });
+    return error ? fail(error) : { ok: true, value: toModeration(data) };
+  },
+  async myHiddenListings() {
+    const { data, error } = await supabase().rpc('my_hidden_listings');
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return error || !data ? [] : (data as any[]).map((h) => ({ id: h.id, title: h.title, note: h.note ?? null, at: h.at }));
   },
   async staffReport(from, to) {
     const { data, error } = await supabase().rpc('staff_report', { p_from: from, p_to: to });

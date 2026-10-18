@@ -467,6 +467,14 @@ try {
 
     await seller.reload();
     await seller.getByText('released and will be paid out').waitFor();
+    // Payouts: released, waiting for the seller to set up payouts; once set up (example: straight away), sent.
+    await seller.goto(BASE + '/selling');
+    const getPaid = seller.getByRole('region', { name: 'Getting paid' });
+    await getPaid.waitFor();
+    await getPaid.getByText('Waiting for you to set up payouts').waitFor({ timeout: 5000 }).catch(() => fail('payouts: the released payment should wait for set-up'));
+    await getPaid.getByRole('button', { name: 'Set up payouts' }).click();
+    await getPaid.getByText('Payouts are set up.', { exact: true }).waitFor({ timeout: 5000 }).catch(() => fail('payouts: set-up should confirm'));
+    await getPaid.getByText('Sent to your bank').first().waitFor({ timeout: 5000 }).catch(async () => fail(`payouts: the payment should show as sent (${(await getPaid.innerText()).replace(/\s+/g, ' ').slice(0, 300)})`));
     // Trust: the completed handover shows on the public tracker and on the seller's record.
     await seller.goto(BASE + '/trust');
     const tracked = seller.getByRole('definition').first();
@@ -998,6 +1006,69 @@ try {
     if (await sim.locator('a[href="/item/example-1"]').count()) fail('similar items should not include the item itself');
     if (serr.length) fail(`better search: page errors: ${serr.slice(0, 3).join(' | ')}`);
     await sctx.close();
+  }
+
+  // Questions before buying, reporting, and staff moderation.
+  {
+    const qctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const qerr = [];
+    const p = await qctx.newPage();
+    p.on('pageerror', (e) => qerr.push(e.message));
+    const signIn = async (email, next) => {
+      await p.goto(`${BASE}/signin?next=${encodeURIComponent(next)}`);
+      await p.getByLabel('Email').fill(email);
+      await p.getByLabel('Password').fill('a-long-password');
+      await p.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await p.waitForURL((u) => u.pathname === next.split('?')[0].split('#')[0] || u.pathname === '/passkey');
+      if (new URL(p.url()).pathname === '/passkey') { await p.getByRole('button', { name: 'Not now' }).click(); await p.waitForURL((u) => u.pathname === next.split('?')[0].split('#')[0]); }
+    };
+    const signOut = async () => {
+      await p.goto(BASE + '/profile');
+      await p.getByRole('button', { name: 'Sign out' }).click();
+      await p.waitForURL((u) => u.pathname === '/');
+    };
+    // A buyer asks; contact details are refused.
+    await signIn('asker@example.com', '/item/example-2');
+    const qa = p.getByRole('region', { name: 'Questions' });
+    await qa.getByLabel('Ask mia.k a question').fill('Can I pay by bank transfer?');
+    await qa.getByText(/Keep contact and payment details out/).waitFor().catch(() => fail('questions: contact details should be warned about'));
+    await qa.getByLabel('Ask mia.k a question').fill('Does it come up small?');
+    await qa.getByRole('button', { name: 'Ask' }).click();
+    await qa.getByText('Sent. We’ll tell you when mia.k answers.').waitFor({ timeout: 5000 }).catch(() => fail('questions: asking should confirm'));
+    // And reports the listing.
+    await p.getByText('Report this listing').click();
+    await p.getByLabel('It looks fake').check();
+    await p.getByRole('button', { name: 'Send report' }).click();
+    await p.getByText(/Our team will look at it/).waitFor({ timeout: 5000 }).catch(() => fail('reports: sending should confirm'));
+    await signOut();
+    // The seller answers.
+    await signIn('mia.k@example.test', '/selling');
+    await p.getByRole('heading', { name: 'Questions to answer' }).waitFor({ timeout: 5000 }).catch(() => fail('questions: the seller should see questions to answer'));
+    await p.goto(BASE + '/item/example-2#questions');
+    await p.getByLabel('Your answer').fill('It’s true to size.');
+    await p.getByRole('button', { name: 'Answer', exact: true }).click();
+    await p.getByText('It’s true to size.').waitFor({ timeout: 5000 }).catch(() => fail('questions: the answer should show'));
+    await signOut();
+    // Anyone sees the answer, without the asker's name.
+    await p.goto(BASE + '/item/example-2');
+    const pub = p.getByRole('region', { name: 'Questions' });
+    await pub.getByText('It’s true to size.').waitFor({ timeout: 5000 }).catch(() => fail('questions: answered questions should be public'));
+    if (!(await pub.getByText(/A buyer asked/).isVisible())) fail('questions: the asker should not be named');
+    // Staff hide the reported listing.
+    await signIn('staff.moderation@example.com', '/staff');
+    await p.getByRole('tab', { name: 'Moderation' }).click();
+    const reports = p.getByRole('list', { name: 'Reports' });
+    await reports.getByRole('link', { name: 'Floral midi dress' }).waitFor({ timeout: 5000 }).catch(() => fail('moderation: the report should be in the queue'));
+    await reports.getByPlaceholder('Note to the member (required)').fill('Label looks counterfeit');
+    await reports.getByRole('button', { name: 'Hide listing' }).click();
+    await p.getByRole('status').filter({ hasText: 'Listing hidden.' }).waitFor({ timeout: 5000 }).catch(() => fail('moderation: hiding should confirm'));
+    await p.getByRole('tab', { name: 'Payouts' }).click();
+    await p.getByLabel('Payouts by status').waitFor({ timeout: 5000 }).catch(() => fail('payouts: staff should see payouts'));
+    await p.goto(BASE + '/item/example-2');
+    await p.getByText('Hidden by NuTuYu staff: Label looks counterfeit').waitFor({ timeout: 5000 }).catch(() => fail('moderation: the item should say it is hidden'));
+    await p.screenshot({ path: 'test-results/questions-390.png', fullPage: true });
+    if (qerr.length) fail(`questions: page errors: ${qerr.slice(0, 3).join(' | ')}`);
+    await qctx.close();
   }
 
   // Search engines: sitemap and robots answer; a missing page is a friendly 404.

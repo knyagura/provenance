@@ -8,6 +8,9 @@ import { OfferBox } from '@/components/market/OfferBox';
 import { ItemBasketButton } from '@/components/baskets/ItemBasketButton';
 import { RatingLine } from '@/components/market/Reviews';
 import { TrustLine } from '@/components/market/Trust';
+import { Questions } from '@/components/safety/Questions';
+import { ReportButton } from '@/components/safety/Report';
+import { ExampleHiddenNotice } from '@/components/safety/SellerNotices';
 import { BundleNote } from '@/components/market/BundleNote';
 import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
 import { ListingGrid } from '@/components/browse/ListingGrid';
@@ -144,6 +147,7 @@ export default async function ItemPage({ params }: Props) {
 
       <div className="pv-item__buy">
         {l.example ? <Badge tone="neutral">Example listing</Badge> : null}
+        <ExampleHiddenNotice listingId={l.id} />
         <h1>{l.title}</h1>
         <p className="pv-item__price">{formatPence(l.pricePence)}</p>
         <div className="pv-item__tier">
@@ -207,6 +211,9 @@ export default async function ItemPage({ params }: Props) {
             <p className="pv-item__desc">{l.description}</p>
           </section>
         ) : null}
+
+        <Questions listingId={l.id} seller={l.seller.username} />
+        <ReportButton target={{ listingId: l.id }} label="Report this listing" />
       </div>
 
       <section className="pv-item__journey" aria-labelledby="journey">

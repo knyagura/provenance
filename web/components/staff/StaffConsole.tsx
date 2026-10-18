@@ -1,6 +1,7 @@
 'use client';
 
 import { Reports } from './Reports';
+import { StaffModerationPanel, StaffPayoutsPanel } from './StaffSafety';
 import Link from 'next/link';
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
@@ -11,9 +12,11 @@ import { StaffGate } from './StaffGate';
 import { VoucherEditor } from '@/components/vouchers/VoucherEditor';
 import { PopupEditor } from './PopupEditor';
 
-type Tab = 'queue' | 'messages' | 'reports' | 'agents' | 'vouchers' | 'popups' | 'settings';
+type Tab = 'queue' | 'moderation' | 'payouts' | 'messages' | 'reports' | 'agents' | 'vouchers' | 'popups' | 'settings';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'queue', label: 'Queue' },
+  { key: 'moderation', label: 'Moderation' },
+  { key: 'payouts', label: 'Payouts' },
   { key: 'messages', label: 'Messages' },
   { key: 'agents', label: 'Couriers and hubs' },
   { key: 'vouchers', label: 'Vouchers' },
@@ -41,7 +44,7 @@ export function StaffConsole() {
           ))}
         </div>
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-          {tab === 'queue' ? <Queue /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : tab === 'vouchers' ? <VoucherEditor mode="staff" /> : tab === 'popups' ? <PopupEditor /> : tab === 'reports' ? <Reports /> : <Settings />}
+          {tab === 'queue' ? <Queue /> : tab === 'moderation' ? <StaffModerationPanel /> : tab === 'payouts' ? <StaffPayoutsPanel /> : tab === 'messages' ? <Messages /> : tab === 'agents' ? <Agents /> : tab === 'vouchers' ? <VoucherEditor mode="staff" /> : tab === 'popups' ? <PopupEditor /> : tab === 'reports' ? <Reports /> : <Settings />}
         </div>
       </div>
     </StaffGate>

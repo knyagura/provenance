@@ -430,6 +430,28 @@ export interface MarketBackend {
   createLabel(orderId: string, service: string, parcel: ParcelSize): Promise<Result<OrderShipping>>;
   cancelLabel(orderId: string): Promise<Result<OrderShipping>>;
 
+  /** Seller payouts (Stripe Connect). */
+  myPayouts(): Promise<PayoutSummary | null>;
+  /** Starts (or continues) setting up payouts: a link to Stripe's set-up page. */
+  startPayoutSetup(): Promise<Result<{ url: string | null }>>;
+  refreshPayoutStatus(): Promise<Result<PayoutSummary>>;
+  payoutDashboard(): Promise<Result<{ url: string }>>;
+  staffPayouts(status: PayoutStatus | null): Promise<StaffPayouts | null>;
+  staffPayoutAction(id: string, action: 'hold' | 'release' | 'retry', note: string): Promise<Result<StaffPayouts>>;
+
+  /** Questions before buying. */
+  listingQuestions(listingId: string): Promise<ListingQuestion[]>;
+  askQuestion(listingId: string, body: string): Promise<Result<ListingQuestion[]>>;
+  answerQuestion(questionId: string, answer: string): Promise<Result<ListingQuestion[]>>;
+  removeQuestion(questionId: string): Promise<Result<ListingQuestion[]>>;
+  myUnansweredQuestions(): Promise<{ id: string; listingId: string; title: string; body: string; createdAt: string }[]>;
+
+  /** Reports and moderation. */
+  report(target: { listingId: string } | { member: string }, reason: ReportReason, note: string): Promise<Result>;
+  staffModeration(status: 'open' | 'actioned' | 'dismissed'): Promise<StaffModeration | null>;
+  staffModerate(target: { listingId: string } | { member: string }, action: ModerationAction, note: string): Promise<Result<StaffModeration>>;
+  myHiddenListings(): Promise<{ id: string; title: string; note: string | null; at: string }[]>;
+
   /** Staff: sales, fees, disputes and handover times between two dates (inclusive, UK time). */
   staffReport(from: string, to: string): Promise<Result<StaffReport>>;
   /** Public: a seller's protected-handover record, and the site-wide tracker. */
@@ -600,4 +622,26 @@ export interface StaffReport {
   handover: { completed: number; avgHours: number | null; medianHours: number | null; byTier: Partial<Record<TierKey4, { completed: number; avgHours: number | null }>> };
   labels: Record<string, number>;
   months: { month: string; orders: number; gmvPence: number; netFeesPence: number; disputes: number }[];
+}
+
+export type PayoutStatus = 'waiting' | 'queued' | 'sending' | 'sent' | 'failed' | 'held';
+export interface PayoutSummary {
+  account: { connected: boolean; detailsSubmitted: boolean; payoutsEnabled: boolean } | null;
+  waitingPence: number;
+  sentPence: number;
+  recent: { id: string; orderId: string; title: string; amountPence: number; labelPence: number; status: PayoutStatus; createdAt: string; sentAt: string | null }[];
+}
+export interface StaffPayouts {
+  counts: Partial<Record<PayoutStatus, number>>;
+  totals: Partial<Record<PayoutStatus, number>>;
+  items: { id: string; orderId: string; seller: string; amountPence: number; status: PayoutStatus; attempts: number; lastError: string | null; holdReason: string | null; updatedAt: string; sentAt: string | null; connected: boolean; payoutsEnabled: boolean }[];
+}
+export interface ListingQuestion { id: string; body: string; answer: string | null; answeredAt: string | null; createdAt: string; mine: boolean; canAnswer: boolean }
+export type ReportReason = 'counterfeit' | 'prohibited' | 'scam' | 'offensive' | 'wrong_category' | 'other';
+export type ModerationAction = 'dismiss' | 'hide_listing' | 'restore_listing' | 'suspend' | 'restore_member';
+export interface StaffModeration {
+  open: number;
+  suspended: number;
+  hidden: number;
+  items: { kind: 'listing' | 'member'; listingId: string | null; title: string | null; hidden: boolean; member: string | null; suspended: boolean; count: number; latest: string; reasons: ReportReason[]; notes: string[] }[];
 }

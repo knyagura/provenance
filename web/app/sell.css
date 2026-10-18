@@ -318,3 +318,20 @@ details.pv-panel > summary { cursor: pointer; font-weight: 600; min-height: var(
 .pv-report__months td:nth-child(3) { position: relative; }
 .pv-report__bar { position: absolute; right: 0; top: 15%; height: 70%; background: var(--surface-sand); border-radius: 3px; z-index: -1; }
 .pv-report__months td:nth-child(3) { isolation: isolate; }
+
+/* Payouts, questions, reports, staff moderation */
+.pv-payouts { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-payouts__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pv-payouts__list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.pv-payouts__list li .pv-note { grid-column: 1 / -1; }
+.pv-qa { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-qa__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-qa__list > li { display: flex; flex-direction: column; gap: var(--space-1); padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
+.pv-qa__q, .pv-qa__a { margin: 0; overflow-wrap: anywhere; }
+.pv-qa textarea, .pv-report-btn textarea, .pv-staff-list input { width: 100%; font: inherit; padding: var(--space-2); border: 1px solid var(--ink-muted); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
+.pv-staff-list input { min-height: var(--tap-min); flex: 1 1 220px; }
+.pv-report-btn summary { cursor: pointer; color: var(--ink-soft); text-decoration: underline; min-height: var(--tap-min); display: inline-flex; align-items: center; }
+.pv-report-btn[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-staff-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-staff-list > li { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-staff-list p { margin: 0; overflow-wrap: anywhere; }

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui';
 import { formatPence } from '@/lib/format';
 import type { SellerDashboard } from '@/lib/selling';
 import { VoucherEditor } from '@/components/vouchers/VoucherEditor';
+import { PayoutsPanel } from '@/components/account/Payouts';
+import { SellerNotices } from '@/components/safety/SellerNotices';
 
 const STATE: Record<string, string> = { in_progress: 'Handover under way', confirmed: 'Complete', disputed: 'Problem reported', not_started: 'Starting' };
 const PAYOUT: Record<string, string> = { held: 'Held', due: 'Released', paid: 'Paid out', refund: 'Refunded' };
@@ -53,6 +55,8 @@ export function SellerDashboardView() {
         </div>
       </header>
 
+      <SellerNotices />
+
       <section aria-labelledby="dash-totals">
         <h2 id="dash-totals" className="pv-visually-hidden">Totals</h2>
         <ul className="pv-tiles">
@@ -81,6 +85,7 @@ export function SellerDashboardView() {
         </section>
       ) : null}
 
+      <PayoutsPanel />
       <BundleSettings initial={d.bundle} />
       <VoucherEditor mode="shop" />
 

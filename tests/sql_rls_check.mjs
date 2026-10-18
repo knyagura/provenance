@@ -35,35 +35,18 @@ export const SUPABASE_STUBS = `
   grant execute on function storage.foldername(text) to anon, authenticated;
 `;
 
+// Every numbered migration in backend/, in order, except the ones that need Supabase-only extensions
+// (pg_cron, pg_net, Vault), which the local test database doesn't have: the "b" scheduling files and 017.
+const SUPABASE_ONLY = /^(\d{3}b_|017_)/;
+export const MIGRATIONS = fs.readdirSync(path.join(here, '..', 'backend'))
+  .filter((f) => /^\d{3}[a-z]?_.+\.sql$/.test(f) && !SUPABASE_ONLY.test(f) && f >= '002')
+  .sort();
+
 export async function freshDb() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUBS);
   await db.exec(read('supabase_schema.sql'));
-  await db.exec(read('002_listing_status_and_integrity.sql'));
-  await db.exec(read('003_advisor_fixes.sql'));
-  await db.exec(read('004_browsing_and_api.sql'));
-  await db.exec(read('005_listing_media_storage.sql'));
-  await db.exec(read('006_selling.sql'));
-  await db.exec(read('007_accounts.sql'));
-  await db.exec(read('008_checkout.sql'));
-  await db.exec(read('009_listing_edits.sql'));
-  await db.exec(read('010_transaction_fee.sql'));
-  await db.exec(read('011_custody.sql'));
-  await db.exec(read('012_marketplace.sql'));
-  await db.exec(read('013_baskets.sql'));
-  await db.exec(read('014_contact.sql'));
-  await db.exec(read('015_fk_indexes.sql'));
-  await db.exec(read('016_notifications.sql'));
-  await db.exec(read('018_variants.sql'));
-  await db.exec(read('019_saved_searches.sql'));
-  await db.exec(read('020_seller_tools.sql'));
-  await db.exec(read('021_popups.sql'));
-  await db.exec(read('022_vouchers_gift_cards.sql'));
-  await db.exec(read('023_near_me.sql'));
-  await db.exec(read('024_popup_off.sql'));
-  await db.exec(read('025_shipping_labels.sql'));
-  await db.exec(read('026_trust.sql'));
-  await db.exec(read('027_staff_reports.sql'));
+  for (const f of MIGRATIONS) await db.exec(read(f));
   return db;
 }
 
@@ -86,32 +69,8 @@ if (isMain) {
 
   const db = await freshDb();
   // Re-running the migration must be harmless.
-  await db.exec(read('002_listing_status_and_integrity.sql'));
-  await db.exec(read('003_advisor_fixes.sql'));
-  await db.exec(read('004_browsing_and_api.sql'));
-  await db.exec(read('005_listing_media_storage.sql'));
-  await db.exec(read('006_selling.sql'));
-  await db.exec(read('007_accounts.sql'));
-  await db.exec(read('008_checkout.sql'));
-  await db.exec(read('009_listing_edits.sql'));
-  await db.exec(read('010_transaction_fee.sql'));
-  await db.exec(read('011_custody.sql'));
-  await db.exec(read('012_marketplace.sql'));
-  await db.exec(read('013_baskets.sql'));
-  await db.exec(read('014_contact.sql'));
-  await db.exec(read('015_fk_indexes.sql'));
-  await db.exec(read('016_notifications.sql'));
-  await db.exec(read('018_variants.sql'));
-  await db.exec(read('019_saved_searches.sql'));
-  await db.exec(read('020_seller_tools.sql'));
-  await db.exec(read('021_popups.sql'));
-  await db.exec(read('022_vouchers_gift_cards.sql'));
-  await db.exec(read('023_near_me.sql'));
-  await db.exec(read('024_popup_off.sql'));
-  await db.exec(read('025_shipping_labels.sql'));
-  await db.exec(read('026_trust.sql'));
-  await db.exec(read('027_staff_reports.sql'));
-  ok(true, 'schema + migrations 002-016 and 018-027 apply cleanly, and re-run idempotently');
+  for (const f of MIGRATIONS) await db.exec(read(f));
+  ok(true, `schema + ${MIGRATIONS.length} migrations apply cleanly, and re-run idempotently`);
 
   const SELLER = '11111111-1111-1111-1111-111111111111';
   const BUYER = '22222222-2222-2222-2222-222222222222';
