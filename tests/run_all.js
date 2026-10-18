@@ -3,7 +3,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 const suites = ['smoketest.js', 'attacktest.js', 'e2e_journey.js', 'check_real_camera.js', 'check_qr_scan.js',
-  'check_webauthn.js', 'check_m4.js', 'check_cam_layout.js', 'sql_rls_check.mjs', 'custody_attacks.mjs', 'marketplace_checks.mjs', 'basket_checks.mjs', 'contact_checks.mjs', 'notification_checks.mjs', 'variant_checks.mjs', 'alert_checks.mjs', 'seller_checks.mjs', 'voucher_checks.mjs', 'popup_checks.mjs', 'near_checks.mjs', 'label_checks.mjs', 'trust_checks.mjs', 'report_checks.mjs', 'two_user_journey.mjs',
+  'check_webauthn.js', 'check_m4.js', 'check_cam_layout.js', 'sql_rls_check.mjs', 'custody_attacks.mjs', 'marketplace_checks.mjs', 'basket_checks.mjs', 'contact_checks.mjs', 'notification_checks.mjs', 'variant_checks.mjs', 'alert_checks.mjs', 'seller_checks.mjs', 'voucher_checks.mjs', 'popup_checks.mjs', 'near_checks.mjs', 'label_checks.mjs', 'trust_checks.mjs', 'report_checks.mjs', 'payout_checks.mjs', 'moderation_checks.mjs', 'two_user_journey.mjs',
   'real_browser_layout.js'];
 let failed = [];
 for (const s of suites) {

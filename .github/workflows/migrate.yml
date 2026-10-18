@@ -46,6 +46,8 @@ jobs:
       - run: node label_checks.mjs
       - run: node trust_checks.mjs
       - run: node report_checks.mjs
+      - run: node payout_checks.mjs
+      - run: node moderation_checks.mjs
 
   migrate:
     needs: database-tests

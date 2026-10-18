@@ -11,6 +11,7 @@ import { examplePopups } from './examplePopups';
 import { exampleShipping } from './exampleShipping';
 import { exampleTrust } from './exampleTrust';
 import { exampleReport } from './exampleReports';
+import { exampleSafety } from './exampleSafety';
 import { ALL_EMAILS, exampleNotifications, exampleNotify, exampleNotifyMessage, exampleReadOrderMessages, offerWords } from './exampleNotifications';
 import { exampleCustody, EXAMPLE_AGENTS_KEY, exampleChainOk, exampleOrders, exampleSellerId, exampleStaffResolve, loadMarket, memberId, saveMarket, type StoredOrder } from './exampleMarket';
 import type {
@@ -609,6 +610,52 @@ export function makeExampleMarket(me: () => Member | null): MarketBackend {
     async staffSavePopup(pid, patch, showAgain) {
       if (!isStaffMember(me())) return fail('Staff only.');
       return examplePopups.save(pid, patch, showAgain);
+    },
+    async myPayouts() {
+      return exampleSafety.payouts(me());
+    },
+    async startPayoutSetup() {
+      return exampleSafety.connect(me());
+    },
+    async refreshPayoutStatus() {
+      const p = exampleSafety.payouts(me());
+      return p ? { ok: true, value: p } : fail('Sign in first.');
+    },
+    async payoutDashboard() {
+      return fail('In example mode there’s no Stripe dashboard.');
+    },
+    async staffPayouts() {
+      return exampleSafety.staffPayouts(me());
+    },
+    async staffPayoutAction(pid, action, note) {
+      return exampleSafety.staffPayoutAction(me(), pid, action, note);
+    },
+    async listingQuestions(lid) {
+      return exampleSafety.questions(lid, me());
+    },
+    async askQuestion(lid, body) {
+      return exampleSafety.ask(lid, body, me());
+    },
+    async answerQuestion(qid, answer) {
+      return exampleSafety.answer(qid, answer, me());
+    },
+    async removeQuestion(qid) {
+      return exampleSafety.remove(qid, me());
+    },
+    async myUnansweredQuestions() {
+      return exampleSafety.unanswered(me());
+    },
+    async report(target, reason, note) {
+      return exampleSafety.report(target, reason, note, me());
+    },
+    async staffModeration(status) {
+      return exampleSafety.moderation(me(), status);
+    },
+    async staffModerate(target, action, note) {
+      return exampleSafety.moderate(me(), target, action, note);
+    },
+    async myHiddenListings() {
+      return exampleSafety.hiddenFor(me());
     },
     async staffReport(from, to) {
       if (!isStaffMember(me())) return fail('Staff only.');

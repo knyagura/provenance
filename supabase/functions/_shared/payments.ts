@@ -148,6 +148,8 @@ async function giftCardCheckout(userId: string, cardId: unknown, deps: CheckoutD
 export interface WebhookDeps {
   /** Verifies Stripe's signature and returns the event; throws when the signature is wrong. */
   verify(payload: string, signature: string): Promise<{ type: string; data: { object: PaymentIntentLike } }>;
+  /** Stripe Connect: a seller's account changed (finished onboarding, or Stripe paused payouts). */
+  accountUpdated?(accountId: string, detailsSubmitted: boolean, payoutsEnabled: boolean): Promise<void>;
   confirmPayment(orderId: string, ref: string, amountPence: number): Promise<string>;
   confirmGroupPayment?(groupId: string, ref: string, amountPence: number): Promise<string>;
   confirmGiftCard?(cardId: string, ref: string, amountPence: number): Promise<string>;
@@ -161,6 +163,12 @@ export async function handleWebhook(payload: string, signature: string | null, d
     event = await deps.verify(payload, signature);
   } catch {
     return { status: 400, body: { error: 'bad_signature' } };
+  }
+  if (event.type === 'account.updated' && deps.accountUpdated) {
+    const a = event.data.object as unknown as { id: string; details_submitted?: boolean; payouts_enabled?: boolean };
+    if (!/^acct_[A-Za-z0-9]+$/.test(a.id ?? '')) return { status: 200, body: { ignored: 'no_account' } };
+    await deps.accountUpdated(a.id, !!a.details_submitted, !!a.payouts_enabled);
+    return { status: 200, body: { result: 'account_updated' } };
   }
   if (event.type !== 'payment_intent.succeeded') return { status: 200, body: { ignored: event.type } };
   const pi = event.data.object;

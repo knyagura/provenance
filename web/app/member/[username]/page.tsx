@@ -1,4 +1,5 @@
 import { TrustLine } from '@/components/market/Trust';
+import { ReportButton } from '@/components/safety/Report';
 import { MemberReviews } from '@/components/market/Reviews';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -53,6 +54,7 @@ export default async function MemberPage({ params }: Props) {
         {listings.items.length ? <ListingGrid listings={listings.items} label={`Listings by ${member.username}`} /> : <p>Nothing for sale right now.</p>}
       </section>
       <MemberReviews username={member.username} />
+      {examples ? null : <ReportButton target={{ member: member.username }} label={`Report ${member.username}`} />}
     </>
   );
 }
