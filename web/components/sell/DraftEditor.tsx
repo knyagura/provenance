@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { LiveListing } from './LiveListing';
+import { BackLink } from '@/components/ui/BackLink';
 import { fallbackCategories } from '@/lib/domain/examples';
 import { CATEGORY_TREE, categoryPath, materialSuggestions, sizeConversions, sizeKindFor, sizeSuggestions } from '@/lib/domain/taxonomy';
 import { MAX_PRICE_PENCE, MIN_PRICE_PENCE, PARCEL_SIZES, missingForPublish, profileFor, tierForPrice, type Shot } from '@/lib/domain/evidence';
@@ -151,6 +152,7 @@ export function DraftEditor({ id }: { id: string }) {
 
   return (
     <div className="pv-sell">
+      <BackLink fallback="/profile" label="Back to your listings" />
       <header className="pv-section">
         <p className="pv-eyebrow">{editingLive ? `Editing · version ${d.revision}` : 'New listing · draft'}</p>
         <h1>{d.title || 'New listing'}</h1>
