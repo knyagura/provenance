@@ -8,10 +8,15 @@ do $$ begin
   alter table public.listings add constraint listings_materials_count
     check (cardinality(materials) <= 8);
 exception when duplicate_object then null; end $$;
-do $$ begin
-  alter table public.listings add constraint listings_materials_length
-    check (not exists (select 1 from unnest(materials) m where char_length(m) > 40));
-exception when duplicate_object then null; end $$;
+create or replace function public.validate_listing_materials()
+returns trigger language plpgsql set search_path = public as $
+begin
+  if cardinality(new.materials) > 8 then raise exception 'Choose up to 8 materials.'; end if;
+  if exists (select 1 from unnest(new.materials) m where char_length(m) > 40) then raise exception 'Material names must be 40 characters or fewer.'; end if;
+  return new;
+end; $;
+drop trigger if exists listings_validate_materials on public.listings;
+create trigger listings_validate_materials before insert or update of materials on public.listings for each row execute procedure public.validate_listing_materials();
 
 -- Rename the existing top-level categories without changing their stable slugs.
 update public.categories set name = case slug
