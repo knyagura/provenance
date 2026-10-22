@@ -17,6 +17,7 @@ import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
 import { ListingGrid } from '@/components/browse/ListingGrid';
 import { VariantPicker } from '@/components/browse/VariantPicker';
 import { fallbackCategories } from '@/lib/domain/examples';
+import { categoryPath } from '@/lib/domain/taxonomy';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
 import type { Listing, Tier } from '@/lib/domain/types';
 import { formatPence } from '@/lib/format';
@@ -63,30 +64,30 @@ function journey(tier: Tier): CustodyStep[] {
     { title: 'Photographed when listed', note: 'The seller took these photos in the app; they are the reference for the item.', state: 'done' },
     witnessed
       ? {
-          title: 'Handed over in front of a courier',
-          note: `The seller reads a one-time code on video, weighs the parcel and fits a numbered seal${hub ? ', plus an Item Seal on the item itself' : ''}, while a courier watches.`,
+          title: 'Parcel handed over to the courier',
+          note: `The seller records the parcel being packed, weighs it and seals it with a unique code while the courier is present${hub ? ', with an extra seal on the item itself' : ''}.`,
           state: 'later',
         }
       : { title: 'Photographed as it’s packed, posted with tracking', note: 'The seller photographs it going into the parcel and adds the tracking number.', state: 'later' },
   ];
   if (hub) {
     steps.push({
-      title: tier === 'ultraLuxury' ? 'Authenticated twice' : 'Authenticated',
-      note: `An authentication hub checks the seals, opens it on camera and checks it against reference data${tier === 'ultraLuxury' ? ', then a second, independent authenticator checks it too' : ''}. It is resealed for the last leg.`,
+      title: tier === 'ultraLuxury' ? 'Checked by two specialists' : 'Checked by a specialist',
+      note: `A specialist checks the item and its seals on camera, then seals it again for delivery${tier === 'ultraLuxury' ? ' before a second independent specialist carries out another check' : ''}.`,
       state: 'later',
     });
   }
   if (witnessed) {
-    steps.push({ title: 'Opened on camera, with the courier', note: 'The courier weighs it at your door. You check the seal code, then open it on camera while they watch.', state: 'later' });
+    steps.push({ title: 'You check and open your parcel', note: 'The courier weighs the parcel at your door. Check the seal, then record yourself opening it so there is a clear record if something is wrong.', state: 'later' });
   }
-  steps.push({ title: 'You confirm, the seller is paid', note: 'If something’s wrong, report it and the payment stays held while it’s sorted out.', state: 'later' });
+  steps.push({ title: 'Confirm everything is right', note: 'Once you confirm the item is as expected, the seller is paid. If there is a problem, report it so the payment can be held while it is reviewed.', state: 'later' });
   return steps;
 }
 
 export default async function ItemPage({ params }: Props) {
   const l = await load((await params).id);
   if (!l) notFound();
-  const cat = categoryName(fallbackCategories, l.category);
+  const cat = l.category ? categoryPath(l.category) || categoryName(fallbackCategories, l.category) : undefined;
   const photos = l.media.filter((m) => m.kind === 'photo');
   const exampleMode = process.env.PV_DATA_SOURCE === 'examples';
   // Business sellers: colours, sizes and stock. Fixed prices, so no offers.
@@ -99,6 +100,7 @@ export default async function ItemPage({ params }: Props) {
     ['Size', l.size],
     ['Condition', l.condition],
     ['Colour', l.colour],
+    ['Materials', l.materials?.length ? l.materials.join(', ') : null],
     ['Category', cat ?? null],
     ['Serial ends', l.serialHint],
   ];
@@ -225,7 +227,7 @@ export default async function ItemPage({ params }: Props) {
 
       <section className="pv-item__journey" aria-labelledby="journey">
         <h2 id="journey">How this item reaches you</h2>
-        <p className="pv-lead">Each step is recorded, so if anything goes wrong there is evidence to settle it.</p>
+        <p className="pv-lead">We keep a record from listing to delivery, so there is evidence to help resolve problems if something goes wrong.</p>
         <CustodyTimeline steps={journey(l.tier)} label="How this item reaches you" />
         <p><Link href={`/passport/${l.id}`}>See this item’s passport</Link>: its recorded history, without anyone’s personal details.</p>
       </section>

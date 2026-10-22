@@ -97,12 +97,13 @@ async function toCustody(j: CustodyJson | null): Promise<CustodyView | null> {
 // listing rules (migration 006) decide what is allowed; this file only translates.
 
 const DRAFT_COLUMNS =
-  'id, category, title, brand, size_label, colour, condition_label, description, price_pence, parcel_size, declined_shots, published, revision, status, updated_at, ' +
+  'id, category, materials, title, brand, size_label, colour, condition_label, description, price_pence, parcel_size, declined_shots, published, revision, status, updated_at, ' +
   'media:listing_media(id, shot, kind, path, created_at, retired_at), secret:listing_secrets(serial_number)';
 
 interface DraftRow {
   id: string;
   category: string | null;
+  materials: string[] | null;
   title: string;
   brand: string | null;
   size_label: string | null;
@@ -125,6 +126,7 @@ function toDraft(r: DraftRow): Draft {
   return {
     id: r.id,
     category: r.category,
+    materials: r.materials ?? [],
     title: r.title === DRAFT_TITLE ? '' : r.title,
     brand: r.brand ?? '',
     size: r.size_label ?? '',
@@ -365,6 +367,7 @@ export const supabaseBackend: SellingBackend = {
   async saveDraft(id, f) {
     const row: Record<string, unknown> = {};
     if (f.category !== undefined) row.category = f.category;
+    if (f.materials !== undefined) row.materials = f.materials;
     if (f.title !== undefined) row.title = f.title.trim() || DRAFT_TITLE;
     if (f.brand !== undefined) row.brand = f.brand.trim() || null;
     if (f.size !== undefined) row.size_label = f.size.trim() || null;
@@ -558,6 +561,17 @@ export const supabaseBackend: SellingBackend = {
       const step = t.step ? planFor(t.tier).find((p) => p.key === t.step) ?? null : null;
       return { orderId: t.order_id, title: t.title, tier: t.tier, state: t.state, step, updatedAt: t.updated_at } satisfies AgentTask;
     });
+  },
+
+  async deleteListing(id) {
+    const me = await uid();
+    if (!me) return { ok: false, message: 'Sign in first.' };
+    const { data: rows } = await supabase().from('listing_media').select('path').eq('listing_id', id);
+    const { error } = await supabase().rpc('delete_listing_if_safe', { p_listing: id });
+    if (error) return fail(error);
+    const paths = (rows ?? []).map((r) => r.path as string).filter((path) => path.startsWith(`${me}/`));
+    if (paths.length) await supabase().storage.from('listing-media').remove(paths);
+    return { ok: true, value: undefined };
   },
 
   async deleteDraft(id) {

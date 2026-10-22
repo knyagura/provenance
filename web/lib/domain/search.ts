@@ -1,5 +1,6 @@
 import { milesBetween } from './places';
 import type { Listing, ListingQuery } from './types';
+import { isCategoryOrDescendant } from './taxonomy';
 
 /** Words people search with: letters and digits only, lower case, at most 8. */
 export function searchWords(q: string | undefined): string[] {
@@ -22,7 +23,7 @@ export function filterInMemory(all: Listing[], query: ListingQuery): Listing[] {
   const matches = all.filter((l) => {
     if (l.status !== 'active' || l.browseVisible === false) return false;
     if (query.seller ? l.seller.username.toLowerCase() !== query.seller.toLowerCase() : l.seller.away) return false;
-    if (query.category && l.category !== query.category) return false;
+    if (query.category && !isCategoryOrDescendant(l.category, query.category)) return false;
     if (query.condition && l.condition !== query.condition) return false;
     if (query.brand && (l.brand ?? '').trim().toLowerCase() !== query.brand.trim().toLowerCase()) return false;
     if (query.size && (l.size ?? '').trim().toLowerCase() !== query.size.trim().toLowerCase()) return false;

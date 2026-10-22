@@ -52,8 +52,9 @@ export default async function HomePage() {
 
       <section className="pv-section" aria-labelledby="protect">
         <div className="pv-section__head">
-          <h2 id="protect">Protection grows with the price</h2>
+          <h2 id="protect">More protection for higher-value items</h2>
         </div>
+        <p className="pv-lead">The price you list your item for determines the standard checks included with its sale. Higher-value items receive additional checks, such as a recorded courier handover or independent authentication. Any protection or authentication charges will be shown clearly before you pay.</p>
         <ul className="pv-tiers">
           {TIERS.map((t) => (
             <li key={t}>

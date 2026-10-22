@@ -12,6 +12,7 @@ import { fallbackCategories } from '@/lib/domain/examples';
 import { categoryName, countText, resultsHeading } from '@/lib/domain/present';
 import { get as getParam, parseSiteQuery, type Params } from '@/lib/domain/query';
 import { CONDITIONS, type Listing, type ListingQuery, type Page } from '@/lib/domain/types';
+import { categoryPath } from '@/lib/domain/taxonomy';
 
 type Props = { searchParams: Promise<Params> };
 
@@ -106,7 +107,7 @@ export default async function SearchPage({ searchParams }: Props) {
               <label htmlFor="f-category">Category</label>
               <select id="f-category" name="category" defaultValue={query.category ?? ''}>
                 <option value="">All categories</option>
-                {categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                {categories.map((c) => <option key={c.slug} value={c.slug}>{categoryPath(c.slug) || c.name}</option>)}
               </select>
             </div>
             <div className="pv-field">

@@ -34,20 +34,20 @@ export function toCard(l: Listing): ListingCardProps {
   };
 }
 
-/** The protection each price band gets, in the words the badges use. */
+/** Clear, customer-friendly names for each level of protection. */
 export const TIER_LABEL: Record<Tier, string> = {
-  enhanced: 'Photo evidence',
-  verified: 'Courier witnessed',
-  luxury: 'Authenticated',
-  ultraLuxury: 'Double authenticated',
+  enhanced: 'Photos and tracking',
+  verified: 'Courier handover check',
+  luxury: 'Specialist checked',
+  ultraLuxury: 'Two specialist checks',
 };
 
-/** One line on what each level of protection means, for item pages and the home page. */
+/** Plain-language explanation of the checks included at each price level. */
 export const TIER_NOTE: Record<Tier, string> = {
-  enhanced: 'Photographed when listed and when packed, posted with tracking.',
-  verified: 'A courier watches it packed and sealed, and watches you open it.',
-  luxury: 'Courier witnessed, plus an authentication hub checks it before it reaches you.',
-  ultraLuxury: 'Courier witnessed, and two independent authenticators check it.',
+  enhanced: 'Photos are taken when the item is listed and packed, then it is sent with tracking.',
+  verified: 'For items listed at £75 or more, we record the parcel being handed over and opened, with a courier present.',
+  luxury: 'For items listed at £500 or more, a specialist also checks the item before it continues to you.',
+  ultraLuxury: 'For items listed at £1,500 or more, two independent specialists check the item before it continues to you.',
 };
 
 /** The price each level starts at, in pence. */

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
-import { fallbackCategories } from '@/lib/domain/examples';
+import { ROOT_CATEGORIES } from '@/lib/domain/taxonomy';
 import { profileFor } from '@/lib/domain/evidence';
 import type { Draft } from '@/lib/selling';
 import { MyListings } from './MyListings';
@@ -50,7 +50,7 @@ export function SellStart() {
         <p className="pv-lead">Choose a category. We’ll ask for the photos buyers of that kind of item expect, and they become the item’s record if anything is disputed.</p>
         {error ? <p className="pv-errors" role="alert">{error}</p> : null}
         <ul className="pv-picks">
-          {fallbackCategories.map((c) => {
+          {ROOT_CATEGORIES.map((c) => {
             const p = profileFor(c.slug);
             const req = p?.shots.filter((s) => s.required && s.kind === 'photo').length ?? 0;
             return (

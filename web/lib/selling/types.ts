@@ -22,6 +22,7 @@ export interface DraftMedia {
 export interface Draft {
   id: string;
   category: string | null;
+  materials: string[];
   title: string;
   brand: string;
   size: string;
@@ -42,7 +43,7 @@ export interface Draft {
   updatedAt: string;
 }
 
-export type DraftFields = Partial<Pick<Draft, 'category' | 'title' | 'brand' | 'size' | 'colour' | 'condition' | 'description' | 'pricePence' | 'parcelSize' | 'declined'>>;
+export type DraftFields = Partial<Pick<Draft, 'category' | 'materials' | 'title' | 'brand' | 'size' | 'colour' | 'condition' | 'description' | 'pricePence' | 'parcelSize' | 'declined'>>;
 
 export interface PreparedMedia {
   blob: Blob;
@@ -578,6 +579,8 @@ export interface SellingBackend extends MarketBackend, BasketBackend {
   /** Takes a live listing off sale so it can be edited; publishing again puts it back. */
   pauseForEditing(id: string): Promise<Result>;
   deleteDraft(id: string): Promise<Result>;
+  /** Deletes an active listing only when it has no associated orders or dispute history. */
+  deleteListing(id: string): Promise<Result>;
 
   /** Today's price breakdown for a listing; null when it can't be bought. */
   quote(listingId: string): Promise<FeeBreakdown | null>;

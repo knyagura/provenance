@@ -48,6 +48,8 @@ export interface Listing {
   description: string | null;
   brand: string | null;
   category: string | null;
+  /** Materials supplied by the seller. */
+  materials?: string[];
   size: string | null;
   colour: string | null;
   condition: string | null;
