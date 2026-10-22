@@ -579,6 +579,8 @@ export interface SellingBackend extends MarketBackend, BasketBackend {
   /** Takes a live listing off sale so it can be edited; publishing again puts it back. */
   pauseForEditing(id: string): Promise<Result>;
   deleteDraft(id: string): Promise<Result>;
+  /** Deletes an active listing only when it has no associated orders or dispute history. */
+  deleteListing(id: string): Promise<Result>;
 
   /** Today's price breakdown for a listing; null when it can't be bought. */
   quote(listingId: string): Promise<FeeBreakdown | null>;
