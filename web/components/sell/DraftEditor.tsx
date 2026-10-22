@@ -300,10 +300,8 @@ export function DraftEditor({ id }: { id: string }) {
           </div>
           <div className="pv-field">
             <label htmlFor="size">Size (optional)</label>
-            {sizeSuggestions(d.category).length ? <select id="size" value={d.size} onChange={(e) => save({ size: e.target.value })}>
-              <option value="">Choose a size…</option>{sizeSuggestions(d.category).map((size) => <option key={size} value={size}>{size}</option>)}<option value="Other">Other / not listed</option>
-            </select> : null}
-            <input aria-label="Enter size" defaultValue={d.size} maxLength={30} placeholder={sizeSuggestions(d.category).length ? 'Or enter a different size' : 'Enter size, if applicable'} onBlur={(e) => e.target.value.trim() !== d.size && save({ size: e.target.value })} />
+            <input id="size" list={sizeSuggestions(d.category).length ? "size-options" : undefined} defaultValue={d.size} maxLength={30} placeholder={sizeSuggestions(d.category).length ? 'Choose or enter a size' : 'Enter size, if applicable'} onBlur={(e) => e.target.value.trim() !== d.size && save({ size: e.target.value })} />
+            {sizeSuggestions(d.category).length ? <datalist id="size-options">{sizeSuggestions(d.category).map((size) => <option key={size} value={size} />)}</datalist> : null}
             {sizeConversions(sizeKindFor(d.category)).length ? <details className="pv-size-chart"><summary>View UK / EU / US size conversion chart</summary>
               <table><thead><tr><th>UK</th><th>EU</th><th>US</th></tr></thead><tbody>{sizeConversions(sizeKindFor(d.category)).map((row) => <tr key={`${row.uk}-${row.eu}-${row.us}`}><td>{row.uk}</td><td>{row.eu}</td><td>{row.us}</td></tr>)}</tbody></table>
               <p className="pv-note">Conversions are approximate and vary by brand. Check the item’s label when possible.</p>
