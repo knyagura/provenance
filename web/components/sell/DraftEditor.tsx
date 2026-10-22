@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
 import { LiveListing } from './LiveListing';
 import { fallbackCategories } from '@/lib/domain/examples';
+import { CATEGORY_TREE, categoryPath, materialSuggestions, sizeConversions, sizeKindFor, sizeSuggestions } from '@/lib/domain/taxonomy';
 import { MAX_PRICE_PENCE, MIN_PRICE_PENCE, PARCEL_SIZES, missingForPublish, profileFor, tierForPrice, type Shot } from '@/lib/domain/evidence';
 import { TIER_LABEL } from '@/lib/domain/present';
 import { CONDITIONS } from '@/lib/domain/types';
@@ -163,7 +164,14 @@ export function DraftEditor({ id }: { id: string }) {
         <div className="pv-field">
           <label htmlFor="category">What is it?</label>
           <select id="category" value={d.category ?? ''} onChange={(e) => save({ category: e.target.value || null })}>
-            {fallbackCategories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+            <option value="">Choose a category…</option>
+            {fallbackCategories.filter((c) => !c.parentSlug).map((root) => (
+              <optgroup key={root.slug} label={root.name}>
+                {CATEGORY_TREE.filter((c) => c.slug === root.slug || categoryPath(c.slug).startsWith(`${root.name} /`)).map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.slug === root.slug ? c.name : categoryPath(c.slug).slice(root.name.length + 3)}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           <span className="pv-note">Changing this changes the photos we ask for.</span>
         </div>
@@ -261,6 +269,22 @@ export function DraftEditor({ id }: { id: string }) {
           <label htmlFor="title">Title</label>
           <input id="title" defaultValue={d.title} maxLength={100} placeholder="e.g. Barbour Beaufort wax jacket" onBlur={(e) => e.target.value.trim() !== d.title && save({ title: e.target.value.trim() })} />
         </div>
+        <div className="pv-field">
+          <label htmlFor="materials">Materials (optional)</label>
+          <p className="pv-note">Select all that apply. Suggestions are based on the category; choose Other to enter a material not listed.</p>
+          <div className="pv-materials" id="materials">
+            {materialSuggestions(d.category).filter((m) => m !== 'Other').map((material) => <label key={material} className="pv-materials__option"><input type="checkbox" checked={d.materials.includes(material)} onChange={(e) => {
+              const next = e.target.checked ? [...d.materials.filter((m) => m !== material && m !== 'Other'), material] : d.materials.filter((m) => m !== material); void save({ materials: next });
+            }} /> {material}</label>)}
+            <label className="pv-materials__option"><input type="checkbox" checked={d.materials.some((m) => !materialSuggestions(d.category).includes(m))} onChange={(e) => {
+              const known = d.materials.filter((m) => materialSuggestions(d.category).includes(m)); const custom = d.materials.find((m) => !materialSuggestions(d.category).includes(m) && m !== 'Other');
+              void save({ materials: e.target.checked ? [...known, custom ?? 'Other'] : known });
+            }} /> Other</label>
+          </div>
+          {d.materials.some((m) => !materialSuggestions(d.category).includes(m)) ? <input aria-label="Other material" defaultValue={d.materials.find((m) => !materialSuggestions(d.category).includes(m) && m !== 'Other') ?? ''} maxLength={40} placeholder="Enter other material" onBlur={(e) => {
+            const value = e.target.value.trim(); void save({ materials: [...d.materials.filter((m) => materialSuggestions(d.category).includes(m)), ...(value ? [value] : [])].slice(0, 8) });
+          }} /> : null}
+        </div>
         <div className="pv-grid2">
           <div className="pv-field">
             <label htmlFor="brand">Brand (optional)</label>
@@ -268,7 +292,14 @@ export function DraftEditor({ id }: { id: string }) {
           </div>
           <div className="pv-field">
             <label htmlFor="size">Size (optional)</label>
-            <input id="size" defaultValue={d.size} maxLength={30} onBlur={(e) => e.target.value.trim() !== d.size && save({ size: e.target.value })} />
+            {sizeSuggestions(d.category).length ? <select id="size" value={d.size} onChange={(e) => save({ size: e.target.value })}>
+              <option value="">Choose a size…</option>{sizeSuggestions(d.category).map((size) => <option key={size} value={size}>{size}</option>)}<option value="Other">Other / not listed</option>
+            </select> : null}
+            <input aria-label="Enter size" defaultValue={d.size} maxLength={30} placeholder={sizeSuggestions(d.category).length ? 'Or enter a different size' : 'Enter size, if applicable'} onBlur={(e) => e.target.value.trim() !== d.size && save({ size: e.target.value })} />
+            {sizeConversions(sizeKindFor(d.category)).length ? <details className="pv-size-chart"><summary>View UK / EU / US size conversion chart</summary>
+              <table><thead><tr><th>UK</th><th>EU</th><th>US</th></tr></thead><tbody>{sizeConversions(sizeKindFor(d.category)).map((row) => <tr key={`${row.uk}-${row.eu}-${row.us}`}><td>{row.uk}</td><td>{row.eu}</td><td>{row.us}</td></tr>)}</tbody></table>
+              <p className="pv-note">Conversions are approximate and vary by brand. Check the item’s label when possible.</p>
+            </details> : null}
           </div>
           <div className="pv-field">
             <label htmlFor="colour">Colour (optional)</label>
