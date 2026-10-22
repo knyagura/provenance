@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { exampleCatalogue } from '@/lib/domain/examples';
 import { filterInMemory, searchWords, toPrefixTsQuery } from '@/lib/domain/search';
 import type { ListingQuery } from '@/lib/domain/types';
+import { categoryPath, sizeConversions, sizeSuggestions } from '@/lib/domain/taxonomy';
 
 const base: ListingQuery = { sort: 'newest', limit: 50, offset: 0 };
 
@@ -44,5 +45,19 @@ describe('in-memory filtering (example catalogue)', () => {
   });
   it('marks every example', () => {
     expect(exampleCatalogue.every((l) => l.example && l.id.startsWith('example-'))).toBe(true);
+  });
+});
+
+
+describe('nested category and size taxonomy', () => {
+  it('builds readable nested paths for listing filters', () => {
+    expect(categoryPath('women-shoes-flats')).toBe("Women's Wear / Shoes / Flats");
+  });
+  it('suggests children’s shoe sizes for children’s trainers', () => {
+    expect(sizeSuggestions('kids-shoes-trainers')).toContain('UK child 7');
+  });
+  it('offers adult clothing sizes and conversion guidance', () => {
+    expect(sizeSuggestions('women-clothing-dresses')).toContain('UK 10');
+    expect(sizeConversions('womens-clothing').some((row) => row.uk === '10')).toBe(true);
   });
 });
