@@ -35,10 +35,38 @@ const clothing: EvidenceProfile = {
   serial: null,
 };
 
+const footwear: EvidenceProfile = {
+  shots: [
+    front('Both shoes together, from the side and top.'),
+    back('Both heels and the backs of the shoes.'),
+    { key: 'sole', label: 'Soles and tread', hint: 'Show the wear on the soles and heels.', kind: 'photo', required: true },
+    { key: 'label', label: 'Size and maker label', hint: 'Show the size label inside the shoe or on the box, if available.', kind: 'photo', required: true, decline: 'No label' },
+    wear,
+  ],
+  serial: null,
+};
+
+const bag: EvidenceProfile = {
+  shots: [
+    front('The whole bag, including its shape and handles.'),
+    back(),
+    { key: 'interior', label: 'Interior', hint: 'Show the lining, pockets and inside label.', kind: 'photo', required: true },
+    { key: 'hardware', label: 'Hardware and closures', hint: 'Show zips, clasps, buckles and any maker marks.', kind: 'photo', required: true },
+    wear,
+  ],
+  serial: null,
+};
+
 export const EVIDENCE_PROFILES: Record<string, EvidenceProfile> = {
   women: clothing,
   men: clothing,
   kids: clothing,
+  'women-shoes': footwear,
+  'men-shoes': footwear,
+  'kids-shoes': footwear,
+  'women-bags': bag,
+  'men-bags': bag,
+  'designer-bags': bag,
   sport: clothing,
   designer: {
     shots: [
@@ -90,8 +118,12 @@ export const EVIDENCE_PROFILES: Record<string, EvidenceProfile> = {
 
 export function profileFor(category: string | null | undefined): EvidenceProfile | null {
   if (!category) return null;
+  const direct = EVIDENCE_PROFILES[category];
+  if (direct) return direct;
+  const family = ['women-shoes', 'men-shoes', 'kids-shoes', 'women-bags', 'men-bags', 'designer-bags'].find((prefix) => category.startsWith(prefix + '-'));
+  if (family && EVIDENCE_PROFILES[family]) return EVIDENCE_PROFILES[family];
   const root = categoryRoot(category);
-  return EVIDENCE_PROFILES[category] ?? (root ? EVIDENCE_PROFILES[root] ?? null : null);
+  return root ? EVIDENCE_PROFILES[root] ?? null : null;
 }
 
 /** Price bands that set how a sale is witnessed (the add-on tiers in the fee model). Set by the database too. */
