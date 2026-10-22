@@ -45,9 +45,9 @@ export const TIER_LABEL: Record<Tier, string> = {
 /** One line on what each level of protection means, for item pages and the home page. */
 export const TIER_NOTE: Record<Tier, string> = {
   enhanced: 'Photographed when listed and when packed, posted with tracking.',
-  verified: 'A courier watches it packed and sealed, and watches you open it.',
-  luxury: 'Courier witnessed, plus an authentication hub checks it before it reaches you.',
-  ultraLuxury: 'Courier witnessed, and two independent authenticators check it.',
+  verified: 'For items listed at £75 or more, the sale triggers courier-witnessed packing and opening. Optional witness services can also be added where available.',
+  luxury: 'For items listed at £500 or more, courier witnessing is joined by an independent authentication hub. Optional services are shown separately before checkout.',
+  ultraLuxury: 'For items listed at £1,500 or more, two independent authenticators check it alongside the courier-witnessed chain of custody.',
 };
 
 /** The price each level starts at, in pence. */
