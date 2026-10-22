@@ -11,6 +11,7 @@ import { listingChanges, type ListingVersion } from '@/lib/domain/versions';
 import { formatPence } from '@/lib/format';
 import type { CheckoutStarted, PaymentStart } from '@/lib/selling';
 import { FeeLines } from './FeeLines';
+import { BackLink } from '@/components/ui/BackLink';
 
 // Stripe's script loads only when someone actually reaches the payment step.
 import { CodesBox } from './CodesBox';
@@ -100,6 +101,7 @@ export function CheckoutView({ item, offerId = null }: { item: CheckoutItem; off
 
   return (
     <div className="pv-checkout">
+      <BackLink fallback={`/item/${item.id}`} label="Back to item" />
       <header className="pv-section">
         <p className="pv-eyebrow">Checkout</p>
         <h1>{item.title}</h1>
