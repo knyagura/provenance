@@ -99,6 +99,7 @@ export default async function ItemPage({ params }: Props) {
     ['Size', l.size],
     ['Condition', l.condition],
     ['Colour', l.colour],
+    ['Materials', l.materials?.length ? l.materials.join(', ') : null],
     ['Category', cat ?? null],
     ['Serial ends', l.serialHint],
   ];
