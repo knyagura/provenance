@@ -1,3 +1,5 @@
+import { categoryRoot } from './taxonomy';
+
 // What a seller must capture before a listing can go live, by category. The database holds the same
 // profiles (migration 006) and enforces them when a listing is published; a unit test keeps the two equal.
 // Here they drive the guided camera checklist, so the seller knows what is missing before they press Publish.
@@ -87,7 +89,9 @@ export const EVIDENCE_PROFILES: Record<string, EvidenceProfile> = {
 };
 
 export function profileFor(category: string | null | undefined): EvidenceProfile | null {
-  return category ? EVIDENCE_PROFILES[category] ?? null : null;
+  if (!category) return null;
+  const root = categoryRoot(category);
+  return EVIDENCE_PROFILES[category] ?? (root ? EVIDENCE_PROFILES[root] ?? null : null);
 }
 
 /** Price bands that set how a sale is witnessed (the add-on tiers in the fee model). Set by the database too. */
