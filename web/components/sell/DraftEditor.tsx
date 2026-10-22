@@ -78,6 +78,12 @@ export function DraftEditor({ id }: { id: string }) {
           await reload();
           return null;
         }}
+        onDelete={async () => {
+          const r = await backend.deleteListing(draft.id);
+          if (!r.ok) return r.message;
+          window.location.assign('/profile');
+          return null;
+        }}
       />
     );
   }
