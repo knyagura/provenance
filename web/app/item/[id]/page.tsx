@@ -17,6 +17,7 @@ import { getListing, getSimilar, getVariants } from '@/lib/domain/catalogue';
 import { ListingGrid } from '@/components/browse/ListingGrid';
 import { VariantPicker } from '@/components/browse/VariantPicker';
 import { fallbackCategories } from '@/lib/domain/examples';
+import { categoryPath } from '@/lib/domain/taxonomy';
 import { categoryName, placeholderFor, TIER_NOTE } from '@/lib/domain/present';
 import type { Listing, Tier } from '@/lib/domain/types';
 import { formatPence } from '@/lib/format';
@@ -86,7 +87,7 @@ function journey(tier: Tier): CustodyStep[] {
 export default async function ItemPage({ params }: Props) {
   const l = await load((await params).id);
   if (!l) notFound();
-  const cat = categoryName(fallbackCategories, l.category);
+  const cat = l.category ? categoryPath(l.category) || categoryName(fallbackCategories, l.category) : undefined;
   const photos = l.media.filter((m) => m.kind === 'photo');
   const exampleMode = process.env.PV_DATA_SOURCE === 'examples';
   // Business sellers: colours, sizes and stock. Fixed prices, so no offers.
