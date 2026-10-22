@@ -180,9 +180,9 @@ export function materialSuggestions(slug: string | null | undefined): string[] {
   const s = slug ?? '';
   if (s.includes('shoes') || s.includes('boots') || s.includes('trainers') || s.includes('flats') || s.includes('heels') || s.includes('sandals')) return MATERIAL_SUGGESTIONS.shoes;
   if (s.includes('bags')) return MATERIAL_SUGGESTIONS.bags;
+  if (s.includes('accessories')) return MATERIAL_SUGGESTIONS.accessories;
   if (s.includes('clothing') || s.startsWith('women') || s.startsWith('men') || s.startsWith('kids')) return MATERIAL_SUGGESTIONS.clothing;
   if (s.startsWith('home')) return MATERIAL_SUGGESTIONS.home;
   if (s.startsWith('electronics')) return MATERIAL_SUGGESTIONS.electronics;
-  if (s.includes('accessories')) return MATERIAL_SUGGESTIONS.accessories;
   return MATERIAL_SUGGESTIONS.general;
 }
