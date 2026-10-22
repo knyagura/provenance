@@ -222,7 +222,7 @@ export const exampleBackend: SellingBackend = {
     if (!s.member) return { ok: false, message: 'Sign in to sell.' };
     const id = `example-draft-${Math.random().toString(36).slice(2, 10)}`;
     s.drafts.push({
-      id, category, title: '', brand: '', size: '', colour: '', condition: null, description: '', pricePence: null,
+      id, category, materials: [], title: '', brand: '', size: '', colour: '', condition: null, description: '', pricePence: null,
       parcelSize: null, declined: [], published: false, revision: 0, status: 'active', media: [], serial: '', updatedAt: now(),
     });
     save(s);
