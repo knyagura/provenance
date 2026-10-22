@@ -59,7 +59,11 @@ function exampleQuote(listingId: string) {
 function load(): Store {
   try {
     const raw = sessionStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Store;
+    if (raw) {
+      const store = JSON.parse(raw) as Store;
+      store.drafts = (store.drafts ?? []).map((draft) => ({ ...draft, materials: draft.materials ?? [] }));
+      return store;
+    }
   } catch {
     /* storage unavailable: start empty */
   }
