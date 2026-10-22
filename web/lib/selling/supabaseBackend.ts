@@ -563,6 +563,12 @@ export const supabaseBackend: SellingBackend = {
     });
   },
 
+  async deleteListing(id) {
+    const { error } = await supabase().rpc('delete_listing_if_safe', { p_listing: id });
+    if (error) return fail(error);
+    return { ok: true, value: undefined };
+  },
+
   async deleteDraft(id) {
     const draft = await supabaseBackend.getDraft(id);
     if (!draft) return { ok: true, value: undefined };
