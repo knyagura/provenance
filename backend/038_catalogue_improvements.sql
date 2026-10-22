@@ -23,13 +23,14 @@ update public.categories set name = case slug
   when 'women' then 'Women''s Wear'
   when 'men' then 'Men''s Wear'
   when 'kids' then 'Children''s Wear'
+  when 'designer' then 'Designer Fashion'
   when 'home' then 'Home and Living'
   when 'electronics' then 'Electronics and Tech'
   when 'books-media' then 'Books and Media'
   when 'hobbies' then 'Hobbies and Collectables'
   when 'sport' then 'Sports and Outdoors'
   else name end
-where slug in ('women','men','kids','home','electronics','books-media','hobbies','sport');
+where slug in ('women','men','kids','designer','home','electronics','books-media','hobbies','sport');
 
 insert into public.categories (slug, name, parent_slug, position) values
   ('women-accessories','Accessories','women',1), ('women-accessories-belts','Belts','women-accessories',1), ('women-accessories-hats','Hats','women-accessories',2), ('women-accessories-jewellery','Jewellery','women-accessories',3), ('women-accessories-scarves','Scarves','women-accessories',4), ('women-accessories-sunglasses','Sunglasses','women-accessories',5),
