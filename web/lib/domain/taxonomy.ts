@@ -64,7 +64,7 @@ export const CATEGORY_TREE: Category[] = [
   { slug: 'kids-shoes-trainers', name: 'Trainers', parentSlug: 'kids-shoes' },
   { slug: 'kids-shoes-flats', name: 'Flats', parentSlug: 'kids-shoes' },
   { slug: 'kids-shoes-sandals', name: 'Sandals', parentSlug: 'kids-shoes' },
-  { slug: 'designer', name: 'Designer', parentSlug: null },
+  { slug: 'designer', name: 'Designer Fashion', parentSlug: null },
   { slug: 'designer-bags', name: 'Bags', parentSlug: 'designer' },
   { slug: 'designer-clothing', name: 'Clothing', parentSlug: 'designer' },
   { slug: 'designer-shoes', name: 'Shoes', parentSlug: 'designer' },
@@ -134,7 +134,7 @@ const CHILD_SHOES = ['UK child 0', 'UK child 1', 'UK child 2', 'UK child 3', 'UK
 
 export function sizeKindFor(slug: string | null | undefined): SizeKind {
   const s = slug ?? '';
-  if (s.startsWith('kids-shoes') || s === 'kids') return 'childrens-shoes';
+  if (s.startsWith('kids-shoes')) return 'childrens-shoes';
   if (s.startsWith('kids-clothing')) return 'childrens-clothing';
   if (s.startsWith('women-shoes') || s === 'women-shoes') return 'womens-shoes';
   if (s.startsWith('men-shoes')) return 'mens-shoes';
