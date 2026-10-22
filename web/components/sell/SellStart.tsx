@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/components/auth/MemberProvider';
-import { fallbackCategories } from '@/lib/domain/examples';
 import { ROOT_CATEGORIES } from '@/lib/domain/taxonomy';
 import { profileFor } from '@/lib/domain/evidence';
 import type { Draft } from '@/lib/selling';
