@@ -61,6 +61,12 @@ export const EVIDENCE_PROFILES: Record<string, EvidenceProfile> = {
   women: clothing,
   men: clothing,
   kids: clothing,
+  'women-shoes': footwear,
+  'men-shoes': footwear,
+  'kids-shoes': footwear,
+  'women-bags': bag,
+  'men-bags': bag,
+  'designer-bags': bag,
   sport: clothing,
   designer: {
     shots: [
