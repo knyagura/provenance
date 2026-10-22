@@ -22,6 +22,7 @@ export interface DraftMedia {
 export interface Draft {
   id: string;
   category: string | null;
+  materials: string[];
   title: string;
   brand: string;
   size: string;
@@ -42,7 +43,7 @@ export interface Draft {
   updatedAt: string;
 }
 
-export type DraftFields = Partial<Pick<Draft, 'category' | 'title' | 'brand' | 'size' | 'colour' | 'condition' | 'description' | 'pricePence' | 'parcelSize' | 'declined'>>;
+export type DraftFields = Partial<Pick<Draft, 'category' | 'materials' | 'title' | 'brand' | 'size' | 'colour' | 'condition' | 'description' | 'pricePence' | 'parcelSize' | 'declined'>>;
 
 export interface PreparedMedia {
   blob: Blob;
