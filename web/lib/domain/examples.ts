@@ -1,10 +1,10 @@
 import type { Category, Listing } from './types';
-import { ALL_CATEGORIES } from './taxonomy';
+import { ROOT_CATEGORIES } from './taxonomy';
 
 // Example catalogue shown on the website while the real one is empty, and in local tests.
 // Every listing is marked example: true and the screens say so. The API never returns these.
 
-export const fallbackCategories: Category[] = ALL_CATEGORIES;
+export const fallbackCategories: Category[] = ROOT_CATEGORIES;
 
 type Seed = [
   title: string, brand: string | null, category: string, size: string | null, condition: string,
