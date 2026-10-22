@@ -70,7 +70,7 @@ export const exampleSource: CatalogueSource = {
 // ---------- Supabase ----------
 
 const LISTING_COLUMNS = [
-  'id', 'item_id', 'title', 'description', 'brand', 'category', 'size_label', 'colour', 'condition_label',
+  'id', 'item_id', 'title', 'description', 'brand', 'category', 'materials', 'size_label', 'colour', 'condition_label',
   'price_pence', 'shipping_pence', 'tier', 'status', 'created_at', 'serial_hint', 'revision', 'stock', 'variant_group', 'boosted',
   'seller:profiles!listings_seller_id_fkey!inner(username, kyc_verified, is_pro, holiday_mode, area, area_lat, area_lng, collection_ok)',
   'media:listing_media(path, kind, shot, position, retired_at)',
@@ -83,6 +83,7 @@ interface Row {
   description: string | null;
   brand: string | null;
   category: string | null;
+  materials?: string[] | null;
   size_label: string | null;
   colour: string | null;
   condition_label: string | null;
@@ -113,6 +114,7 @@ export function toListing(r: Row): Listing {
     description: r.description,
     brand: r.brand,
     category: r.category,
+    materials: r.materials ?? [],
     size: r.size_label,
     colour: r.colour,
     condition: r.condition_label,
