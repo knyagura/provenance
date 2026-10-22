@@ -4,6 +4,7 @@ import { photo, SIZES, THUMB_WIDTHS } from '@/lib/images';
 import Link from 'next/link';
 import { categoryName } from '@/lib/domain/present';
 import { fallbackCategories } from '@/lib/domain/examples';
+import { categoryPath } from '@/lib/domain/taxonomy';
 import type { Draft } from '@/lib/selling';
 import { formatPence } from '@/lib/format';
 
@@ -31,16 +32,19 @@ export function MyListings({ drafts, heading }: { drafts: Draft[]; heading: stri
               <span className="pv-row__text">
                 <strong>{d.title || 'Untitled draft'}</strong>
                 <span className="pv-note">
-                  {[categoryName(fallbackCategories, d.category), d.pricePence ? formatPence(d.pricePence) : null, stateLabel(d)].filter(Boolean).join(' · ')}
+                  {[d.category ? categoryPath(d.category) || categoryName(fallbackCategories, d.category) : null, d.pricePence ? formatPence(d.pricePence) : null, stateLabel(d)].filter(Boolean).join(' · ')}
                 </span>
               </span>
-              {d.status === 'active' ? (
-                <Link className="pv-btn pv-btn--secondary" href={`/sell/${d.id}`} aria-label={`${verb(d)}: ${d.title || 'draft'}`}>
-                  {verb(d)}
-                </Link>
-              ) : (
-                <Link className="pv-btn pv-btn--secondary" href={`/sell/${d.id}`}>Details</Link>
-              )}
+              <span className="pv-row__actions">
+                {d.published ? <Link className="pv-btn pv-btn--quiet" href={`/item/${d.id}`} aria-label={`View: ${d.title || 'listing'}`}>View</Link> : null}
+                {d.status === 'active' ? (
+                  <Link className="pv-btn pv-btn--secondary" href={`/sell/${d.id}`} aria-label={`${verb(d)}: ${d.title || 'draft'}`}>
+                    {verb(d)}
+                  </Link>
+                ) : (
+                  <Link className="pv-btn pv-btn--secondary" href={`/sell/${d.id}`}>Details</Link>
+                )}
+              </span>
             </li>
           );
         })}
