@@ -54,7 +54,7 @@ export default async function HomePage() {
         <div className="pv-section__head">
           <h2 id="protect">The item price sets its provenance level</h2>
         </div>
-        <p className="pv-lead">The price you list your item for determines the level of provenance built into its chain of custody. Optional services are extras you can choose where available; they are not automatically added to an item’s listed price.</p>
+        <p className="pv-lead">The price you list your item for determines the level of provenance built into its chain of custody. Any protection and authentication charges are shown as separate lines in the checkout breakdown before payment.</p>
         <ul className="pv-tiers">
           {TIERS.map((t) => (
             <li key={t}>
