@@ -564,8 +564,13 @@ export const supabaseBackend: SellingBackend = {
   },
 
   async deleteListing(id) {
+    const me = await uid();
+    if (!me) return { ok: false, message: 'Sign in first.' };
+    const { data: rows } = await supabase().from('listing_media').select('path').eq('listing_id', id);
     const { error } = await supabase().rpc('delete_listing_if_safe', { p_listing: id });
     if (error) return fail(error);
+    const paths = (rows ?? []).map((r) => r.path as string).filter((path) => path.startsWith(`${me}/`));
+    if (paths.length) await supabase().storage.from('listing-media').remove(paths);
     return { ok: true, value: undefined };
   },
 
