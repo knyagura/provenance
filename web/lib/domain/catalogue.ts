@@ -184,7 +184,7 @@ export const supabaseSource: CatalogueSource = {
     // Sellers on holiday drop out of browsing; their own page still lists their items.
     if (query.seller) req = req.ilike('seller.username', likeExact(query.seller));
     else req = req.eq('seller.holiday_mode', false);
-    if (query.category) req = req.eq('category', query.category);
+    if (query.category) req = req.or(`category.eq.${query.category},category.like.${query.category}-%`);
     if (query.condition) req = req.eq('condition_label', query.condition);
     if (query.size) req = req.ilike('size_label', likeExact(query.size.trim()));
     if (query.brand) req = req.ilike('brand', likeExact(query.brand.trim()));
