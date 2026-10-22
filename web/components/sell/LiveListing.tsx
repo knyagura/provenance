@@ -7,9 +7,10 @@ import type { Draft } from '@/lib/selling';
 import { VariantManager } from './VariantManager';
 
 /** A published listing, seen by its seller: view it, or pause it to edit. Locked while being bought and once sold. */
-export function LiveListing({ draft, onPause }: { draft: Draft; onPause: () => Promise<string | null> }) {
+export function LiveListing({ draft, onPause, onDelete }: { draft: Draft; onPause: () => Promise<string | null>; onDelete: () => Promise<string | null> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const example = draft.id.startsWith('example-');
 
   if (draft.status !== 'active') {
@@ -53,6 +54,10 @@ export function LiveListing({ draft, onPause }: { draft: Draft; onPause: () => P
           <Link className="pv-btn pv-btn--secondary" href={`/item/${draft.id}`}>View your listing</Link>
         )}
         <Link className="pv-btn pv-btn--quiet" href="/sell">List another item</Link>
+        {!example ? <button type="button" className="pv-btn pv-btn--quiet" disabled={busy || deleting} onClick={async () => {
+          if (!window.confirm('Delete this listing? This cannot be undone. Listings with an active sale, a completed sale or dispute history cannot be deleted.')) return;
+          setDeleting(true); const message = await onDelete(); setDeleting(false); if (message) setError(message);
+        }}>{deleting ? 'Deleting…' : 'Delete listing'}</button> : null}
       </div>
       <p className="pv-note">
         Editing takes the item off sale until you publish your changes. Anyone part-way through buying it is shown what changed and
