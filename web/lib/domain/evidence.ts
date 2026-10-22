@@ -61,12 +61,6 @@ export const EVIDENCE_PROFILES: Record<string, EvidenceProfile> = {
   women: clothing,
   men: clothing,
   kids: clothing,
-  'women-shoes': footwear,
-  'men-shoes': footwear,
-  'kids-shoes': footwear,
-  'women-bags': bag,
-  'men-bags': bag,
-  'designer-bags': bag,
   sport: clothing,
   designer: {
     shots: [
@@ -121,7 +115,7 @@ export function profileFor(category: string | null | undefined): EvidenceProfile
   const direct = EVIDENCE_PROFILES[category];
   if (direct) return direct;
   const family = ['women-shoes', 'men-shoes', 'kids-shoes', 'women-bags', 'men-bags', 'designer-bags'].find((prefix) => category.startsWith(prefix + '-'));
-  if (family && EVIDENCE_PROFILES[family]) return EVIDENCE_PROFILES[family];
+  if (family) return family.includes('shoes') ? footwear : bag;
   const root = categoryRoot(category);
   return root ? EVIDENCE_PROFILES[root] ?? null : null;
 }
