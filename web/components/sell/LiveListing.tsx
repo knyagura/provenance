@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { formatPence } from '@/lib/format';
 import type { Draft } from '@/lib/selling';
 import { VariantManager } from './VariantManager';
+import { BackLink } from '@/components/ui/BackLink';
 
 /** A published listing, seen by its seller: view it, or pause it to edit. Locked while being bought and once sold. */
 export function LiveListing({ draft, onPause, onDelete }: { draft: Draft; onPause: () => Promise<string | null>; onDelete: () => Promise<string | null> }) {
@@ -17,6 +18,7 @@ export function LiveListing({ draft, onPause, onDelete }: { draft: Draft; onPaus
     const sold = draft.status === 'sold';
     return (
       <section className="pv-section pv-narrow">
+        <BackLink fallback="/profile" label="Back to your listings" />
         <p className="pv-eyebrow">{sold ? 'Sold' : 'Being bought'}</p>
         <h1>{draft.title}</h1>
         <p className="pv-lead">
@@ -35,6 +37,7 @@ export function LiveListing({ draft, onPause, onDelete }: { draft: Draft; onPaus
 
   return (
     <section className="pv-section pv-narrow">
+      <BackLink fallback="/profile" label="Back to your listings" />
       <p className="pv-eyebrow">Live{draft.revision > 1 ? ` · version ${draft.revision}` : ''}</p>
       <h1>{draft.title} is live</h1>
       <p className="pv-lead">
