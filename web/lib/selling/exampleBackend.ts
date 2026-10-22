@@ -380,6 +380,16 @@ export const exampleBackend: SellingBackend = {
   async agentTasks() {
     return exampleCustody.agentTasks(load().member);
   },
+  async deleteListing(id) {
+    const s = load();
+    const draft = s.drafts.find((d) => d.id === id);
+    if (!draft) return ok(undefined);
+    if (draft.status !== 'active') return { ok: false, message: 'This item is being bought or has been sold and cannot be deleted.' };
+    if (draft.published || draft.revision > 0) return { ok: false, message: 'A listing that has been live is kept for its history.' };
+    s.drafts = s.drafts.filter((d) => d.id !== id);
+    save(s);
+    return ok(undefined);
+  },
   async deleteDraft(id) {
     const s = load();
     s.drafts = s.drafts.filter((d) => d.id !== id || d.published || d.revision > 0);
