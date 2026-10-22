@@ -52,8 +52,9 @@ export default async function HomePage() {
 
       <section className="pv-section" aria-labelledby="protect">
         <div className="pv-section__head">
-          <h2 id="protect">Protection grows with the price</h2>
+          <h2 id="protect">The item price sets its provenance level</h2>
         </div>
+        <p className="pv-lead">The price you list your item for determines the level of provenance built into its chain of custody. Optional services are extras you can choose where available; they are not automatically added to an item’s listed price.</p>
         <ul className="pv-tiers">
           {TIERS.map((t) => (
             <li key={t}>
